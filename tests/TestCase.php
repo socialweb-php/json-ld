@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Ramsey\Test\JsonLd;
+namespace SocialWeb\Test\JsonLd;
 
 use PHPUnit\Framework\TestCase as BaseTestCase;
 

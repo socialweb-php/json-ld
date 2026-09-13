@@ -1,4 +1,4 @@
-<h1 align="center">ramsey/json-ld</h1>
+<h1 align="center">socialweb/json-ld</h1>
 
 
 <!--
@@ -7,13 +7,12 @@ TODO: Make sure the following URLs are correct and working for your project.
       overview of your package.
 
 <p align="center">
-    <a href="https://github.com/ramsey/json-ld"><img src="https://img.shields.io/badge/source-ramsey/json--ld-blue.svg?style=flat-square" alt="Source Code"></a>
-    <a href="https://packagist.org/packages/ramsey/json-ld"><img src="https://img.shields.io/packagist/v/ramsey/json-ld.svg?style=flat-square&label=release" alt="Download Package"></a>
-    <a href="https://php.net"><img src="https://img.shields.io/packagist/php-v/ramsey/json-ld.svg?style=flat-square&colorB=%238892BF" alt="PHP Programming Language"></a>
-    <a href="https://github.com/ramsey/json-ld/blob/main/LICENSE"><img src="https://img.shields.io/packagist/l/ramsey/json-ld.svg?style=flat-square&colorB=darkcyan" alt="Read License"></a>
-    <a href="https://github.com/ramsey/json-ld/actions/workflows/continuous-integration.yml"><img src="https://img.shields.io/github/actions/workflow/status/ramsey/json-ld/continuous-integration.yml?branch=main&style=flat-square&logo=github" alt="Build Status"></a>
-    <a href="https://codecov.io/gh/ramsey/json-ld"><img src="https://img.shields.io/codecov/c/gh/ramsey/json-ld?label=codecov&logo=codecov&style=flat-square" alt="Codecov Code Coverage"></a>
-    <a href="https://shepherd.dev/github/ramsey/json-ld"><img src="https://img.shields.io/endpoint?style=flat-square&url=https%3A%2F%2Fshepherd.dev%2Fgithub%2Framsey%2Fjson-ld%2Fcoverage" alt="Psalm Type Coverage"></a>
+    <a href="https://github.com/socialweb-php/json-ld"><img src="https://img.shields.io/badge/source-socialweb/json--ld-blue.svg?style=flat-square" alt="Source Code"></a>
+    <a href="https://packagist.org/packages/socialweb/json-ld"><img src="https://img.shields.io/packagist/v/socialweb/json-ld.svg?style=flat-square&label=release" alt="Download Package"></a>
+    <a href="https://php.net"><img src="https://img.shields.io/packagist/php-v/socialweb/json-ld.svg?style=flat-square&colorB=%238892BF" alt="PHP Programming Language"></a>
+    <a href="https://github.com/socialweb-php/json-ld/blob/main/LICENSE"><img src="https://img.shields.io/packagist/l/socialweb/json-ld.svg?style=flat-square&colorB=darkcyan" alt="Read License"></a>
+    <a href="https://github.com/socialweb-php/json-ld/actions/workflows/continuous-integration.yml"><img src="https://img.shields.io/github/actions/workflow/status/socialweb-php/json-ld/continuous-integration.yml?branch=main&style=flat-square&logo=github" alt="Build Status"></a>
+    <a href="https://codecov.io/gh/socialweb-php/json-ld"><img src="https://img.shields.io/codecov/c/gh/socialweb-php/json-ld?label=codecov&logo=codecov&style=flat-square" alt="Codecov Code Coverage"></a>
 </p>
 -->
 
@@ -37,7 +36,7 @@ uphold this code.
 Install this package as a dependency using [Composer](https://getcomposer.org).
 
 ``` bash
-composer require ramsey/json-ld
+composer require socialweb/json-ld
 ```
 
 <!--
@@ -48,7 +47,7 @@ If you need to provide more detailed examples, use the `docs/` directory
 and provide a link here to the documentation.
 
 ``` php
-use Ramsey\JsonLd\Example;
+use SocialWeb\JsonLd\Example;
 
 $example = new Example();
 echo $example->greet('fellow human');
@@ -75,7 +74,7 @@ security issue in software that is maintained in this repository, please read
 
 ## Copyright and License
 
-ramsey/json-ld is copyright © [Ben Ramsey](https://ben.ramsey.dev)
+socialweb/json-ld is copyright © socialweb/json-ld Contributors
 and licensed for use under the terms of the
 GNU Lesser General Public License (LGPL-3.0-or-later) as published by the Free
 Software Foundation. Please see [COPYING.LESSER](COPYING.LESSER),

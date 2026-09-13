@@ -1,5 +1,5 @@
 {
-    "name": "ramsey/json-ld",
+    "name": "socialweb/json-ld",
     "description": "",
     "license": "LGPL-3.0-or-later",
     "type": "library",
@@ -7,13 +7,11 @@
         "json-ld",
         "linked data"
     ],
-    "authors": [
-        {
-            "name": "Ben Ramsey",
-            "email": "ben@ramsey.dev",
-            "homepage": "https://ben.ramsey.dev"
-        }
-    ],
+    "support": {
+        "issues": "https://github.com/socialweb-php/json-ld/issues",
+        "forum": "https://github.com/socialweb-php/json-ld/discussions",
+        "security": "https://github.com/socialweb-php/json-ld/security/policy"
+    },
     "require": {
         "php": "^8.5"
     },
@@ -34,12 +32,12 @@
     "prefer-stable": true,
     "autoload": {
         "psr-4": {
-            "Ramsey\\JsonLd\\": "src/"
+            "SocialWeb\\JsonLd\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Ramsey\\Test\\JsonLd\\": "tests/"
+            "SocialWeb\\Test\\JsonLd\\": "tests/"
         }
     },
     "config": {

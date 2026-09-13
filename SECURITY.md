@@ -31,7 +31,7 @@ this repository, we encourage you to notify us.
 
 | Version | In scope | Source code |
 | ------- | :------: | ----------- |
-| latest  | ✅        | https://github.com/ramsey/json-ld |
+| latest  | ✅        | https://github.com/socialweb-php/json-ld |
 
 ## How to Submit a Report
 

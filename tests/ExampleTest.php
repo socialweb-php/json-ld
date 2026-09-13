@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Ramsey\Test\JsonLd;
+namespace SocialWeb\Test\JsonLd;
 
-use Ramsey\JsonLd\Example;
+use SocialWeb\JsonLd\Example;
 
 class ExampleTest extends TestCase
 {

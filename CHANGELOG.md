@@ -1,4 +1,4 @@
-# ramsey/json-ld Changelog
+# socialweb/json-ld Changelog
 
 All notable changes to this project will be documented in this file.
 
