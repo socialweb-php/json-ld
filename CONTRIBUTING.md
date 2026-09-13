@@ -73,7 +73,7 @@ When you do begin working on your feature, here are some guidelines to consider:
   description, or it does not adequately describe your feature, we may ask you
   to update the description.
 * ramsey/json-ld follows a superset of **[PSR-12 coding standard][psr-12]**.
-  Please ensure your code does, too. _Hint: run `composer dev:lint` to check._
+  Please ensure your code does, too. _Hint: run `composer lint` to check._
 * Please **write tests** for any new features you add.
 * Please **ensure that tests pass** before submitting your pull request.
   ramsey/json-ld automatically runs tests for pull requests. However,
@@ -126,17 +126,16 @@ You may lint the codebase manually using the following commands:
 
 ``` bash
 # Lint
-composer dev:lint
+composer lint
 
 # Attempt to auto-fix coding standards issues
-composer dev:lint:fix
+composer fix
 ```
 
 ### Static Analysis
 
-This project uses a combination of [PHPStan](https://github.com/phpstan/phpstan)
-and [Psalm](https://github.com/vimeo/psalm) to provide static analysis of PHP
-code.
+This project uses [PHPStan](https://github.com/phpstan/phpstan) to perform
+static analysis of PHP code.
 
 CaptainHook will run static analysis checks before committing.
 
@@ -145,7 +144,7 @@ following command:
 
 ``` bash
 # Static analysis
-composer dev:analyze
+./vendor/bin/phpstan analyze
 ```
 
 ### Project Structure
