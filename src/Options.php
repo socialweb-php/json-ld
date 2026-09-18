@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace SocialWeb\JsonLd;
 
+use SocialWeb\JsonLd\Context\BundledDocumentLoader;
+use SocialWeb\JsonLd\Context\DocumentLoader;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 
 use function sprintf;
@@ -51,6 +53,9 @@ final readonly class Options
      * @param Limits $limits Bounds on document size
      * @param Restrictions $restrictions Features of the expanded document to
      *     refuse
+     * @param DocumentLoader $documentLoader Supplies the contexts that
+     *     documents reference by URL; the default knows the pinned contexts
+     *     and never uses the network
      *
      * @throws InvalidArgument if the base is given and is not a well-formed
      *     absolute IRI
@@ -63,6 +68,7 @@ final readonly class Options
         public bool $strict = true,
         public Limits $limits = new Limits(),
         public Restrictions $restrictions = new Restrictions(),
+        public DocumentLoader $documentLoader = new BundledDocumentLoader(),
     ) {
         if ($base !== null && !Grammar::isWellFormedIri($base)) {
             throw new InvalidArgument(sprintf('The base must be a well-formed absolute IRI; "%s" given', $base));

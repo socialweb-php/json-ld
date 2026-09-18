@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SocialWeb\Test\JsonLd;
 
 use PHPUnit\Framework\Attributes\DataProvider;
+use SocialWeb\JsonLd\Context\BundledDocumentLoader;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Limits;
 use SocialWeb\JsonLd\Options;
@@ -29,6 +30,10 @@ class OptionsTest extends TestCase
         $this->assertFalse($options->restrictions->forbidIncludedBlocks);
         $this->assertFalse($options->restrictions->forbidReverseProperties);
         $this->assertFalse($options->restrictions->requireSingleTopLevelNode);
+        $this->assertSame(
+            'https://www.w3.org/ns/activitystreams',
+            $options->documentLoader->load('https://www.w3.org/ns/activitystreams')->documentUrl,
+        );
     }
 
     public function testAcceptsEveryOptionByName(): void
@@ -36,6 +41,7 @@ class OptionsTest extends TestCase
         $limits = new Limits(maxDepth: 4, maxValues: 40);
         $restrictions = Restrictions::all();
         $context = ['@vocab' => 'https://example.com/vocab#'];
+        $loader = (new BundledDocumentLoader())->with('https://example.com/context', ['@context' => $context]);
 
         $options = new Options(
             base: 'https://example.com/base/',
@@ -45,6 +51,7 @@ class OptionsTest extends TestCase
             strict: false,
             limits: $limits,
             restrictions: $restrictions,
+            documentLoader: $loader,
         );
 
         $this->assertSame('https://example.com/base/', $options->base);
@@ -54,6 +61,7 @@ class OptionsTest extends TestCase
         $this->assertFalse($options->strict);
         $this->assertSame($limits, $options->limits);
         $this->assertSame($restrictions, $options->restrictions);
+        $this->assertSame($loader, $options->documentLoader);
     }
 
     public function testAcceptsAContextUrlAsTheExpandContext(): void
