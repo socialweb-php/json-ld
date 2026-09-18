@@ -39,6 +39,8 @@ class Utf16Test extends TestCase
         yield 'U+D7FF, before the surrogates' => ["\xed\x9f\xbf", 'd7ff'];
         yield 'U+E000, after the surrogates' => ["\xee\x80\x80", 'e000'];
         yield 'U+FFFD' => ["\xef\xbf\xbd", 'fffd'];
+        yield 'U+00E9 followed by A' => ['éA', '00e90041'];
+        yield 'U+FFFD followed by A' => ["\xef\xbf\xbdA", 'fffd0041'];
         yield 'U+FFFF, last three-byte' => ["\xef\xbf\xbf", 'ffff'];
         yield 'U+10000, first four-byte' => ["\xf0\x90\x80\x80", 'd800dc00'];
         yield 'U+103FF, low surrogate at its maximum' => ["\xf0\x90\x8f\xbf", 'd800dfff'];
