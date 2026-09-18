@@ -169,6 +169,17 @@ class DocumentReaderTest extends TestCase
         }
     }
 
+    public function testRejectsAPropertyNameThatIsNotUtf8InADecodedDocument(): void
+    {
+        try {
+            (new DocumentReader(new Limits()))->read(["\xff" => 1]);
+            $this->fail('Expected MalformedJson');
+        } catch (MalformedJson $exception) {
+            $this->assertSame(0, $exception->jsonError);
+            $this->assertSame('Malformed JSON: a property name is not valid UTF-8', $exception->getMessage());
+        }
+    }
+
     public function testRejectsAnObjectThatIsNotStdClass(): void
     {
         $this->expectException(InvalidArgument::class);

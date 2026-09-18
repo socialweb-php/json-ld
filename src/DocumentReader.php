@@ -87,7 +87,7 @@ final class DocumentReader
      *
      * @throws MalformedJson if the string is not a valid JSON-encoded string,
      *     or if a value cannot be represented in JSON, or if a property name
-     *     starts with a NUL byte
+     *     starts with a NUL byte or is not valid UTF-8
      * @throws LimitExceeded if the document exceeds a limit
      * @throws InvalidArgument if the object is not a `stdClass`
      */
@@ -179,6 +179,10 @@ final class DocumentReader
         foreach ($entries as $key => $entry) {
             if (is_string($key) && str_starts_with($key, "\0")) {
                 throw new MalformedJson(0, 'a property name starts with a NUL byte');
+            }
+
+            if (is_string($key) && preg_match('//u', $key) !== 1) {
+                throw new MalformedJson(0, 'a property name is not valid UTF-8');
             }
 
             $object->{$key} = $this->walk($entry, $depth);
