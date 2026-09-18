@@ -73,6 +73,7 @@
             "@composer normalize",
             "vendor/bin/phpcbf --cache=build/phpcs-cache"
         ],
+        "generate-contexts": "@php bin/generate-contexts.php",
         "lint": [
             "@composer validate --strict",
             "@composer normalize --dry-run",

@@ -3,6 +3,9 @@
     "source": {
         "directories": [
             "src"
+        ],
+        "excludes": [
+            "Context/Bundled"
         ]
     },
     "timeout": 10,

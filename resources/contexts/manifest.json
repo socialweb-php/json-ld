@@ -1,0 +1,94 @@
+{
+    "contexts": [
+        {
+            "name": "activitystreams",
+            "url": "https://www.w3.org/ns/activitystreams",
+            "aliases": [
+                "http://www.w3.org/ns/activitystreams"
+            ],
+            "retrievedFrom": "https://www.w3.org/ns/activitystreams",
+            "retrieved": "2026-09-18",
+            "sha256": "a27b78b82f4980963127140d0cb74f0e8f21c0e2b8efd0368232bf9823edff5a"
+        },
+        {
+            "name": "security-v1",
+            "url": "https://w3id.org/security/v1",
+            "aliases": [
+                "http://w3id.org/security/v1"
+            ],
+            "retrievedFrom": "https://w3id.org/security/v1",
+            "retrieved": "2026-09-18",
+            "sha256": "abaf97e107d1925503c433dcaf3ffd2831697cacc1ed2a293e1bc8030d5bcb47"
+        },
+        {
+            "name": "security-v2",
+            "url": "https://w3id.org/security/v2",
+            "aliases": [
+                "http://w3id.org/security/v2"
+            ],
+            "retrievedFrom": "https://w3id.org/security/v2",
+            "retrieved": "2026-09-18",
+            "sha256": "611bd81151d5efe53ec9aed78f5a813e577287bc9451ee26d6879b1b8b46bc3b"
+        },
+        {
+            "name": "identity-v1",
+            "url": "https://w3id.org/identity/v1",
+            "aliases": [
+                "http://w3id.org/identity/v1"
+            ],
+            "retrievedFrom": "https://web.archive.org/web/20220419132650id_/https://web-payments.org/contexts/identity-v1.jsonld",
+            "retrieved": "2026-09-18",
+            "sha256": "25a6765c237a9c59055eabb6b6809807c087b7a1bc756883f5a686e8594c4aaa"
+        },
+        {
+            "name": "data-integrity-v1",
+            "url": "https://w3id.org/security/data-integrity/v1",
+            "aliases": [
+                "http://w3id.org/security/data-integrity/v1"
+            ],
+            "retrievedFrom": "https://w3id.org/security/data-integrity/v1",
+            "retrieved": "2026-09-18",
+            "sha256": "b5d829bd09aa7c42abc6efa0c8ed7635313b5487f37ccfce3ecd149ca9418554"
+        },
+        {
+            "name": "data-integrity-v2",
+            "url": "https://w3id.org/security/data-integrity/v2",
+            "aliases": [
+                "http://w3id.org/security/data-integrity/v2"
+            ],
+            "retrievedFrom": "https://w3id.org/security/data-integrity/v2",
+            "retrieved": "2026-09-18",
+            "sha256": "67f21e6e33a6c14e5ccfd2fc7865f7474fb71a04af7e94136cb399dfac8ae8f4"
+        },
+        {
+            "name": "multikey-v1",
+            "url": "https://w3id.org/security/multikey/v1",
+            "aliases": [
+                "http://w3id.org/security/multikey/v1"
+            ],
+            "retrievedFrom": "https://w3id.org/security/multikey/v1",
+            "retrieved": "2026-09-18",
+            "sha256": "ba2c182de2d92f7e47184bcca8fcf0beaee6d3986c527bf664c195bbc7c58597"
+        },
+        {
+            "name": "cid-v1",
+            "url": "https://www.w3.org/ns/cid/v1",
+            "aliases": [
+                "http://www.w3.org/ns/cid/v1"
+            ],
+            "retrievedFrom": "https://www.w3.org/ns/cid/v1",
+            "retrieved": "2026-09-18",
+            "sha256": "ea216ecc1cb02cd39b693dba2250141e270ba0bf95890be107dd9a9e8e43de85"
+        },
+        {
+            "name": "did-v1",
+            "url": "https://www.w3.org/ns/did/v1",
+            "aliases": [
+                "http://www.w3.org/ns/did/v1"
+            ],
+            "retrievedFrom": "https://www.w3.org/ns/did/v1",
+            "retrieved": "2026-09-18",
+            "sha256": "4f3eae5568c9c5f036a082088f9e192019ee06faa78973c87ff91d5421b88dad"
+        }
+    ]
+}

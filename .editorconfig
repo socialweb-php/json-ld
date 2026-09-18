@@ -19,3 +19,8 @@ indent_size = 2
 [tests/fixtures/**]
 insert_final_newline = false
 trim_trailing_whitespace = false
+
+# Pinned contexts are kept byte-for-byte as retrieved.
+[resources/contexts/*.jsonld]
+insert_final_newline = false
+trim_trailing_whitespace = false
