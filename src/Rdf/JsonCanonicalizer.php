@@ -42,18 +42,18 @@ use function is_float;
 use function is_int;
 use function is_string;
 use function json_encode;
+use function ksort;
 use function sprintf;
 use function str_repeat;
 use function str_replace;
-use function strcmp;
 use function strlen;
 use function substr;
-use function usort;
 
 use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_LINE_TERMINATORS;
 use const JSON_UNESCAPED_SLASHES;
 use const JSON_UNESCAPED_UNICODE;
+use const SORT_STRING;
 
 /**
  * Serializes a JSON value in the canonical form of RFC 8785, the JSON
@@ -122,8 +122,16 @@ final class JsonCanonicalizer
      */
     private static function object(array $entries): string
     {
-        $keys = array_map(static fn (int | string $key): string => (string) $key, array_keys($entries));
-        usort($keys, static fn (string $a, string $b): int => strcmp(Utf16::encode($a), Utf16::encode($b)));
+        // Keyed by the UTF-16 big-endian encoding, which is unique per key, so
+        // that sorting the keys of this array in binary order sorts the
+        // object's keys by UTF-16 code units, and each key is encoded once.
+        $keys = [];
+
+        foreach (array_keys($entries) as $key) {
+            $keys[Utf16::encode((string) $key)] = (string) $key;
+        }
+
+        ksort($keys, SORT_STRING);
 
         $members = [];
 
