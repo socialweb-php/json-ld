@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace SocialWeb\Test\JsonLd\Context;
 
 use PHPUnit\Framework\Attributes\DataProvider;
+use SocialWeb\JsonLd\Context\ActiveContext;
 use SocialWeb\JsonLd\Context\BundledDocumentLoader;
+use SocialWeb\JsonLd\Context\ContextProcessor;
 use SocialWeb\JsonLd\DocumentReader;
 use SocialWeb\JsonLd\Limits;
+use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\Rdf\JsonCanonicalizer;
 use SocialWeb\Test\JsonLd\TestCase;
 
 use function array_map;
 use function basename;
+use function count;
 use function file_get_contents;
 use function glob;
 use function hash;
@@ -107,6 +111,22 @@ class PinnedContextsTest extends TestCase
             $this->assertSame($address, $loaded->documentUrl);
             $this->assertSame($generated, $loaded->document);
         }
+    }
+
+    /**
+     * @param list<string> $aliases
+     */
+    #[DataProvider('contexts')]
+    public function testThePinnedContextIsValidInStrictMode(
+        string $name,
+        string $url,
+        array $aliases,
+        string $sha256,
+    ): void {
+        $processor = new ContextProcessor(new Options());
+        $result = $processor->process(ActiveContext::initial(null), $url, null);
+
+        $this->assertGreaterThan(0, count($result->termDefinitions));
     }
 
     /**
