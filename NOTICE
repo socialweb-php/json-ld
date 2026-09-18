@@ -12,3 +12,14 @@ GNU Lesser General Public License for more details.
 
 You should have received a copy of the GNU Lesser General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+---
+
+The files under tests/fixtures/jcs/ are the test data of the JSON
+Canonicalization Scheme reference implementation repository,
+https://github.com/cyberphone/json-canonicalization, taken from the directory
+testdata/ at commit 19d51d7fe467d4706a3ff08adf8a748f29fc21e0. They are
+copyright 2018 Anders Rundgren and are distributed under the Apache License,
+Version 2.0, a copy of which is in tests/fixtures/jcs/LICENSE. They are not
+part of the socialweb/json-ld library and are excluded from distribution
+archives.
