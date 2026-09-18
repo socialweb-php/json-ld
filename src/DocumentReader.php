@@ -83,7 +83,7 @@ final class DocumentReader
      * @param string | array<mixed> | object $document A JSON-encoded string, a
      *     decoded document, or a document built by hand
      *
-     * @return array<int, mixed> | object | string | int | float | bool | null
+     * @return list<mixed> | object | string | int | float | bool | null
      *
      * @throws MalformedJson if the string is not a valid JSON-encoded string,
      *     or if a value cannot be represented in JSON, or if a property name
@@ -125,7 +125,7 @@ final class DocumentReader
     /**
      * @param int $depth The number of containers enclosing the value
      *
-     * @return array<int, mixed> | object | string | int | float | bool | null
+     * @return list<mixed> | object | string | int | float | bool | null
      */
     private function walk(mixed $value, int $depth): array | object | string | int | float | bool | null
     {
