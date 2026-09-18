@@ -40,6 +40,7 @@ use function is_string;
 use function json_decode;
 use function preg_match;
 use function sprintf;
+use function str_starts_with;
 
 use const JSON_ERROR_DEPTH;
 use const JSON_THROW_ON_ERROR;
@@ -85,7 +86,8 @@ final class DocumentReader
      * @return array<int, mixed> | object | string | int | float | bool | null
      *
      * @throws MalformedJson if the string is not a valid JSON-encoded string,
-     *     or if a value cannot be represented in JSON
+     *     or if a value cannot be represented in JSON, or if a property name
+     *     starts with a NUL byte
      * @throws LimitExceeded if the document exceeds a limit
      * @throws InvalidArgument if the object is not a `stdClass`
      */
@@ -175,6 +177,10 @@ final class DocumentReader
         $object = new stdClass();
 
         foreach ($entries as $key => $entry) {
+            if (is_string($key) && str_starts_with($key, "\0")) {
+                throw new MalformedJson(0, 'a property name starts with a NUL byte');
+            }
+
             $object->{$key} = $this->walk($entry, $depth);
         }
 

@@ -17,6 +17,7 @@ use function json_decode;
 use function json_encode;
 use function str_repeat;
 
+use const JSON_ERROR_INVALID_PROPERTY_NAME;
 use const JSON_ERROR_SYNTAX;
 use const JSON_ERROR_UTF8;
 use const JSON_THROW_ON_ERROR;
@@ -113,6 +114,7 @@ class DocumentReaderTest extends TestCase
         yield 'truncated' => ['{"a": ', JSON_ERROR_SYNTAX];
         yield 'trailing comma' => ['[1,]', JSON_ERROR_SYNTAX];
         yield 'invalid UTF-8' => ["\"\xff\"", JSON_ERROR_UTF8];
+        yield 'NUL byte in a property name' => ['{"\\u0000x": 1}', JSON_ERROR_INVALID_PROPERTY_NAME];
     }
 
     public function testRejectsANonFiniteNumberInAString(): void
@@ -142,6 +144,28 @@ class DocumentReaderTest extends TestCase
         } catch (MalformedJson $exception) {
             $this->assertSame(0, $exception->jsonError);
             $this->assertSame('Malformed JSON: a string is not valid UTF-8', $exception->getMessage());
+        }
+    }
+
+    public function testRejectsAPropertyNameStartingWithANulByteInADecodedDocument(): void
+    {
+        try {
+            (new DocumentReader(new Limits()))->read(["\0x" => 1]);
+            $this->fail('Expected MalformedJson');
+        } catch (MalformedJson $exception) {
+            $this->assertSame(0, $exception->jsonError);
+            $this->assertSame('Malformed JSON: a property name starts with a NUL byte', $exception->getMessage());
+        }
+    }
+
+    public function testRejectsAPropertyNameStartingWithANulByteInAnObjectTree(): void
+    {
+        try {
+            (new DocumentReader(new Limits()))->read((object) ["\0x" => 1]);
+            $this->fail('Expected MalformedJson');
+        } catch (MalformedJson $exception) {
+            $this->assertSame(0, $exception->jsonError);
+            $this->assertSame('Malformed JSON: a property name starts with a NUL byte', $exception->getMessage());
         }
     }
 
