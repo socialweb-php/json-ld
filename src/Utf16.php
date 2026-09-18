@@ -27,8 +27,9 @@ use SocialWeb\JsonLd\Exception\InvalidArgument;
 
 use function ord;
 use function pack;
-use function preg_match_all;
+use function preg_match;
 use function strlen;
+use function substr;
 
 /**
  * Encodes UTF-8 text as UTF-16 code units
@@ -43,29 +44,36 @@ final class Utf16
     /**
      * Returns the UTF-16 big-endian encoding of the string
      *
+     * The string is validated as UTF-8 first, so the byte walk that follows
+     * can read each character's length from its first byte.
+     *
      * @throws InvalidArgument if the string is not valid UTF-8
      */
     public static function encode(string $value): string
     {
-        if (preg_match_all('/./su', $value, $matches) === false) {
+        if (preg_match('//u', $value) !== 1) {
             throw new InvalidArgument('A string must be valid UTF-8 to be encoded as UTF-16');
         }
 
-        $units = [];
+        $encoded = '';
+        $length = strlen($value);
+        $offset = 0;
 
-        foreach ($matches[0] as $character) {
-            $codePoint = self::codePoint($character);
+        while ($offset < $length) {
+            $first = ord($value[$offset]);
+            $size = ($first & 0x80) === 0 ? 1 : (($first & 0x20) === 0 ? 2 : (($first & 0x10) === 0 ? 3 : 4));
+            $codePoint = self::codePoint(substr($value, $offset, $size));
+            $offset += $size;
 
             if ($codePoint >= 0x10000) {
                 $codePoint -= 0x10000;
-                $units[] = 0xD800 | ($codePoint >> 10);
-                $units[] = 0xDC00 | ($codePoint & 0x3FF);
+                $encoded .= pack('nn', 0xD800 | ($codePoint >> 10), 0xDC00 | ($codePoint & 0x3FF));
             } else {
-                $units[] = $codePoint;
+                $encoded .= pack('n', $codePoint);
             }
         }
 
-        return pack('n*', ...$units);
+        return $encoded;
     }
 
     /**
