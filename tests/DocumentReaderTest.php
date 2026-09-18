@@ -265,7 +265,7 @@ class DocumentReaderTest extends TestCase
     public function testTheLargestDepthTheDecoderAcceptsStillDecodes(): void
     {
         $this->assertSame([1], (new DocumentReader(new Limits(maxDepth: 2_147_483_647)))->read('[1]'));
-        $this->assertSame([1], (new DocumentReader(new Limits(maxDepth: 2_147_483_648)))->read('[1]'));
+        $this->assertSame([1], (new DocumentReader(new Limits(maxDepth: PHP_INT_MAX)))->read('[1]'));
     }
 
     public function testCountsEveryValueIncludingScalarsAndContainers(): void
