@@ -21,18 +21,14 @@
 
 declare(strict_types=1);
 
-namespace SocialWeb\JsonLd;
+namespace SocialWeb\JsonLd\Exception;
+
+use InvalidArgumentException;
 
 /**
- * An example class to act as a starting point for developing your library
+ * Thrown when an option, a limit, a restriction, or a document argument is
+ * constructed from an invalid value
  */
-class Example
+final class InvalidArgument extends InvalidArgumentException implements JsonLdException
 {
-    /**
-     * Returns a greeting statement using the provided name
-     */
-    public function greet(string $name = 'World'): string
-    {
-        return "Hello, {$name}!";
-    }
 }
