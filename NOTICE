@@ -1,4 +1,4 @@
-Copyright (c) socialweb/json-ld Contributors
+Copyright © socialweb/json-ld Contributors
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as
@@ -17,9 +17,87 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 The files under tests/fixtures/jcs/ are the test data of the JSON
 Canonicalization Scheme reference implementation repository,
-https://github.com/cyberphone/json-canonicalization, taken from the directory
+<https://github.com/cyberphone/json-canonicalization>, taken from the directory
 testdata/ at commit 19d51d7fe467d4706a3ff08adf8a748f29fc21e0. They are
 copyright 2018 Anders Rundgren and are distributed under the Apache License,
 Version 2.0, a copy of which is in tests/fixtures/jcs/LICENSE. They are not
 part of the socialweb/json-ld library and are excluded from distribution
 archives.
+
+---
+
+The files under src/Context/Bundled/ are generated from the JSON-LD contexts
+under resources/contexts/, which were retrieved on 2026-09-18 and are kept
+unchanged. resources/contexts/manifest.json records where each was retrieved
+from and its SHA-256. The generated files hold the same data as PHP arrays and
+are distributed with the socialweb/json-ld library. They include material
+copied from or derived from the following documents:
+
+- ActivityStreams 2.0 Terms <https://www.w3.org/ns/activitystreams>,
+  Copyright © 2018 W3C® (MIT, ERCIM, Keio, Beihang).
+
+- The Security Vocabulary <https://w3c-ccg.github.io/security-vocab/>,
+  Copyright © 2022 the Contributors to the The Security Vocabulary
+  Specification, published by the Credentials Community Group under the W3C
+  Community Contributor License Agreement (CLA).
+
+- Identity Credentials 1.0 <https://web-payments.org/specs/source/identity-credentials/>
+  (archived at <https://web.archive.org/web/20220815163013id_/https://web-payments.org/specs/source/identity-credentials/>),
+  Copyright © the Contributors to the Identity Credentials 1.0 Specification,
+  published by the W3C Web Payments Community Group under the W3C Community
+  Contributor License Agreement (CLA).
+
+- Verifiable Credential Data Integrity 1.0 <https://www.w3.org/TR/vc-data-integrity/>,
+  Copyright © 2025 World Wide Web Consortium.
+
+- Controlled Identifiers v1.0 <https://www.w3.org/TR/cid-1.0/>,
+  Copyright © 2025 World Wide Web Consortium.
+
+- Decentralized Identifiers (DIDs) v1.0 <https://www.w3.org/TR/did-core/>,
+  Copyright © 2022 W3C® (MIT, ERCIM, Keio, Beihang).
+
+These documents are provided under the W3C Software and Document License,
+<https://www.w3.org/copyright/software-license-2023/>, whose notice follows.
+
+    Software and Document license - 2023 version
+
+    This work is being provided by the copyright holders under the following
+    license.
+
+    License
+
+    By obtaining and/or copying this work, you (the licensee) agree that you
+    have read, understood, and will comply with the following terms and
+    conditions.
+
+    Permission to copy, modify, and distribute this work, with or without
+    modification, for any purpose and without fee or royalty is hereby
+    granted, provided that you include the following on ALL copies of the
+    work or portions thereof, including modifications:
+
+    - The full text of this NOTICE in a location viewable to users of the
+      redistributed or derivative work.
+    - Any pre-existing intellectual property disclaimers, notices, or terms
+      and conditions. If none exist, the W3C software and document short
+      notice should be included.
+    - Notice of any changes or modifications, through a copyright statement
+      on the new code or document such as "This software or document
+      includes material copied from or derived from [title and URI of the
+      W3C document]. Copyright © [$year-of-document] World Wide Web
+      Consortium. https://www.w3.org/copyright/software-license-2023/"
+
+    Disclaimers
+
+    THIS WORK IS PROVIDED "AS IS," AND COPYRIGHT HOLDERS MAKE NO
+    REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+    LIMITED TO, WARRANTIES OF MERCHANTABILITY OR FITNESS FOR ANY PARTICULAR
+    PURPOSE OR THAT THE USE OF THE SOFTWARE OR DOCUMENT WILL NOT INFRINGE ANY
+    THIRD PARTY PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS.
+
+    COPYRIGHT HOLDERS WILL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL OR
+    CONSEQUENTIAL DAMAGES ARISING OUT OF ANY USE OF THE SOFTWARE OR DOCUMENT.
+
+    The name and trademarks of copyright holders may NOT be used in
+    advertising or publicity pertaining to the work without specific, written
+    prior permission. Title to copyright in this work will at all times
+    remain with copyright holders.

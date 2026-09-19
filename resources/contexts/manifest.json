@@ -7,8 +7,18 @@
                 "http://www.w3.org/ns/activitystreams"
             ],
             "retrievedFrom": "https://www.w3.org/ns/activitystreams",
+            "servedFrom": "https://www.w3.org/ns/activitystreams",
             "retrieved": "2026-09-18",
-            "sha256": "a27b78b82f4980963127140d0cb74f0e8f21c0e2b8efd0368232bf9823edff5a"
+            "sha256": "a27b78b82f4980963127140d0cb74f0e8f21c0e2b8efd0368232bf9823edff5a",
+            "source": {
+                "title": "ActivityStreams 2.0 Terms",
+                "url": "https://www.w3.org/ns/activitystreams",
+                "copyright": "Copyright © 2018 W3C® (MIT, ERCIM, Keio, Beihang)"
+            },
+            "license": {
+                "name": "W3C Software and Document License",
+                "url": "https://www.w3.org/copyright/software-license-2023/"
+            }
         },
         {
             "name": "security-v1",
@@ -17,8 +27,18 @@
                 "http://w3id.org/security/v1"
             ],
             "retrievedFrom": "https://w3id.org/security/v1",
+            "servedFrom": "https://w3c-ccg.github.io/security-vocab/contexts/security-v1.jsonld",
             "retrieved": "2026-09-18",
-            "sha256": "abaf97e107d1925503c433dcaf3ffd2831697cacc1ed2a293e1bc8030d5bcb47"
+            "sha256": "abaf97e107d1925503c433dcaf3ffd2831697cacc1ed2a293e1bc8030d5bcb47",
+            "source": {
+                "title": "The Security Vocabulary",
+                "url": "https://w3c-ccg.github.io/security-vocab/",
+                "copyright": "Copyright © 2022 the Contributors to the The Security Vocabulary Specification, published by the Credentials Community Group under the W3C Community Contributor License Agreement (CLA)"
+            },
+            "license": {
+                "name": "W3C Software and Document License",
+                "url": "https://www.w3.org/copyright/software-license-2023/"
+            }
         },
         {
             "name": "security-v2",
@@ -27,8 +47,18 @@
                 "http://w3id.org/security/v2"
             ],
             "retrievedFrom": "https://w3id.org/security/v2",
+            "servedFrom": "https://w3c-ccg.github.io/security-vocab/contexts/security-v2.jsonld",
             "retrieved": "2026-09-18",
-            "sha256": "611bd81151d5efe53ec9aed78f5a813e577287bc9451ee26d6879b1b8b46bc3b"
+            "sha256": "611bd81151d5efe53ec9aed78f5a813e577287bc9451ee26d6879b1b8b46bc3b",
+            "source": {
+                "title": "The Security Vocabulary",
+                "url": "https://w3c-ccg.github.io/security-vocab/",
+                "copyright": "Copyright © 2022 the Contributors to the The Security Vocabulary Specification, published by the Credentials Community Group under the W3C Community Contributor License Agreement (CLA)"
+            },
+            "license": {
+                "name": "W3C Software and Document License",
+                "url": "https://www.w3.org/copyright/software-license-2023/"
+            }
         },
         {
             "name": "identity-v1",
@@ -37,8 +67,18 @@
                 "http://w3id.org/identity/v1"
             ],
             "retrievedFrom": "https://web.archive.org/web/20220419132650id_/https://web-payments.org/contexts/identity-v1.jsonld",
+            "servedFrom": "https://web.archive.org/web/20220419132650id_/https://web-payments.org/contexts/identity-v1.jsonld",
             "retrieved": "2026-09-18",
-            "sha256": "25a6765c237a9c59055eabb6b6809807c087b7a1bc756883f5a686e8594c4aaa"
+            "sha256": "25a6765c237a9c59055eabb6b6809807c087b7a1bc756883f5a686e8594c4aaa",
+            "source": {
+                "title": "Identity Credentials 1.0",
+                "url": "https://web.archive.org/web/20220815163013id_/https://web-payments.org/specs/source/identity-credentials/",
+                "copyright": "Copyright © the Contributors to the Identity Credentials 1.0 Specification, published by the W3C Web Payments Community Group under the W3C Community Contributor License Agreement (CLA)"
+            },
+            "license": {
+                "name": "W3C Software and Document License",
+                "url": "https://www.w3.org/copyright/software-license-2023/"
+            }
         },
         {
             "name": "data-integrity-v1",
@@ -47,8 +87,18 @@
                 "http://w3id.org/security/data-integrity/v1"
             ],
             "retrievedFrom": "https://w3id.org/security/data-integrity/v1",
+            "servedFrom": "https://w3c.github.io/vc-data-integrity/contexts/data-integrity/v1.jsonld",
             "retrieved": "2026-09-18",
-            "sha256": "b5d829bd09aa7c42abc6efa0c8ed7635313b5487f37ccfce3ecd149ca9418554"
+            "sha256": "b5d829bd09aa7c42abc6efa0c8ed7635313b5487f37ccfce3ecd149ca9418554",
+            "source": {
+                "title": "Verifiable Credential Data Integrity 1.0",
+                "url": "https://www.w3.org/TR/vc-data-integrity/",
+                "copyright": "Copyright © 2025 World Wide Web Consortium"
+            },
+            "license": {
+                "name": "W3C Software and Document License",
+                "url": "https://www.w3.org/copyright/software-license-2023/"
+            }
         },
         {
             "name": "data-integrity-v2",
@@ -57,8 +107,18 @@
                 "http://w3id.org/security/data-integrity/v2"
             ],
             "retrievedFrom": "https://w3id.org/security/data-integrity/v2",
+            "servedFrom": "https://www.w3.org/2025/credentials/vcdi/context/v2.jsonld",
             "retrieved": "2026-09-18",
-            "sha256": "67f21e6e33a6c14e5ccfd2fc7865f7474fb71a04af7e94136cb399dfac8ae8f4"
+            "sha256": "67f21e6e33a6c14e5ccfd2fc7865f7474fb71a04af7e94136cb399dfac8ae8f4",
+            "source": {
+                "title": "Verifiable Credential Data Integrity 1.0",
+                "url": "https://www.w3.org/TR/vc-data-integrity/",
+                "copyright": "Copyright © 2025 World Wide Web Consortium"
+            },
+            "license": {
+                "name": "W3C Software and Document License",
+                "url": "https://www.w3.org/copyright/software-license-2023/"
+            }
         },
         {
             "name": "multikey-v1",
@@ -67,8 +127,18 @@
                 "http://w3id.org/security/multikey/v1"
             ],
             "retrievedFrom": "https://w3id.org/security/multikey/v1",
+            "servedFrom": "https://www.w3.org/2025/credentials/vcdi/multikey/context/v1.jsonld",
             "retrieved": "2026-09-18",
-            "sha256": "ba2c182de2d92f7e47184bcca8fcf0beaee6d3986c527bf664c195bbc7c58597"
+            "sha256": "ba2c182de2d92f7e47184bcca8fcf0beaee6d3986c527bf664c195bbc7c58597",
+            "source": {
+                "title": "Verifiable Credential Data Integrity 1.0",
+                "url": "https://www.w3.org/TR/vc-data-integrity/",
+                "copyright": "Copyright © 2025 World Wide Web Consortium"
+            },
+            "license": {
+                "name": "W3C Software and Document License",
+                "url": "https://www.w3.org/copyright/software-license-2023/"
+            }
         },
         {
             "name": "cid-v1",
@@ -77,8 +147,18 @@
                 "http://www.w3.org/ns/cid/v1"
             ],
             "retrievedFrom": "https://www.w3.org/ns/cid/v1",
+            "servedFrom": "https://www.w3.org/ns/cid/v1",
             "retrieved": "2026-09-18",
-            "sha256": "ea216ecc1cb02cd39b693dba2250141e270ba0bf95890be107dd9a9e8e43de85"
+            "sha256": "ea216ecc1cb02cd39b693dba2250141e270ba0bf95890be107dd9a9e8e43de85",
+            "source": {
+                "title": "Controlled Identifiers v1.0",
+                "url": "https://www.w3.org/TR/cid-1.0/",
+                "copyright": "Copyright © 2025 World Wide Web Consortium"
+            },
+            "license": {
+                "name": "W3C Software and Document License",
+                "url": "https://www.w3.org/copyright/software-license-2023/"
+            }
         },
         {
             "name": "did-v1",
@@ -87,8 +167,18 @@
                 "http://www.w3.org/ns/did/v1"
             ],
             "retrievedFrom": "https://www.w3.org/ns/did/v1",
+            "servedFrom": "https://www.w3.org/ns/did/v1",
             "retrieved": "2026-09-18",
-            "sha256": "4f3eae5568c9c5f036a082088f9e192019ee06faa78973c87ff91d5421b88dad"
+            "sha256": "4f3eae5568c9c5f036a082088f9e192019ee06faa78973c87ff91d5421b88dad",
+            "source": {
+                "title": "Decentralized Identifiers (DIDs) v1.0",
+                "url": "https://www.w3.org/TR/did-core/",
+                "copyright": "Copyright © 2022 W3C® (MIT, ERCIM, Keio, Beihang)"
+            },
+            "license": {
+                "name": "W3C Software and Document License",
+                "url": "https://www.w3.org/copyright/software-license-2023/"
+            }
         }
     ]
 }

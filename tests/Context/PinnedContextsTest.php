@@ -57,6 +57,33 @@ class PinnedContextsTest extends TestCase
         $this->assertSame($names, $generated);
     }
 
+    public function testTheManifestAndTheNoticeCreditEverySource(): void
+    {
+        $manifest = json_decode(
+            (string) file_get_contents(self::RESOURCES . '/manifest.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        $notice = (string) file_get_contents(__DIR__ . '/../../NOTICE');
+        $contexts = is_array($manifest) && is_array($manifest['contexts'] ?? null) ? $manifest['contexts'] : [];
+
+        $this->assertCount(9, $contexts);
+
+        foreach ($contexts as $context) {
+            $this->assertNotSame('', self::text($context, 'servedFrom'));
+            $this->assertNotSame('', self::text($context, 'source', 'title'));
+            $this->assertStringStartsWith('Copyright © ', self::text($context, 'source', 'copyright'));
+            $this->assertSame('W3C Software and Document License', self::text($context, 'license', 'name'));
+            $this->assertSame(
+                'https://www.w3.org/copyright/software-license-2023/',
+                self::text($context, 'license', 'url'),
+            );
+
+            $this->assertStringContainsString(self::text($context, 'source', 'url'), $notice);
+            $this->assertStringContainsString(self::text($context, 'license', 'url'), $notice);
+        }
+    }
+
     /**
      * @param list<string> $aliases
      */
@@ -181,6 +208,19 @@ class PinnedContextsTest extends TestCase
         }
 
         return $contexts;
+    }
+
+    /**
+     * Returns the string at the path of keys, or the empty string if there is
+     * none
+     */
+    private static function text(mixed $value, string ...$path): string
+    {
+        foreach ($path as $key) {
+            $value = is_array($value) ? $value[$key] ?? null : null;
+        }
+
+        return is_string($value) ? $value : '';
     }
 
     private static function resource(string $name): string

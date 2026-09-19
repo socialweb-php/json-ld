@@ -10,6 +10,7 @@ use SocialWeb\Test\JsonLd\TestCase;
 use function basename;
 use function escapeshellarg;
 use function exec;
+use function file_get_contents;
 use function file_put_contents;
 use function glob;
 use function hash;
@@ -82,6 +83,27 @@ class ContextGeneratorTest extends TestCase
         );
     }
 
+    public function testCreditsTheSourceInTheGeneratedFile(): void
+    {
+        $this->writeContext('{"@context": {"a": "ex:a"}}');
+
+        [$status] = $this->generate($this->resources);
+
+        $this->assertSame(0, $status);
+        $this->assertStringContainsString(
+            <<<'PHP'
+                 * This file includes material copied from or derived from
+                 * Sample Vocabulary 1.0,
+                 * https://example.com/spec.
+                 * Copyright 2026 the Contributors to the Sample Vocabulary 1.0 Specification,
+                 * published by the Example Group.
+                 * Example License, https://example.com/license.
+                 * See the NOTICE file for the terms.
+                PHP,
+            (string) file_get_contents($this->output . '/sample.php'),
+        );
+    }
+
     public function testEscapesQuotesAndBackslashesInStrings(): void
     {
         $this->writeContext('{"@context": {"it\'s": "back\\\\slash"}}');
@@ -138,6 +160,13 @@ class ContextGeneratorTest extends TestCase
                     'name' => 'sample',
                     'url' => 'https://example.com/sample',
                     'sha256' => $sha256 ?? hash('sha256', $json),
+                    'source' => [
+                        'title' => 'Sample Vocabulary 1.0',
+                        'url' => 'https://example.com/spec',
+                        'copyright' => 'Copyright 2026 the Contributors to the Sample Vocabulary 1.0 Specification,'
+                            . ' published by the Example Group',
+                    ],
+                    'license' => ['name' => 'Example License', 'url' => 'https://example.com/license'],
                 ],
             ],
         ];
