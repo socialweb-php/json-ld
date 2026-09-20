@@ -63,11 +63,15 @@ use const SORT_STRING;
  * The Context Processing Algorithm and Create Term Definition from JSON-LD 1.1
  * Processing Algorithms and API sections 4.1 and 4.2
  *
- * The step numbers in the comments are the specification's. Contexts arrive
- * in the library's internal form: JSON objects as `stdClass`, JSON arrays as
- * lists. The entries of a context definition are visited in code point
- * order, so that the first error reported for a context with several errors
- * does not depend on how the context was written.
+ * The step numbers in the comments are the specification's. Where a comment
+ * says the code follows "the reference processors" and not the text, it means
+ * jsonld.js and the Ruby json-ld gem, the two implementations this one was
+ * checked against.
+ *
+ * Contexts arrive in the library's internal form: JSON objects as `stdClass`,
+ * JSON arrays as lists. The entries of a context definition are visited in code
+ * point order, so that the first error reported for a context with several
+ * errors does not depend on how the context was written.
  *
  * @internal
  */
@@ -604,41 +608,28 @@ final class ContextProcessor
             $typeMapping = $this->typeMapping($activeContext, $value['@type'], $term, $define, $isJsonLd10);
         }
 
-        // Step 13.
-        if (array_key_exists('@reverse', $value)) {
-            $definition = $this->reverseTermDefinition(
-                $activeContext,
-                $value,
-                $term,
-                $define,
-                $protected,
-                $typeMapping,
-            );
+        // The position of the first colon after the first character, counted
+        // from the second character.
+        $colon = strpos(substr($term, 1), ':');
+        $prefix = false;
+        $reverse = array_key_exists('@reverse', $value);
 
-            if ($definition === null) {
+        if ($reverse) {
+            // Step 13.
+            $iriMapping = $this->reverseIriMapping($activeContext, $value, $term, $define);
+
+            if ($iriMapping === null) {
                 $this->restore($activeContext, $term, $previousDefinition);
 
                 return;
             }
 
-            // Step 13.7 returns here. The checks of steps 26 and 27 are made
-            // first, as the reference processors make them, so that a reverse
-            // property cannot carry unknown entries or replace a protected
-            // term.
-            $this->rejectUnknownEntries($value, $term);
-            $definition = $this->keepProtected($definition, $previousDefinition, $overrideProtected, $term);
-            $activeContext->set($term, $definition);
-            $defined[$term] = true;
-
-            return;
-        }
-
-        // The position of the first colon after the first character, counted
-        // from the second character.
-        $colon = strpos(substr($term, 1), ':');
-        $prefix = false;
-
-        if (array_key_exists('@id', $value) && $value['@id'] !== $term) {
+            // The specification ends the algorithm here, at step 13.7. That
+            // would lose the `@context`, `@direction`, `@index`, `@language`,
+            // and `@prefix` entries of a reverse property and skip the
+            // checks of steps 26 and 27. This code carries on from step 19
+            // instead, as the reference processors do.
+        } elseif (array_key_exists('@id', $value) && $value['@id'] !== $term) {
             // Step 14.
             $iriMapping = null;
 
@@ -712,7 +703,8 @@ final class ContextProcessor
         // Step 19.
         $containerMapping = [];
 
-        if (array_key_exists('@container', $value)) {
+        // Step 13.5 allows a reverse property a container of null.
+        if (array_key_exists('@container', $value) && !($reverse && $value['@container'] === null)) {
             $containerMapping = $this->containerMapping($value['@container'], $term, $isJsonLd10);
 
             if (in_array('@type', $containerMapping, true)) {
@@ -814,6 +806,7 @@ final class ContextProcessor
             iriMapping: $iriMapping,
             prefix: $prefix,
             protected: $protected,
+            reverse: $reverse,
             baseUrl: array_key_exists('@context', $value) ? $baseUrl : null,
             hasContext: array_key_exists('@context', $value),
             context: $value['@context'] ?? null,
@@ -944,7 +937,7 @@ final class ContextProcessor
     }
 
     /**
-     * Step 13 of Create Term Definition: a reverse property
+     * Step 13 of Create Term Definition: the IRI of a reverse property
      *
      * Returns `null` when the term is to be ignored because the `@reverse`
      * value has the form of a keyword.
@@ -952,14 +945,12 @@ final class ContextProcessor
      * @param array<mixed> $value The expanded term definition
      * @param Closure(string): void $define
      */
-    private function reverseTermDefinition(
+    private function reverseIriMapping(
         ActiveContextBuilder $activeContext,
         array $value,
         string $term,
         Closure $define,
-        bool $protected,
-        ?string $typeMapping,
-    ): ?TermDefinition {
+    ): ?string {
         // Step 13.1.
         if (array_key_exists('@id', $value) || array_key_exists('@nest', $value)) {
             throw new JsonLdError(ErrorCode::InvalidReverseProperty, $term);
@@ -991,14 +982,7 @@ final class ContextProcessor
             throw new JsonLdError(ErrorCode::InvalidReverseProperty, $term);
         }
 
-        // Step 13.6.
-        return new TermDefinition(
-            iriMapping: $iriMapping,
-            protected: $protected,
-            reverse: true,
-            containerMapping: $container !== null ? [$container] : [],
-            typeMapping: $typeMapping,
-        );
+        return $iriMapping;
     }
 
     /**

@@ -1025,6 +1025,58 @@ class ContextProcessorTest extends TestCase
         $this->assertEquals(new TermDefinition(iriMapping: '_:b', reverse: true), $result->termDefinition('plain'));
     }
 
+    public function testAReversePropertyKeepsItsOtherEntries(): void
+    {
+        $result = self::process(<<<'JSON'
+            {
+                "@vocab": "https://example.org/ns#",
+                "statements": {
+                    "@reverse": "subject",
+                    "@container": "@index",
+                    "@index": "predicate",
+                    "@context": {"note": "https://example.org/ns#note"},
+                    "@language": "en",
+                    "@direction": "ltr"
+                },
+                "children": {"@reverse": "parent", "@prefix": true}
+            }
+            JSON);
+
+        $statements = $result->termDefinition('statements');
+
+        $this->assertNotNull($statements);
+        $this->assertTrue($statements->reverse);
+        $this->assertSame('https://example.org/ns#subject', $statements->iriMapping);
+        $this->assertSame(['@index'], $statements->containerMapping);
+        $this->assertSame('predicate', $statements->indexMapping);
+        $this->assertTrue($statements->hasContext);
+        $this->assertEquals((object) ['note' => 'https://example.org/ns#note'], $statements->context);
+        $this->assertSame(self::DOCUMENT, $statements->baseUrl);
+        $this->assertTrue($statements->hasLanguageMapping);
+        $this->assertSame('en', $statements->languageMapping);
+        $this->assertTrue($statements->hasDirectionMapping);
+        $this->assertSame('ltr', $statements->directionMapping);
+        $this->assertFalse($statements->prefix);
+        $this->assertTrue($result->termDefinition('children')?->prefix);
+        $this->assertTrue($result->termDefinition('children')->reverse);
+    }
+
+    public function testTheOtherEntriesOfAReversePropertyAreChecked(): void
+    {
+        $this->assertError(
+            ErrorCode::InvalidScopedContext,
+            '{"children": {"@reverse": "ex:parent", "@context": {"@version": 1.0}}}',
+        );
+        $this->assertError(
+            ErrorCode::InvalidTermDefinition,
+            '{"children": {"@reverse": "ex:parent", "@container": "@set", "@index": "ex:key"}}',
+        );
+        $this->assertError(
+            ErrorCode::InvalidPrefixValue,
+            '{"children": {"@reverse": "ex:parent", "@prefix": "yes"}}',
+        );
+    }
+
     public function testAReversePropertyMayDependOnATermDefinedLater(): void
     {
         $result = self::process('{"children": {"@reverse": "parent"}, "parent": "https://example.org/parent"}');
