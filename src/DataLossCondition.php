@@ -28,24 +28,33 @@ namespace SocialWeb\JsonLd;
  * mode turns into errors
  *
  * Each case names a step of the expansion or deserialization algorithm that
- * says "drop" or continue." See the
- * {@link https://www.w3.org/TR/json-ld11-api/ JSON-LD 1.1 Processing Algorithms and API specification}.
+ * says "drop" or "continue." See the JSON-LD 1.1 Processing Algorithms and API
+ * specification.
  */
 enum DataLossCondition: string
 {
     /**
-     * A key whose expanded form is null, or is neither an IRI nor a keyword
+     * A key or a value that expansion can give no meaning
+     *
+     * This covers three cases:
+     *
+     * - A key that is neither an IRI nor a keyword.
+     * - A keyword that the algorithm has no step for. `@container` is one in
+     *   any mode. `@included` and `@direction` are two more in `json-ld-1.0`
+     *   mode.
+     * - A key or a value that the active context defines as null. A `@type`
+     *   value and the key of a type map are examples.
      */
     case UndefinedProperty = 'undefined property';
 
     /**
-     * A term, or an `@id` or `@reverse` value, that has the form of a keyword
-     * but is not one
+     * A term, a key, or a value that has the form of a keyword but is not
+     * one, such as an `@id`, an `@reverse`, or a `@type` value
      */
     case ReservedTerm = 'reserved term';
 
     /**
-     * A value object whose `@value` is null
+     * A value object whose `@value` is null or an empty array
      */
     case NullValue = 'null value';
 
