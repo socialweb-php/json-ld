@@ -1,0 +1,75 @@
+{
+    "fixtures": [
+        {
+            "name": "jcs",
+            "directory": "jcs",
+            "source": {
+                "title": "JSON Canonicalization Scheme (JCS) reference implementation",
+                "url": "https://github.com/cyberphone/json-canonicalization",
+                "copyright": "Copyright 2018 Anders Rundgren"
+            },
+            "license": {
+                "name": "Apache License, Version 2.0",
+                "file": "jcs/LICENSE"
+            },
+            "commit": "19d51d7fe467d4706a3ff08adf8a748f29fc21e0",
+            "paths": [
+                {
+                    "from": "testdata/input",
+                    "to": "input"
+                },
+                {
+                    "from": "testdata/output",
+                    "to": "output"
+                },
+                {
+                    "from": "LICENSE",
+                    "to": "LICENSE"
+                }
+            ],
+            "sha256": "1bac8f0e79493343206d0a0ecaf98d720d3e85685a3ea72ce585636012fdf5d3"
+        },
+        {
+            "name": "json-ld-api",
+            "directory": "json-ld-api",
+            "source": {
+                "title": "JSON-LD 1.1 Processing Algorithms and API test suite",
+                "url": "https://github.com/w3c/json-ld-api",
+                "copyright": "Copyright World Wide Web Consortium"
+            },
+            "license": {
+                "name": "W3C Test Suite License and W3C 3-clause BSD License",
+                "url": "https://www.w3.org/copyright/test-suites-licenses/",
+                "file": "json-ld-api/LICENSE.md"
+            },
+            "commit": "ffdb326121ea89b7b8280e76a5caea923834bcef",
+            "paths": [
+                {
+                    "from": "tests/expand",
+                    "to": "expand"
+                },
+                {
+                    "from": "tests/toRdf",
+                    "to": "toRdf"
+                },
+                {
+                    "from": "tests/context.jsonld",
+                    "to": "context.jsonld"
+                },
+                {
+                    "from": "tests/expand-manifest.jsonld",
+                    "to": "expand-manifest.jsonld"
+                },
+                {
+                    "from": "tests/toRdf-manifest.jsonld",
+                    "to": "toRdf-manifest.jsonld"
+                },
+                {
+                    "from": "tests/LICENSE.md",
+                    "to": "LICENSE.md"
+                }
+            ],
+            "sha256": "ca59635e45e4be5d8a22133271931166c4c4b0c6d1a60be89041b9db98caa9b1"
+        }
+    ]
+}

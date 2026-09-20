@@ -42,9 +42,26 @@ jobs:
       - name: "Lint"
         run: "composer lint"
 
+  fixtures:
+    name: "Fixtures"
+    runs-on: "ubuntu-latest"
+
+    steps:
+      - name: "Checkout repository"
+        uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240" # 2.37.2
+        with:
+          php-version: "latest"
+          coverage: "none"
+
+      - name: "Check the test fixtures against their checksums"
+        run: "php bin/check-fixtures.php"
+
   coverage:
     name: "Coverage"
-    needs: ["lint"]
+    needs: ["lint", "fixtures"]
     runs-on: "ubuntu-latest"
 
     steps:
@@ -69,7 +86,7 @@ jobs:
 
   mutation:
     name: "Mutation tests"
-    needs: ["coverage"]
+    needs: ["lint", "fixtures"]
     runs-on: "ubuntu-latest"
 
     steps:
@@ -91,7 +108,7 @@ jobs:
 
   test:
     name: "Unit tests"
-    needs: ["coverage"]
+    needs: ["coverage", "mutation"]
     runs-on: ${{ matrix.os }}
 
     strategy:

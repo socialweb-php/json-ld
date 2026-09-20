@@ -63,6 +63,7 @@
         }
     },
     "scripts": {
+        "check-fixtures": "@php bin/check-fixtures.php",
         "coverage": [
             "git clean -fx build/coverage/.",
             "XDEBUG_MODE=coverage phpunit --colors=always --coverage-html build/coverage/coverage-html",

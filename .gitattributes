@@ -21,3 +21,8 @@
 /resources/                 export-ignore
 /SECURITY.md                export-ignore
 /tests/                     export-ignore
+
+# Pinned contexts and test fixtures are kept byte for byte as retrieved, so git
+# must not convert their line endings.
+/resources/contexts/*.jsonld -text
+/tests/fixtures/**          -text
