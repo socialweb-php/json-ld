@@ -35,12 +35,12 @@ class ActiveContextTest extends TestCase
         $this->assertNull(ActiveContext::initial(null)->originalBaseUrl);
     }
 
-    public function testAddsAndRemovesTermDefinitionsWithoutChangingTheOriginal(): void
+    public function testReplacesTheTermDefinitionsWithoutChangingTheOriginal(): void
     {
         $name = new TermDefinition(iriMapping: 'https://example.com/name');
         $empty = ActiveContext::initial('https://example.com/doc');
-        $one = $empty->withTermDefinition('name', $name);
-        $none = $one->withoutTermDefinition('name');
+        $one = $empty->withTermDefinitions(['name' => $name]);
+        $none = $one->withTermDefinitions([]);
 
         $this->assertNull($empty->termDefinition('name'));
         $this->assertSame($name, $one->termDefinition('name'));
@@ -53,30 +53,24 @@ class ActiveContextTest extends TestCase
     public function testFindsATermMadeOfDigits(): void
     {
         $definition = new TermDefinition(iriMapping: 'https://example.com/123');
-        $context = (new ActiveContext())->withTermDefinition('123', $definition);
+        $context = (new ActiveContext())->withTermDefinitions(['123' => $definition]);
 
         $this->assertSame($definition, $context->termDefinition('123'));
-        $this->assertNull($context->withoutTermDefinition('123')->termDefinition('123'));
-    }
-
-    public function testRemovingATermThatIsNotDefinedChangesNothing(): void
-    {
-        $definition = new TermDefinition(iriMapping: 'https://example.com/name');
-        $context = (new ActiveContext())->withTermDefinition('name', $definition);
-
-        $this->assertSame(['name' => $definition], $context->withoutTermDefinition('other')->termDefinitions);
+        $this->assertNull($context->termDefinition('124'));
     }
 
     public function testKnowsWhetherAnyTermIsProtected(): void
     {
-        $context = (new ActiveContext())
-            ->withTermDefinition('open', new TermDefinition(iriMapping: 'https://example.com/open'));
+        $open = new TermDefinition(iriMapping: 'https://example.com/open');
+        $context = (new ActiveContext())->withTermDefinitions(['open' => $open]);
 
         $this->assertFalse($context->hasProtectedTermDefinitions());
 
-        $context = $context
-            ->withTermDefinition('closed', new TermDefinition(iriMapping: 'ex:closed', protected: true))
-            ->withTermDefinition('other', new TermDefinition(iriMapping: 'https://example.com/other'));
+        $context = $context->withTermDefinitions([
+            'open' => $open,
+            'closed' => new TermDefinition(iriMapping: 'ex:closed', protected: true),
+            'other' => new TermDefinition(iriMapping: 'https://example.com/other'),
+        ]);
 
         $this->assertTrue($context->hasProtectedTermDefinitions());
     }

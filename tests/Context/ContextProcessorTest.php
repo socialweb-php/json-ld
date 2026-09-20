@@ -16,6 +16,7 @@ use SocialWeb\JsonLd\DataLossCondition;
 use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\DataLoss;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\Limits;
 use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\ProcessingMode;
@@ -401,6 +402,79 @@ class ContextProcessorTest extends TestCase
         $result = $processor->process(new ActiveContext(), ['https://example.org/1', 'https://example.org/2'], null);
 
         $this->assertSame(['one', 'two'], array_keys($result->termDefinitions));
+    }
+
+    public function testATermIsNotExpandedWithItsOwnEarlierDefinition(): void
+    {
+        $active = self::process('{"@vocab": "https://example.com/old#", "a/b": {"@container": "@set"}}');
+        $result = self::process('{"@vocab": "https://example.com/ns#", "a/b": {"@container": "@list"}}', $active);
+
+        $this->assertSame('https://example.com/ns#a/b', $result->termDefinition('a/b')?->iriMapping);
+    }
+
+    public function testACompactIriTermReachedAsADependencyDefinesItsPrefixFirst(): void
+    {
+        $result = self::process('{"a": "ex:x", "ex": "https://example.com/", "ex:x": {"@type": "@id"}}');
+
+        $this->assertSame('https://example.com/x', $result->termDefinition('ex:x')?->iriMapping);
+        $this->assertSame('https://example.com/x', $result->termDefinition('a')?->iriMapping);
+    }
+
+    public function testStopsAChainOfTermDependenciesAtTheDepthLimit(): void
+    {
+        $context = json_decode('{"a": "b:a/", "b": "c:b/", "c": "https://example.com/"}', flags: JSON_THROW_ON_ERROR);
+
+        $allowed = new ContextProcessor(new Options(limits: new Limits(maxDepth: 3)));
+        $result = $allowed->process(new ActiveContext(), $context, null);
+
+        $this->assertSame('https://example.com/b/a/', $result->termDefinition('a')?->iriMapping);
+
+        $refused = new ContextProcessor(new Options(limits: new Limits(maxDepth: 2)));
+
+        try {
+            $refused->process(new ActiveContext(), $context, null);
+            $this->fail('Expected a LimitExceeded');
+        } catch (LimitExceeded $exception) {
+            $this->assertSame('maxDepth', $exception->limit);
+            $this->assertSame(2, $exception->value);
+        }
+    }
+
+    public function testTermsSideBySideDoNotCountTowardTheDepth(): void
+    {
+        $processor = new ContextProcessor(new Options(limits: new Limits(maxDepth: 2)));
+        $context = json_decode(
+            '{"a": "b:x", "b": "https://example.com/b/", "c": "b:c/", "d": "c:z"}',
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        $result = $processor->process(new ActiveContext(), $context, null);
+
+        $this->assertSame('https://example.com/b/c/z', $result->termDefinition('d')?->iriMapping);
+    }
+
+    public function testATermThatIsAlreadyDefinedDoesNotCountTowardTheDepth(): void
+    {
+        $processor = new ContextProcessor(new Options(limits: new Limits(maxDepth: 1)));
+        $context = json_decode('{"a": "https://example.com/a#", "b": "a:x"}', flags: JSON_THROW_ON_ERROR);
+
+        $result = $processor->process(new ActiveContext(), $context, null);
+
+        $this->assertSame('https://example.com/a#x', $result->termDefinition('b')?->iriMapping);
+    }
+
+    public function testTheDepthLimitAlsoBoundsAChainInALoadedContext(): void
+    {
+        $loader = (new BundledDocumentLoader())->with(
+            'https://example.org/chain',
+            '{"@context": {"a": "b:a/", "b": "c:b/", "c": "https://example.com/"}}',
+        );
+        $processor = new ContextProcessor(new Options(limits: new Limits(maxDepth: 2), documentLoader: $loader));
+
+        $this->expectException(LimitExceeded::class);
+        $this->expectExceptionMessage('The document exceeds the maxDepth limit of 2');
+
+        $processor->process(new ActiveContext(), 'https://example.org/chain', null);
     }
 
     public function testAScopedContextMayReferToTheRemoteContextThatDefinesIt(): void

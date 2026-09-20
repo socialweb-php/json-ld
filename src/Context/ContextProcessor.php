@@ -29,6 +29,7 @@ use SocialWeb\JsonLd\DocumentReader;
 use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\DataLoss;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\Grammar;
 use SocialWeb\JsonLd\IriResolver;
 use SocialWeb\JsonLd\Keywords;
@@ -145,6 +146,8 @@ final class ContextProcessor
      *     specification or a remote context cannot be loaded
      * @throws DataLoss in strict mode, if a term would be ignored because it
      *     or its IRI has the form of a keyword
+     * @throws LimitExceeded if a chain of terms that depend on one another is
+     *     longer than the depth limit
      */
     public function process(
         ActiveContext $activeContext,
@@ -393,6 +396,9 @@ final class ContextProcessor
             throw new JsonLdError(ErrorCode::InvalidProtectedValue);
         }
 
+        // The terms are defined in a builder, which changes in place, and
+        // the result is built from it once all of them are defined.
+        $builder = new ActiveContextBuilder($result);
         ksort($context, SORT_STRING);
 
         foreach (array_keys($context) as $term) {
@@ -403,7 +409,7 @@ final class ContextProcessor
             }
 
             $this->createTermDefinition(
-                $result,
+                $builder,
                 $context,
                 $term,
                 $defined,
@@ -415,7 +421,7 @@ final class ContextProcessor
             );
         }
 
-        return $result;
+        return $builder->build();
     }
 
     /**
@@ -469,17 +475,24 @@ final class ContextProcessor
     /**
      * Create Term Definition, section 4.2
      *
-     * The active context and the map of defined terms are passed by
-     * reference, because the algorithm changes both and its callers go on to
-     * use what it changed.
+     * The algorithm changes the active context and the map of defined terms,
+     * and its callers go on to use what it changed. The active context is a
+     * builder, which changes in place, and the map is passed by reference.
+     *
+     * A term whose IRI is a compact IRI depends on the term that is its
+     * prefix, and that term may depend on another. The algorithm calls itself
+     * once for each, so the depth limit bounds the length of such a chain;
+     * the specification has no rule for this.
      *
      * @param array<mixed> $localContext The entries of the context definition
      * @param array<bool> $defined Terms by name: true once defined, false
      *     while being defined
      * @param list<string> $remoteContexts
+     * @param int $depth The number of terms being defined at once, this one
+     *     included
      */
     private function createTermDefinition(
-        ActiveContext &$activeContext,
+        ActiveContextBuilder $activeContext,
         array $localContext,
         string $term,
         array &$defined,
@@ -488,6 +501,7 @@ final class ContextProcessor
         bool $overrideProtected,
         array $remoteContexts,
         bool $validateScopedContext,
+        int $depth = 1,
     ): void {
         $isJsonLd10 = $this->options->processingMode === ProcessingMode::JsonLd10;
 
@@ -498,6 +512,10 @@ final class ContextProcessor
             }
 
             throw new JsonLdError(ErrorCode::CyclicIriMapping, $term);
+        }
+
+        if ($depth > $this->options->limits->maxDepth) {
+            throw new LimitExceeded('maxDepth', $this->options->limits->maxDepth);
         }
 
         // Step 2.
@@ -524,7 +542,7 @@ final class ContextProcessor
 
         // Step 6.
         $previousDefinition = $activeContext->termDefinition($term);
-        $activeContext = $activeContext->withoutTermDefinition($term);
+        $activeContext->remove($term);
 
         // Steps 7 through 9.
         $simpleTerm = is_string($value);
@@ -540,7 +558,7 @@ final class ContextProcessor
         // A closure for IRI expansion's steps 3 and 6.3. Those steps skip a
         // term that is already defined; step 1 of this algorithm does that.
         $define = function (string $dependency) use (
-            &$activeContext,
+            $activeContext,
             $localContext,
             &$defined,
             $baseUrl,
@@ -548,7 +566,8 @@ final class ContextProcessor
             $overrideProtected,
             $remoteContexts,
             $validateScopedContext,
-        ): ActiveContext {
+            $depth,
+        ): void {
             if (array_key_exists($dependency, $localContext)) {
                 $this->createTermDefinition(
                     $activeContext,
@@ -560,10 +579,9 @@ final class ContextProcessor
                     $overrideProtected,
                     $remoteContexts,
                     $validateScopedContext,
+                    $depth + 1,
                 );
             }
-
-            return $activeContext;
         };
 
         // Step 11.
@@ -598,7 +616,7 @@ final class ContextProcessor
             );
 
             if ($definition === null) {
-                $activeContext = $this->restore($activeContext, $term, $previousDefinition);
+                $this->restore($activeContext, $term, $previousDefinition);
 
                 return;
             }
@@ -609,7 +627,7 @@ final class ContextProcessor
             // term.
             $this->rejectUnknownEntries($value, $term);
             $definition = $this->keepProtected($definition, $previousDefinition, $overrideProtected, $term);
-            $activeContext = $activeContext->withTermDefinition($term, $definition);
+            $activeContext->set($term, $definition);
             $defined[$term] = true;
 
             return;
@@ -631,7 +649,7 @@ final class ContextProcessor
 
                 if (!Keywords::isKeyword($value['@id']) && Keywords::hasKeywordForm($value['@id'])) {
                     $this->ignoreReservedTerm($term);
-                    $activeContext = $this->restore($activeContext, $term, $previousDefinition);
+                    $this->restore($activeContext, $term, $previousDefinition);
 
                     return;
                 }
@@ -670,7 +688,7 @@ final class ContextProcessor
         } elseif ($colon !== false) {
             // Step 15.
             $termPrefix = substr($term, 0, $colon + 1);
-            $activeContext = $define($termPrefix);
+            $define($termPrefix);
             $prefixMapping = $activeContext->termDefinition($termPrefix)?->iriMapping;
             $iriMapping = $prefixMapping !== null ? $prefixMapping . substr($term, $colon + 2) : $term;
         } elseif (str_contains($term, '/')) {
@@ -731,7 +749,7 @@ final class ContextProcessor
 
             try {
                 $this->process(
-                    $activeContext,
+                    $activeContext->build(),
                     $value['@context'],
                     $baseUrl,
                     $remoteContexts,
@@ -813,7 +831,7 @@ final class ContextProcessor
         $definition = $this->keepProtected($definition, $previousDefinition, $overrideProtected, $term);
 
         // Step 28.
-        $activeContext = $activeContext->withTermDefinition($term, $definition);
+        $activeContext->set($term, $definition);
         $defined[$term] = true;
     }
 
@@ -876,13 +894,13 @@ final class ContextProcessor
      * protected term by giving it an `@id` that has the form of a keyword.
      */
     private function restore(
-        ActiveContext $activeContext,
+        ActiveContextBuilder $activeContext,
         string $term,
         ?TermDefinition $previousDefinition,
-    ): ActiveContext {
-        return $previousDefinition !== null
-            ? $activeContext->withTermDefinition($term, $previousDefinition)
-            : $activeContext;
+    ): void {
+        if ($previousDefinition !== null) {
+            $activeContext->set($term, $previousDefinition);
+        }
     }
 
     /**
@@ -899,10 +917,10 @@ final class ContextProcessor
     /**
      * Step 12 of Create Term Definition
      *
-     * @param Closure(string): ActiveContext $define
+     * @param Closure(string): void $define
      */
     private function typeMapping(
-        ActiveContext $activeContext,
+        ActiveContextBuilder $activeContext,
         mixed $type,
         string $term,
         Closure $define,
@@ -932,10 +950,10 @@ final class ContextProcessor
      * value has the form of a keyword.
      *
      * @param array<mixed> $value The expanded term definition
-     * @param Closure(string): ActiveContext $define
+     * @param Closure(string): void $define
      */
     private function reverseTermDefinition(
-        ActiveContext $activeContext,
+        ActiveContextBuilder $activeContext,
         array $value,
         string $term,
         Closure $define,

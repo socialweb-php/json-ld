@@ -6,6 +6,7 @@ namespace SocialWeb\Test\JsonLd\Context;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use SocialWeb\JsonLd\Context\ActiveContext;
+use SocialWeb\JsonLd\Context\ActiveContextBuilder;
 use SocialWeb\JsonLd\Context\IriExpander;
 use SocialWeb\JsonLd\Context\TermDefinition;
 use SocialWeb\Test\JsonLd\TestCase;
@@ -76,40 +77,37 @@ class IriExpanderTest extends TestCase
     public function testAsksForTheValueAndThenItsPrefixToBeDefined(): void
     {
         $asked = [];
-        $defined = self::context()->withTermDefinition(
-            'late',
-            new TermDefinition(iriMapping: 'https://example.com/late#', prefix: true),
-        );
-        $define = static function (string $term) use (&$asked, $defined): ActiveContext {
+        $builder = new ActiveContextBuilder(new ActiveContext());
+        $define = static function (string $term) use (&$asked, $builder): void {
             $asked[] = $term;
 
-            return $defined;
+            if ($term === 'late') {
+                $builder->set('late', new TermDefinition(iriMapping: 'https://example.com/late#', prefix: true));
+            }
         };
 
-        $this->assertSame(
-            'https://example.com/late#x',
-            IriExpander::expand(new ActiveContext(), 'late:x', define: $define),
-        );
+        $this->assertSame('https://example.com/late#x', IriExpander::expand($builder, 'late:x', define: $define));
         $this->assertSame(['late:x', 'late'], $asked);
     }
 
     public function testUsesADefinitionMadeForTheValueItself(): void
     {
-        $define = static fn (string $term): ActiveContext => self::context();
+        $builder = new ActiveContextBuilder(new ActiveContext());
+        $define = static function (string $term) use ($builder): void {
+            $builder->set($term, new TermDefinition(iriMapping: 'https://example.com/ns#name'));
+        };
 
         $this->assertSame(
             'https://example.com/ns#name',
-            IriExpander::expand(new ActiveContext(), 'name', vocab: true, define: $define),
+            IriExpander::expand($builder, 'name', vocab: true, define: $define),
         );
     }
 
     public function testDoesNotAskForAKeywordOrABlankNodePrefixToBeDefined(): void
     {
         $asked = [];
-        $define = static function (string $term) use (&$asked): ActiveContext {
+        $define = static function (string $term) use (&$asked): void {
             $asked[] = $term;
-
-            return new ActiveContext();
         };
 
         IriExpander::expand(new ActiveContext(), '@id', define: $define);
@@ -121,13 +119,27 @@ class IriExpanderTest extends TestCase
         $this->assertSame(['_:b0', 'http://example.com/'], $asked);
     }
 
+    public function testReadsABuilderAsItReadsAnActiveContext(): void
+    {
+        $builder = new ActiveContextBuilder(self::context());
+
+        $this->assertSame('https://example.com/ns#name', IriExpander::expand($builder, 'name', vocab: true));
+        $this->assertSame('https://example.com/vocab#other', IriExpander::expand($builder, 'other', vocab: true));
+        $this->assertSame(
+            'https://example.com/dir/other',
+            IriExpander::expand($builder, 'other', documentRelative: true),
+        );
+    }
+
     private static function context(): ActiveContext
     {
         return ActiveContext::initial('https://example.com/dir/doc')
             ->withVocabularyMapping('https://example.com/vocab#')
-            ->withTermDefinition('id', new TermDefinition(iriMapping: '@id'))
-            ->withTermDefinition('name', new TermDefinition(iriMapping: 'https://example.com/ns#name'))
-            ->withTermDefinition('hidden', new TermDefinition(iriMapping: null, prefix: true))
-            ->withTermDefinition('ex', new TermDefinition(iriMapping: 'https://example.com/ns#', prefix: true));
+            ->withTermDefinitions([
+                'id' => new TermDefinition(iriMapping: '@id'),
+                'name' => new TermDefinition(iriMapping: 'https://example.com/ns#name'),
+                'hidden' => new TermDefinition(iriMapping: null, prefix: true),
+                'ex' => new TermDefinition(iriMapping: 'https://example.com/ns#', prefix: true),
+            ]);
     }
 }

@@ -30,12 +30,13 @@ use function array_any;
  * describes it
  *
  * The value is immutable. Context processing returns a new active context
- * and leaves the one it was given alone. The inverse context is absent
- * because only compaction uses it.
+ * and leaves the one it was given alone; it defines terms in an
+ * `ActiveContextBuilder`. The inverse context is absent because only
+ * compaction uses it.
  *
  * @internal
  */
-final readonly class ActiveContext
+final readonly class ActiveContext implements IriExpansionContext
 {
     /**
      * @param array<TermDefinition> $termDefinitions The term definitions by
@@ -84,19 +85,11 @@ final readonly class ActiveContext
         return array_any($this->termDefinitions, fn ($definition) => $definition->protected);
     }
 
-    public function withTermDefinition(string $term, TermDefinition $definition): self
+    /**
+     * @param array<TermDefinition> $termDefinitions
+     */
+    public function withTermDefinitions(array $termDefinitions): self
     {
-        $termDefinitions = $this->termDefinitions;
-        $termDefinitions[$term] = $definition;
-
-        return clone($this, ['termDefinitions' => $termDefinitions]);
-    }
-
-    public function withoutTermDefinition(string $term): self
-    {
-        $termDefinitions = $this->termDefinitions;
-        unset($termDefinitions[$term]);
-
         return clone($this, ['termDefinitions' => $termDefinitions]);
     }
 

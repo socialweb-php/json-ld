@@ -30,16 +30,26 @@ use function sprintf;
 /**
  * Bounds on the size of a document the processor will accept
  *
- * Every recursion in the algorithms follows either the document's structure
- * or a chain of context inclusions, and the work they do is proportional to
- * the number of values, so these two limits bound the work of a whole
- * conversion. To disable a limit, pass `PHP_INT_MAX`.
+ * `maxDepth` bounds every recursion in the algorithms: through the document's
+ * structure, through contexts that include one another, and through terms that
+ * depend on one another.
+ *
+ * `maxValues` bounds the size of the document, and with it the work. The work
+ * grows with the number of values and with the number of terms in the active
+ * context, and a document's own contexts may define as many terms as the limit
+ * allows. A caller who reads untrusted documents can lower it to shorten the
+ * longest possible run.
+ *
+ * To disable a limit, pass `PHP_INT_MAX`.
  */
 final readonly class Limits
 {
     /**
      * The greatest number of nested arrays and objects; a top-level object is
      * depth 1
+     *
+     * The same number bounds a chain of contexts that include one another
+     * and a chain of terms that depend on one another.
      *
      * @var int<1, max>
      */

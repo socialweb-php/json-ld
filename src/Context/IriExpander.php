@@ -49,18 +49,19 @@ final class IriExpander
      * During context processing, the specification passes this algorithm the
      * local context and the map of defined terms, so that a term the value
      * depends on is defined before it is used. Here the context processor
-     * passes a closure that does exactly that and returns the active context
-     * as it is afterward.
+     * passes two things: a closure that defines such a term on demand, and the
+     * builder it is defining terms in. The closure writes to that same builder,
+     * so this algorithm sees the new term on its next lookup.
      *
      * @param bool $documentRelative Whether to resolve a relative reference
      *     against the base IRI
      * @param bool $vocab Whether the value may be a term or be relative to the
      *     vocabulary mapping
-     * @param (Closure(string): ActiveContext) | null $define Given a term,
+     * @param (Closure(string): void) | null $define Given a term,
      *     defines it if the local context has it and it is not yet defined
      */
     public static function expand(
-        ActiveContext $activeContext,
+        IriExpansionContext $activeContext,
         ?string $value,
         bool $documentRelative = false,
         bool $vocab = false,
@@ -78,7 +79,7 @@ final class IriExpander
 
         // Step 3.
         if ($define !== null) {
-            $activeContext = $define($value);
+            $define($value);
         }
 
         $definition = $activeContext->termDefinition($value);
@@ -110,7 +111,7 @@ final class IriExpander
 
             // Step 6.3.
             if ($define !== null) {
-                $activeContext = $define($prefix);
+                $define($prefix);
             }
 
             // Step 6.4.
