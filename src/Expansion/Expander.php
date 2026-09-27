@@ -109,7 +109,7 @@ final class Expander
      *
      * @throws JsonLdError if the element breaks a rule of the specification
      * @throws DataLoss in strict mode, if part of the element would be dropped
-     * @throws LimitExceeded if a context exceeds the depth limit
+     * @throws LimitExceeded if a context exceeds a limit
      */
     public function expand(
         ActiveContext $activeContext,

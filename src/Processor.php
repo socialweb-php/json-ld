@@ -82,7 +82,8 @@ final class Processor
      *     holds a value that JSON cannot represent
      * @throws InvalidArgument if the document holds something that is not a
      *     JSON value
-     * @throws LimitExceeded if the document exceeds a limit
+     * @throws LimitExceeded if the document exceeds a limit, or its contexts
+     *     would create more term definitions than the limit allows
      * @throws JsonLdError if the document breaks a rule of the specification
      * @throws DataLoss in strict mode, if part of the document would be
      *     dropped
@@ -91,6 +92,8 @@ final class Processor
      */
     public function expand(string | array | object $document): ExpandedDocument
     {
+        $this->contextProcessor->reset();
+
         $element = $this->reader->read($document);
         $activeContext = ActiveContext::initial($this->options->base);
         $expandContext = $this->options->expandContext;

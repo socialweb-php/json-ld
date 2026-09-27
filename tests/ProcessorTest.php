@@ -21,9 +21,12 @@ use SocialWeb\JsonLd\ProcessingMode;
 use SocialWeb\JsonLd\Processor;
 use SocialWeb\JsonLd\Restrictions;
 
+use function implode;
 use function json_decode;
+use function sprintf;
 
 use const JSON_THROW_ON_ERROR;
+use const PHP_INT_MAX;
 
 class ProcessorTest extends TestCase
 {
@@ -291,6 +294,102 @@ class ProcessorTest extends TestCase
         );
     }
 
+    #[DataProvider('modes')]
+    public function testEnforcesTheLimitOnTermDefinitions(bool $strict): void
+    {
+        // The scoped context of "items" has ten terms, and the property has
+        // ten values.
+        $manyValues = self::scopedContextDocument('"items": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]');
+
+        try {
+            self::processorWithin(20, $strict)->expand($manyValues);
+            $this->fail('Expected a LimitExceeded');
+        } catch (LimitExceeded $exception) {
+            $this->assertSame('maxTermDefinitions', $exception->limit);
+            $this->assertSame(20, $exception->value);
+        }
+
+        // One term definition for "items", ten while its scoped context is
+        // validated, and eleven for each node: one for its own context and ten
+        // for the scoped context.
+        $this->assertSame(
+            '[{"ex:items":[{"@value":1}]},{"ex:items":[{"@value":2}]}]',
+            self::processorWithin(33, $strict)->expand(self::twoNodes())->toJson(),
+        );
+
+        $this->expectExceptionObject(new LimitExceeded('maxTermDefinitions', 32));
+
+        self::processorWithin(32, $strict)->expand(self::twoNodes());
+    }
+
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function modes(): iterable
+    {
+        yield 'strict mode' => [true];
+        yield 'lenient mode' => [false];
+    }
+
+    public function testEachCallMayCreateAsManyTermDefinitionsAsTheLimitAllows(): void
+    {
+        $processor = self::processorWithin(33, true);
+        $expected = '[{"ex:items":[{"@value":1}]},{"ex:items":[{"@value":2}]}]';
+
+        $this->assertSame($expected, $processor->expand(self::twoNodes())->toJson());
+        $this->assertSame($expected, $processor->expand(self::twoNodes())->toJson());
+    }
+
+    public function testExpandsAnotherDocumentAfterRefusingOne(): void
+    {
+        $processor = self::processorWithin(32, true);
+
+        try {
+            $processor->expand(self::twoNodes());
+            $this->fail('Expected a LimitExceeded');
+        } catch (LimitExceeded $exception) {
+            $this->assertSame('maxTermDefinitions', $exception->limit);
+        }
+
+        // The second node has no context of its own, so this document needs
+        // one term definition fewer: all 32.
+        $document = self::scopedContextDocument(
+            '"@graph": [{"@context": {"own": "ex:one"}, "items": 1}, {"items": 2}]',
+        );
+
+        $this->assertSame(
+            '[{"ex:items":[{"@value":1}]},{"ex:items":[{"@value":2}]}]',
+            $processor->expand($document)->toJson(),
+        );
+    }
+
+    public function testTheLimitOnTermDefinitionsMayBeDisabled(): void
+    {
+        $processor = new Processor(new Options(limits: new Limits(maxTermDefinitions: PHP_INT_MAX)));
+
+        $this->assertSame(
+            '[{"ex:items":[{"@value":1},{"@value":2}]}]',
+            $processor->expand(self::scopedContextDocument('"items": [1, 2]'))->toJson(),
+        );
+    }
+
+    public function testTheLimitOnTermDefinitionsCoversTheExpandContext(): void
+    {
+        $options = new Options(
+            expandContext: ['a' => 'ex:a', 'b' => 'ex:b'],
+            limits: new Limits(maxTermDefinitions: 3),
+        );
+
+        $this->assertSame(
+            '[{"ex:c":[{"@value":1}]}]',
+            (new Processor($options))->expand('{"@context": {"c": "ex:c"}, "c": 1}')->toJson(),
+        );
+
+        $this->expectExceptionObject(new LimitExceeded('maxTermDefinitions', 3));
+
+        (new Processor($options))->expand('{"@context": {"c": "ex:c", "d": "ex:d"}, "c": 1}');
+    }
+
     public function testAppliesTheRestrictionsToTheExpandedDocument(): void
     {
         $document = '{"@context": {"graph": "@graph", "id": "@id"}, "id": "ex:g", "graph": [{"ex:p": 1}]}';
@@ -323,5 +422,36 @@ class ProcessorTest extends TestCase
         $this->expectExceptionObject(new RestrictedFeature('requireSingleTopLevelNode', '2'));
 
         (new Processor(new Options(restrictions: Restrictions::all())))->expand($document);
+    }
+
+    private static function processorWithin(int $termDefinitions, bool $strict): Processor
+    {
+        return new Processor(new Options(strict: $strict, limits: new Limits(maxTermDefinitions: $termDefinitions)));
+    }
+
+    /**
+     * Returns a document whose two nodes each have a context of their own, and
+     * in each node the property "items"
+     */
+    private static function twoNodes(): string
+    {
+        return self::scopedContextDocument(
+            '"@graph": [{"@context": {"own": "ex:one"}, "items": 1}, {"@context": {"own": "ex:two"}, "items": 2}]',
+        );
+    }
+
+    /**
+     * Returns a document whose term "items" has a scoped context of ten terms
+     */
+    private static function scopedContextDocument(string $entries): string
+    {
+        $scoped = [];
+
+        for ($i = 0; $i < 10; $i++) {
+            $scoped[] = sprintf('"term%1$d": "ex:term%1$d"', $i);
+        }
+
+        return '{"@context": {"items": {"@id": "ex:items", "@context": {' . implode(', ', $scoped) . '}}}, '
+            . $entries . '}';
     }
 }

@@ -477,6 +477,141 @@ class ContextProcessorTest extends TestCase
         $processor->process(new ActiveContext(), 'https://example.org/chain', null);
     }
 
+    public function testStopsAtTheLimitOnTermDefinitions(): void
+    {
+        $context = json_decode('{"a": "ex:a", "b": "ex:b", "c": "ex:c"}', flags: JSON_THROW_ON_ERROR);
+
+        $allowed = new ContextProcessor(new Options(limits: new Limits(maxTermDefinitions: 3)));
+        $result = $allowed->process(new ActiveContext(), $context, null);
+
+        $this->assertSame(['a', 'b', 'c'], array_keys($result->termDefinitions));
+
+        $refused = new ContextProcessor(new Options(limits: new Limits(maxTermDefinitions: 2)));
+
+        $this->expectExceptionObject(new LimitExceeded('maxTermDefinitions', 2));
+
+        $refused->process(new ActiveContext(), $context, null);
+    }
+
+    public function testATermThatIsAlreadyDefinedDoesNotCountTowardTheTermDefinitions(): void
+    {
+        // The term "a" is reached first and defines "b", which it depends on.
+        // When the algorithm reaches "b" in its turn, "b" is already defined.
+        $processor = new ContextProcessor(new Options(limits: new Limits(maxTermDefinitions: 2)));
+        $context = json_decode('{"a": "b:x", "b": "https://example.com/b/"}', flags: JSON_THROW_ON_ERROR);
+
+        $result = $processor->process(new ActiveContext(), $context, null);
+
+        $this->assertSame(['b', 'a'], array_keys($result->termDefinitions));
+    }
+
+    #[DataProvider('ignoredTerms')]
+    public function testATermThatIsIgnoredDoesNotCountTowardTheTermDefinitions(string $ignored): void
+    {
+        $processor = new ContextProcessor(
+            new Options(strict: false, limits: new Limits(maxTermDefinitions: 1)),
+        );
+        $context = json_decode('{' . $ignored . ', "kept": "ex:kept"}', flags: JSON_THROW_ON_ERROR);
+
+        $result = $processor->process(new ActiveContext(), $context, null);
+
+        $this->assertSame(['kept'], array_keys($result->termDefinitions));
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function ignoredTerms(): iterable
+    {
+        yield 'a term with the form of a keyword' => ['"@ignored": "ex:ignored"'];
+        yield 'an @id with the form of a keyword' => ['"ignored": {"@id": "@ignored"}'];
+        yield 'an @reverse with the form of a keyword' => ['"ignored": {"@reverse": "@ignored"}'];
+    }
+
+    public function testATermDefinedAsNullCountsTowardTheTermDefinitions(): void
+    {
+        $processor = new ContextProcessor(new Options(limits: new Limits(maxTermDefinitions: 1)));
+        $context = json_decode('{"a": null, "b": "ex:b"}', flags: JSON_THROW_ON_ERROR);
+
+        $this->expectExceptionObject(new LimitExceeded('maxTermDefinitions', 1));
+
+        $processor->process(new ActiveContext(), $context, null);
+    }
+
+    public function testValidatingAScopedContextCountsTowardTheTermDefinitions(): void
+    {
+        // Two terms while the scoped context is validated, and then "a".
+        $context = json_decode(
+            '{"a": {"@id": "ex:a", "@context": {"b": "ex:b", "c": "ex:c"}}}',
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        $allowed = new ContextProcessor(new Options(limits: new Limits(maxTermDefinitions: 3)));
+        $result = $allowed->process(new ActiveContext(), $context, null);
+
+        $this->assertSame(['a'], array_keys($result->termDefinitions));
+
+        $refused = new ContextProcessor(new Options(limits: new Limits(maxTermDefinitions: 2)));
+
+        try {
+            $refused->process(new ActiveContext(), $context, null);
+            $this->fail('Expected a LimitExceeded');
+        } catch (LimitExceeded $exception) {
+            $this->assertSame(2, $exception->value);
+        }
+
+        // The limit is reached inside the scoped context. The error is the
+        // limit's own, and not `invalid scoped context`.
+        $refusedInside = new ContextProcessor(new Options(limits: new Limits(maxTermDefinitions: 1)));
+
+        $this->expectExceptionObject(new LimitExceeded('maxTermDefinitions', 1));
+
+        $refusedInside->process(new ActiveContext(), $context, null);
+    }
+
+    public function testTheTermDefinitionsOfALoadedContextCount(): void
+    {
+        $loader = (new BundledDocumentLoader())
+            ->with('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b", "c": "ex:c"}}');
+
+        $allowed = new ContextProcessor(
+            new Options(limits: new Limits(maxTermDefinitions: 3), documentLoader: $loader),
+        );
+        $result = $allowed->process(new ActiveContext(), 'https://example.org/context', null);
+
+        $this->assertSame(['a', 'b', 'c'], array_keys($result->termDefinitions));
+
+        $refused = new ContextProcessor(
+            new Options(limits: new Limits(maxTermDefinitions: 2), documentLoader: $loader),
+        );
+
+        $this->expectExceptionObject(new LimitExceeded('maxTermDefinitions', 2));
+
+        $refused->process(new ActiveContext(), 'https://example.org/context', null);
+    }
+
+    public function testTheTermDefinitionsAddUpFromOneCallToTheNextUntilTheReset(): void
+    {
+        $processor = new ContextProcessor(new Options(limits: new Limits(maxTermDefinitions: 3)));
+        $context = json_decode('{"a": "ex:a", "b": "ex:b"}', flags: JSON_THROW_ON_ERROR);
+
+        $processor->process(new ActiveContext(), $context, null);
+
+        try {
+            $processor->process(new ActiveContext(), $context, null);
+            $this->fail('Expected a LimitExceeded');
+        } catch (LimitExceeded $exception) {
+            $this->assertSame('maxTermDefinitions', $exception->limit);
+            $this->assertSame(3, $exception->value);
+        }
+
+        $processor->reset();
+        $processor->process(new ActiveContext(), json_decode('{"a": "ex:a"}', flags: JSON_THROW_ON_ERROR), null);
+        $result = $processor->process(new ActiveContext(), $context, null);
+
+        $this->assertSame(['a', 'b'], array_keys($result->termDefinitions));
+    }
+
     public function testAScopedContextMayReferToTheRemoteContextThatDefinesIt(): void
     {
         $loader = (new BundledDocumentLoader())->with(

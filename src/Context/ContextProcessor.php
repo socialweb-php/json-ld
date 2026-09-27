@@ -73,6 +73,10 @@ use const SORT_STRING;
  * point order, so that the first error reported for a context with several
  * errors does not depend on how the context was written.
  *
+ * The processor counts the term definitions it creates and refuses to create
+ * more than `Limits::maxTermDefinitions`. The count goes on from one call of
+ * `process()` to the next until `reset()` is called.
+ *
  * @internal
  */
 final class ContextProcessor
@@ -127,8 +131,25 @@ final class ContextProcessor
      */
     private array $dereferenced = [];
 
+    /**
+     * The number of term definitions created since the last call to `reset()`
+     */
+    private int $termDefinitions = 0;
+
     public function __construct(private readonly Options $options)
     {
+    }
+
+    /**
+     * Sets the count of term definitions to zero
+     *
+     * `Processor` calls this at the start of each call, so that the limit on
+     * term definitions covers one call. The documents that were loaded are
+     * kept.
+     */
+    public function reset(): void
+    {
+        $this->termDefinitions = 0;
     }
 
     /**
@@ -151,7 +172,8 @@ final class ContextProcessor
      * @throws DataLoss in strict mode, if a term would be ignored because it
      *     or its IRI has the form of a keyword
      * @throws LimitExceeded if a chain of terms that depend on one another is
-     *     longer than the depth limit
+     *     longer than the depth limit, or if more term definitions would be
+     *     created since the last reset than the limit allows
      */
     public function process(
         ActiveContext $activeContext,
@@ -488,6 +510,10 @@ final class ContextProcessor
      * once for each, so the depth limit bounds the length of such a chain;
      * the specification has no rule for this.
      *
+     * Each term definition that step 28 sets counts toward the limit on term
+     * definitions; the specification has no rule for this either. A term that
+     * step 1 finds already defined, and a term that is ignored, do not count.
+     *
      * @param array<mixed> $localContext The entries of the context definition
      * @param array<bool> $defined Terms by name: true once defined, false
      *     while being defined
@@ -823,6 +849,14 @@ final class ContextProcessor
         // Step 27.
         $definition = $this->keepProtected($definition, $previousDefinition, $overrideProtected, $term);
 
+        // The term definition counts toward the limit, and is refused if the
+        // limit is reached.
+        if ($this->termDefinitions >= $this->options->limits->maxTermDefinitions) {
+            throw new LimitExceeded('maxTermDefinitions', $this->options->limits->maxTermDefinitions);
+        }
+
+        $this->termDefinitions++;
+
         // Step 28.
         $activeContext->set($term, $definition);
         $defined[$term] = true;
@@ -1066,7 +1100,9 @@ final class ContextProcessor
      * Steps 5.2.4 and 5.2.5: the document for a context URL, from the loader
      * the first time and from memory after that
      *
-     * Documents from the loader are not subject to the limits.
+     * Documents from the loader are not subject to the limits on depth and
+     * on the number of values. The term definitions that their contexts create
+     * count toward the limit on term definitions.
      *
      * @return array{string, mixed} The document URL and the document in the
      *     internal form
