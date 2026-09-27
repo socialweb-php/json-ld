@@ -36,6 +36,30 @@ class ExpansionResultTest extends TestCase
         $this->assertSame(['@id' => 'ex:b', '@value' => null], $result->entries());
     }
 
+    public function testAppendsItemsToAKeywordEntry(): void
+    {
+        $result = new ExpansionResult();
+
+        $result->set('@type', ['ex:A']);
+        $result->append('@type', ['ex:B', 'ex:C']);
+        $result->append('@type', []);
+        $result->append('@type', ['ex:A']);
+
+        $this->assertSame(['ex:A', 'ex:B', 'ex:C', 'ex:A'], $result->get('@type'));
+    }
+
+    public function testAppendingMakesAListOfAnEntryThatIsNotOne(): void
+    {
+        $result = new ExpansionResult();
+
+        $result->set('@type', 'ex:A');
+        $result->append('@type', ['ex:B']);
+        $result->set('@id', null);
+        $result->append('@id', []);
+
+        $this->assertSame(['@id' => [null], '@type' => ['ex:A', 'ex:B']], $result->entries());
+    }
+
     public function testAddsValuesToAPropertyAsAList(): void
     {
         $one = (object) ['@value' => 1];

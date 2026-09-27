@@ -78,6 +78,25 @@ final class ExpansionResult
     }
 
     /**
+     * Adds items to the end of a keyword entry that the result already has
+     *
+     * If the value of the entry is not a list, it becomes a list of one, and
+     * the items follow it.
+     *
+     * @param list<mixed> $items
+     */
+    public function append(string $keyword, array $items): void
+    {
+        if (!is_array($this->keywords[$keyword])) {
+            $this->keywords[$keyword] = [$this->keywords[$keyword]];
+        }
+
+        foreach ($items as $item) {
+            $this->keywords[$keyword][] = $item;
+        }
+    }
+
+    /**
      * The "add value" utility of the specification, with its `as array` flag
      * set to true
      *
@@ -88,10 +107,11 @@ final class ExpansionResult
      */
     public function add(string $property, stdClass | array $value): void
     {
-        $this->properties[$property] = [
-            ...$this->properties[$property] ?? [],
-            ...is_array($value) ? $value : [$value],
-        ];
+        $this->properties[$property] ??= [];
+
+        foreach (is_array($value) ? $value : [$value] as $item) {
+            $this->properties[$property][] = $item;
+        }
     }
 
     /**

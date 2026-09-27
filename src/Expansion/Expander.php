@@ -282,7 +282,9 @@ final class Expander
 
             // Step 5.2.3.
             if (is_array($expandedItem)) {
-                $result = [...$result, ...$expandedItem];
+                foreach ($expandedItem as $expanded) {
+                    $result[] = $expanded;
+                }
             } elseif ($expandedItem !== null) {
                 $result[] = $expandedItem;
             }
@@ -527,7 +529,9 @@ final class Expander
                 $expandedValue = $this->expandTypes($typeScopedContext, $value);
 
                 if ($result->has('@type')) {
-                    $expandedValue = [...self::asList($result->get('@type')), ...self::asList($expandedValue)];
+                    $result->append('@type', self::asList($expandedValue));
+
+                    return;
                 }
 
                 break;
@@ -560,7 +564,9 @@ final class Expander
                 }
 
                 if ($result->has('@included')) {
-                    $expandedValue = [...self::asList($result->get('@included')), ...$expandedValue];
+                    $result->append('@included', $expandedValue);
+
+                    return;
                 }
 
                 break;
