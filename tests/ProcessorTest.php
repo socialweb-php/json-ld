@@ -390,6 +390,39 @@ class ProcessorTest extends TestCase
         (new Processor($options))->expand('{"@context": {"c": "ex:c", "d": "ex:d"}, "c": 1}');
     }
 
+    #[DataProvider('modes')]
+    public function testProcessesAScopedContextOnceForTheValuesOfAProperty(bool $strict): void
+    {
+        // One term definition for "items", ten while its scoped context is
+        // validated, and ten when the scoped context is first applied. The
+        // other nine values take none.
+        $document = self::scopedContextDocument('"items": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]');
+
+        $this->assertCount(1, self::processorWithin(21, $strict)->expand($document)->jsonSerialize());
+    }
+
+    public function testProcessesARepeatedContextUrlOnce(): void
+    {
+        // The context has 148 terms. It applies to the initial active
+        // context, and then to the result of that for the items. The items
+        // all share one active context, so the second time is the last.
+        $url = 'https://www.w3.org/ns/activitystreams';
+        $item = '{"@context": "' . $url . '", "type": "Note"}';
+        $document = '{"@context": "' . $url . '", "type": "Collection", "items": ['
+            . $item . ', ' . $item . ', ' . $item . ']}';
+        $note = '{"@type":["https://www.w3.org/ns/activitystreams#Note"]}';
+
+        $this->assertSame(
+            '[{"@type":["https://www.w3.org/ns/activitystreams#Collection"],'
+                . '"https://www.w3.org/ns/activitystreams#items":[' . $note . ',' . $note . ',' . $note . ']}]',
+            self::processorWithin(296, true)->expand($document)->toJson(),
+        );
+
+        $this->expectExceptionObject(new LimitExceeded('maxTermDefinitions', 295));
+
+        self::processorWithin(295, true)->expand($document);
+    }
+
     public function testAppliesTheRestrictionsToTheExpandedDocument(): void
     {
         $document = '{"@context": {"graph": "@graph", "id": "@id"}, "id": "ex:g", "graph": [{"ex:p": 1}]}';

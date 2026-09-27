@@ -147,10 +147,9 @@ final class Expander
             // same context would be accepted for one kind of value and refused
             // for the other.
             if ($propertyDefinition !== null && $propertyDefinition->hasContext) {
-                $activeContext = $this->contextProcessor->process(
+                $activeContext = $this->contextProcessor->processScoped(
                     $activeContext,
-                    $propertyDefinition->context,
-                    $propertyDefinition->baseUrl,
+                    $propertyDefinition,
                     overrideProtected: true,
                 );
             }
@@ -170,10 +169,9 @@ final class Expander
 
         // Step 8.
         if ($propertyDefinition !== null && $propertyDefinition->hasContext) {
-            $activeContext = $this->contextProcessor->process(
+            $activeContext = $this->contextProcessor->processScoped(
                 $activeContext,
-                $propertyDefinition->context,
-                $propertyDefinition->baseUrl,
+                $propertyDefinition,
                 overrideProtected: true,
             );
         }
@@ -215,10 +213,9 @@ final class Expander
                 $definition = $typeScopedContext->termDefinition($term);
 
                 if ($definition !== null && $definition->hasContext) {
-                    $activeContext = $this->contextProcessor->process(
+                    $activeContext = $this->contextProcessor->processScoped(
                         $activeContext,
-                        $definition->context,
-                        $definition->baseUrl,
+                        $definition,
                         propagate: false,
                     );
                 }
@@ -452,10 +449,9 @@ final class Expander
             $nestDefinition = $activeContext->termDefinition($nestingKey);
 
             if ($nestDefinition !== null && $nestDefinition->hasContext) {
-                $nestContext = $this->contextProcessor->process(
+                $nestContext = $this->contextProcessor->processScoped(
                     $activeContext,
-                    $nestDefinition->context,
-                    $nestDefinition->baseUrl,
+                    $nestDefinition,
                     overrideProtected: true,
                 );
             }
@@ -915,10 +911,9 @@ final class Expander
             $indexDefinition = $isType ? $mapContext->termDefinition($index) : null;
 
             if ($indexDefinition !== null && $indexDefinition->hasContext) {
-                $mapContext = $this->contextProcessor->process(
+                $mapContext = $this->contextProcessor->processScoped(
                     $mapContext,
-                    $indexDefinition->context,
-                    $indexDefinition->baseUrl,
+                    $indexDefinition,
                     propagate: false,
                 );
             }

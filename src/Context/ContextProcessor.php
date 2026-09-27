@@ -74,8 +74,10 @@ use const SORT_STRING;
  * errors does not depend on how the context was written.
  *
  * The processor counts the term definitions it creates and refuses to create
- * more than `Limits::maxTermDefinitions`. The count goes on from one call of
- * `process()` to the next until `reset()` is called.
+ * more than `Limits::maxTermDefinitions`. It keeps the results of scoped
+ * contexts and of contexts named by URL in a `ProcessedContextCache`. The count
+ * and the cache go on from one call of `process()` to the next until `reset()`
+ * is called.
  *
  * @internal
  */
@@ -136,20 +138,24 @@ final class ContextProcessor
      */
     private int $termDefinitions = 0;
 
-    public function __construct(private readonly Options $options)
-    {
+    public function __construct(
+        private readonly Options $options,
+        private readonly ProcessedContextCache $cache = new ProcessedContextCache(),
+    ) {
     }
 
     /**
-     * Sets the count of term definitions to zero
+     * Sets the count of term definitions to zero and empties the cache of
+     * processed contexts
      *
      * `Processor` calls this at the start of each call, so that the limit on
-     * term definitions covers one call. The documents that were loaded are
-     * kept.
+     * term definitions and the cache both cover one call. The documents that
+     * were loaded are kept.
      */
     public function reset(): void
     {
         $this->termDefinitions = 0;
+        $this->cache->clear();
     }
 
     /**
@@ -258,7 +264,60 @@ final class ContextProcessor
     }
 
     /**
+     * Returns the active context that results from applying the scoped context
+     * of a term definition
+     *
+     * The result comes from the cache if the same scoped context was applied
+     * to the same active context with the same flags before. Otherwise, the
+     * scoped context is processed and the result is stored.
+     *
+     * @param ActiveContext $activeContext The active context to apply the
+     *     scoped context to
+     * @param TermDefinition $definition A term definition that has a scoped
+     *     context
+     * @param bool $overrideProtected Whether protected terms may be redefined
+     * @param bool $propagate Whether the context stays in effect inside node
+     *     objects nested below the one it applies to
+     *
+     * @throws JsonLdError if the scoped context breaks a rule of the
+     *     specification or a remote context cannot be loaded
+     * @throws DataLoss in strict mode, if a term would be ignored because it
+     *     or its IRI has the form of a keyword
+     * @throws LimitExceeded if a chain of terms that depend on one another is
+     *     longer than the depth limit, or if more term definitions would be
+     *     created since the last reset than the limit allows
+     */
+    public function processScoped(
+        ActiveContext $activeContext,
+        TermDefinition $definition,
+        bool $overrideProtected = false,
+        bool $propagate = true,
+    ): ActiveContext {
+        $result = $this->cache->scoped($activeContext, $definition, $overrideProtected, $propagate);
+
+        if ($result === null) {
+            $result = $this->process(
+                $activeContext,
+                $definition->context,
+                $definition->baseUrl,
+                overrideProtected: $overrideProtected,
+                propagate: $propagate,
+            );
+
+            $this->cache->storeScoped($activeContext, $definition, $overrideProtected, $propagate, $result);
+        }
+
+        return $result;
+    }
+
+    /**
      * Step 5.2: a context given by reference
+     *
+     * The cache is asked for a URL that the document or a scoped context
+     * names. It is not asked for a URL that a loaded context names, because the
+     * result for the loaded context covers it. It is not asked while Create
+     * Term Definition validates a scoped context, because nothing asks again
+     * about the active context that the validation uses.
      *
      * @param list<string> $remoteContexts
      */
@@ -272,6 +331,12 @@ final class ContextProcessor
     ): ActiveContext {
         // Step 5.2.1.
         $context = $this->resolveContextUrl($context, $baseUrl);
+        $useCache = $validateScopedContext && $remoteContexts === [];
+        $cached = $useCache ? $this->cache->remote($result, $context, $overrideProtected) : null;
+
+        if ($cached !== null) {
+            return $cached;
+        }
 
         // Step 5.2.2.
         if (!$validateScopedContext && in_array($context, $remoteContexts, true)) {
@@ -295,7 +360,7 @@ final class ContextProcessor
         // Step 5.2.6. The specification does not pass override protected
         // here; it is passed so that a scoped context given by reference may
         // redefine protected terms as one written inline may.
-        return $this->process(
+        $processed = $this->process(
             $result,
             $document->{'@context'},
             $documentUrl,
@@ -303,6 +368,12 @@ final class ContextProcessor
             $overrideProtected,
             validateScopedContext: $validateScopedContext,
         );
+
+        if ($useCache) {
+            $this->cache->storeRemote($result, $context, $overrideProtected, $processed);
+        }
+
+        return $processed;
     }
 
     /**

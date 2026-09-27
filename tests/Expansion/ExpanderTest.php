@@ -11,7 +11,9 @@ use SocialWeb\JsonLd\DataLossCondition;
 use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\DataLoss;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\Expansion\Expander;
+use SocialWeb\JsonLd\Limits;
 use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\ProcessingMode;
 use SocialWeb\JsonLd\Rdf\JsonCanonicalizer;
@@ -1145,6 +1147,134 @@ class ExpanderTest extends TestCase
         $this->assertExpandsTo(
             '{"@type": ["ex:Outer"], "ex:p": [{"@index": "a", "ex:scoped": [{"@value": 1}]}]}',
             '{"@context": ' . $context . ', "@type": "Outer", "p": {"a": {"q": 1}}}',
+        );
+    }
+
+    /**
+     * The scoped context in each document has two terms. A document needs the
+     * given number of term definitions only if the scoped context is processed
+     * once, however many times it applies.
+     */
+    #[DataProvider('repeatedScopedContexts')]
+    public function testProcessesAScopedContextOnceForEachActiveContext(
+        string $expected,
+        string $document,
+        int $termDefinitions,
+    ): void {
+        $this->assertSame(
+            JsonCanonicalizer::canonicalize(json_decode($expected, flags: JSON_THROW_ON_ERROR)),
+            JsonCanonicalizer::canonicalize(self::expandWithin($termDefinitions, $document)),
+        );
+
+        $this->expectExceptionObject(new LimitExceeded('maxTermDefinitions', $termDefinitions - 1));
+
+        self::expandWithin($termDefinitions - 1, $document);
+    }
+
+    /**
+     * @return iterable<string, array{string, string, int}>
+     */
+    public static function repeatedScopedContexts(): iterable
+    {
+        $scoped = '{"@id": "ex:scoped", "@context": {"a": "ex:a", "b": "ex:b"}}';
+
+        yield 'step 4.2, a property with scalar values' => [
+            '{"ex:scoped": [{"@value": "x"}, {"@value": "y"}, {"@value": "z"}]}',
+            '{"@context": {"scoped": ' . $scoped . '}, "scoped": ["x", "y", "z"]}',
+            5,
+        ];
+        yield 'step 8, a property whose values are maps' => [
+            '{"ex:scoped": [{"ex:a": [{"@value": 1}]}, {"ex:a": [{"@value": 2}]}, {"ex:a": [{"@value": 3}]}]}',
+            '{"@context": {"scoped": ' . $scoped . '}, "scoped": [{"a": 1}, {"a": 2}, {"a": 3}]}',
+            5,
+        ];
+        yield 'step 11.2, a type' => [
+            '{"@graph": [{"@type": ["ex:scoped"], "ex:a": [{"@value": 1}]},'
+                . ' {"@type": ["ex:scoped"], "ex:a": [{"@value": 2}]},'
+                . ' {"@type": ["ex:scoped"], "ex:a": [{"@value": 3}]}]}',
+            '{"@context": {"scoped": ' . $scoped . '}, "@graph": [{"@type": "scoped", "a": 1},'
+                . ' {"@type": "scoped", "a": 2}, {"@type": "scoped", "a": 3}]}',
+            5,
+        ];
+        yield 'step 13.8.3.2, the key of a type map' => [
+            '{"@graph": [{"ex:map": [{"@type": ["ex:scoped"], "ex:a": [{"@value": 1}]}]},'
+                . ' {"ex:map": [{"@type": ["ex:scoped"], "ex:a": [{"@value": 2}]}]},'
+                . ' {"ex:map": [{"@type": ["ex:scoped"], "ex:a": [{"@value": 3}]}]}]}',
+            '{"@context": {"scoped": ' . $scoped . ', "map": {"@id": "ex:map", "@container": "@type"}}, "@graph": ['
+                . '{"map": {"scoped": {"a": 1}}}, {"map": {"scoped": {"a": 2}}}, {"map": {"scoped": {"a": 3}}}]}',
+            6,
+        ];
+        yield 'step 14, an alias of @nest' => [
+            '{"@graph": [{"ex:a": [{"@value": 1}]}, {"ex:a": [{"@value": 2}]}, {"ex:a": [{"@value": 3}]}]}',
+            '{"@context": {"nested": {"@id": "@nest", "@context": {"a": "ex:a", "b": "ex:b"}}}, "@graph": ['
+                . '{"nested": {"a": 1}}, {"nested": {"a": 2}}, {"nested": {"a": 3}}]}',
+            5,
+        ];
+    }
+
+    public function testProcessesAScopedContextAgainForAnotherActiveContext(): void
+    {
+        // Each node has a context of its own, so the scoped context applies
+        // to a different active context each time: three term definitions for
+        // the outer context, and for each node one for its own context and two
+        // for the scoped context.
+        $document = '{"@context": {"scoped": {"@id": "ex:scoped", "@context": {"a": "ex:a", "b": "ex:b"}}},'
+            . ' "@graph": [{"@context": {"own": "ex:one"}, "scoped": "x"},'
+            . ' {"@context": {"own": "ex:two"}, "scoped": "y"}, {"@context": {"own": "ex:three"}, "scoped": "z"}]}';
+
+        $this->assertSame(
+            '{"@graph":[{"ex:scoped":[{"@value":"x"}]},{"ex:scoped":[{"@value":"y"}]},'
+                . '{"ex:scoped":[{"@value":"z"}]}]}',
+            json_encode(self::expandWithin(12, $document), JSON_THROW_ON_ERROR),
+        );
+
+        $this->expectExceptionObject(new LimitExceeded('maxTermDefinitions', 11));
+
+        self::expandWithin(11, $document);
+    }
+
+    public function testATermMayBeAPropertyAndATypeInOneNode(): void
+    {
+        // As a type, the term's scoped context applies to the node alone. As
+        // a property, its scoped context also applies to the nodes nested in
+        // the value. Both apply to the same active context here.
+        $context = '{"a": "ex:outer-a", "inner": "ex:inner",'
+            . ' "term": {"@id": "ex:term", "@context": {"a": "ex:scoped-a"}}}';
+
+        $this->assertExpandsTo(
+            '{"@type": ["ex:term"], "ex:scoped-a": [{"@value": 1}], "ex:inner": [{"ex:outer-a": [{"@value": 2}]}],'
+                . ' "ex:term": [{"ex:scoped-a": [{"@value": 3}], "ex:inner": [{"ex:scoped-a": [{"@value": 4}]}]}]}',
+            '{"@context": ' . $context . ', "@type": "term", "a": 1, "inner": {"a": 2},'
+                . ' "term": {"a": 3, "inner": {"a": 4}}}',
+        );
+    }
+
+    public function testAppliesAScopedContextOfNullToEachValue(): void
+    {
+        $this->assertExpandsTo(
+            '{"ex:reset": [{"ex:p": [{"@value": 1}]}, {"ex:p": [{"@value": 2}]}], "ex:a": [{"@value": 3}]}',
+            '{"@context": {"a": "ex:a", "reset": {"@id": "ex:reset", "@context": null}},'
+                . ' "reset": [{"ex:p": 1}, {"ex:p": 2}], "a": 3}',
+        );
+
+        $this->expectExceptionObject(new DataLoss(DataLossCondition::UndefinedProperty, 'a'));
+
+        self::expand(
+            '{"@context": {"a": "ex:a", "reset": {"@id": "ex:reset", "@context": null}},'
+                . ' "reset": [{"ex:p": 1}, {"a": 2}]}',
+        );
+    }
+
+    private static function expandWithin(int $termDefinitions, string $document): mixed
+    {
+        $options = new Options(limits: new Limits(maxTermDefinitions: $termDefinitions));
+        $expander = new Expander($options, new ContextProcessor($options));
+
+        return $expander->expand(
+            ActiveContext::initial(self::BASE),
+            null,
+            json_decode($document, flags: JSON_THROW_ON_ERROR),
+            self::BASE,
         );
     }
 
