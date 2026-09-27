@@ -21,6 +21,7 @@
         "ergebnis/composer-normalize": "^2.53",
         "fakerphp/faker": "^1.24",
         "infection/infection": "^0.35",
+        "phpbench/phpbench": "^1.7",
         "phpstan/extension-installer": "^1.4",
         "phpstan/phpstan": "^2.2",
         "phpstan/phpstan-phpunit": "^2.0",
@@ -63,6 +64,10 @@
         }
     },
     "scripts": {
+        "bench": [
+            "Composer\\Config::disableProcessTimeout",
+            "vendor/bin/phpbench run --report=aggregate"
+        ],
         "check-fixtures": "@php bin/check-fixtures.php",
         "coverage": [
             "git clean -fx build/coverage/.",

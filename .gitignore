@@ -1,6 +1,8 @@
 .phpunit.result.cache
+/.phpbench/
 /captainhook.config.json
 /composer.lock
+/phpbench.json
 /phpcs.xml
 /phpunit.xml
 /vendor/

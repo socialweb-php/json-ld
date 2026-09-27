@@ -1,0 +1,12 @@
+{
+    "$schema": "./vendor/phpbench/phpbench/phpbench.schema.json",
+    "runner.bootstrap": "vendor/autoload.php",
+    "runner.file_pattern": "*Bench.php",
+    "runner.iterations": 5,
+    "runner.path": "tests/Benchmark",
+    "runner.php_config": {
+        "memory_limit": "1G",
+        "xdebug.mode": "off"
+    },
+    "runner.revs": 1
+}

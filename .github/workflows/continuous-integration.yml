@@ -59,6 +59,30 @@ jobs:
       - name: "Check the test fixtures against their checksums"
         run: "php bin/check-fixtures.php"
 
+  benchmarks:
+    name: "Benchmarks"
+    needs: ["lint", "fixtures"]
+    runs-on: "ubuntu-latest"
+
+    steps:
+      - name: "Checkout repository"
+        uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240" # 2.37.2
+        with:
+          php-version: "latest"
+          coverage: "none"
+
+      - name: "Install dependencies (Composer)"
+        uses: "ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda" # 4.0.0
+
+      # The job shows that the suite still runs and prints its table. It makes
+      # no assertion about time, because timings on shared runners vary too
+      # much from run to run.
+      - name: "Run benchmarks"
+        run: "composer bench -- --iterations=1"
+
   coverage:
     name: "Coverage"
     needs: ["lint", "fixtures"]

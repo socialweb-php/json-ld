@@ -168,6 +168,37 @@ composer test
 CaptainHook will automatically run all tests before pushing to the remote
 repository.
 
+### Running Benchmarks
+
+This project uses [PHPBench](https://github.com/phpbench/phpbench) to measure
+how long expansion takes for documents of several shapes and sizes. The
+benchmarks are in `tests/Benchmark`. Most shapes come in two or three sizes,
+each double the one before. If the time doubles with the size, the work grows in
+proportion to the size. If the time is four times as long, the work grows with
+the square of the size.
+
+To run all the benchmarks:
+
+``` bash
+composer bench
+```
+
+Timings differ from one machine to another, so compare runs made on the same
+machine. To see what a change does, store a run under a tag before making the
+change, and then compare a later run against that tag:
+
+``` bash
+# Before the change
+composer bench -- --tag=before
+
+# After the change
+composer bench -- --ref=before
+```
+
+PHPBench keeps stored runs in the `.phpbench` directory, which git ignores. To
+change the configuration on your machine only, copy `phpbench.json.dist` to
+`phpbench.json`, which git also ignores.
+
 [github]: https://github.com/socialweb-php/json-ld
 [issues]: https://github.com/socialweb-php/json-ld/issues
 [pull requests]: https://github.com/socialweb-php/json-ld/pulls
