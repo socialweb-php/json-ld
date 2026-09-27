@@ -32,7 +32,7 @@ class LimitExceededTest extends TestCase
         $this->assertSame('maxValues', $exception->limit);
         $this->assertSame(0, $exception->getCode());
         $this->assertSame(100_000, $exception->value);
-        $this->assertSame('The document exceeds the maxValues limit of 100000', $exception->getMessage());
+        $this->assertSame('The maxValues limit of 100000 was exceeded', $exception->getMessage());
     }
 
     public function testAcceptsPreviousThrowable(): void

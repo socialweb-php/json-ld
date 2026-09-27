@@ -206,7 +206,7 @@ class DocumentReaderTest extends TestCase
     public function testRejectsAStringDeeperThanMaxDepth(): void
     {
         $this->expectException(LimitExceeded::class);
-        $this->expectExceptionMessageIsOrContains('The document exceeds the maxDepth limit of 2');
+        $this->expectExceptionMessageIsOrContains('The maxDepth limit of 2 was exceeded');
 
         (new DocumentReader(new Limits(maxDepth: 2)))->read('{"a": {"b": {}}}');
     }
@@ -231,7 +231,7 @@ class DocumentReaderTest extends TestCase
     public function testRejectsADecodedDocumentDeeperThanMaxDepth(): void
     {
         $this->expectException(LimitExceeded::class);
-        $this->expectExceptionMessageIsOrContains('The document exceeds the maxDepth limit of 2');
+        $this->expectExceptionMessageIsOrContains('The maxDepth limit of 2 was exceeded');
 
         (new DocumentReader(new Limits(maxDepth: 2)))->read(['a' => ['b' => ['c' => 1]]]);
     }
@@ -241,7 +241,7 @@ class DocumentReaderTest extends TestCase
         $input = json_decode('{"a": {"b": {}}}', false, 512, JSON_THROW_ON_ERROR);
 
         $this->expectException(LimitExceeded::class);
-        $this->expectExceptionMessageIsOrContains('The document exceeds the maxDepth limit of 2');
+        $this->expectExceptionMessageIsOrContains('The maxDepth limit of 2 was exceeded');
 
         (new DocumentReader(new Limits(maxDepth: 2)))->read($input);
     }
@@ -249,7 +249,7 @@ class DocumentReaderTest extends TestCase
     public function testRejectsADecodedListDeeperThanMaxDepth(): void
     {
         $this->expectException(LimitExceeded::class);
-        $this->expectExceptionMessageIsOrContains('The document exceeds the maxDepth limit of 2');
+        $this->expectExceptionMessageIsOrContains('The maxDepth limit of 2 was exceeded');
 
         (new DocumentReader(new Limits(maxDepth: 2)))->read([[[1]]]);
     }
@@ -279,7 +279,7 @@ class DocumentReaderTest extends TestCase
         );
 
         $this->expectException(LimitExceeded::class);
-        $this->expectExceptionMessageIsOrContains('The document exceeds the maxValues limit of 4');
+        $this->expectExceptionMessageIsOrContains('The maxValues limit of 4 was exceeded');
 
         (new DocumentReader(new Limits(maxValues: 4)))->read($document);
     }
@@ -287,7 +287,7 @@ class DocumentReaderTest extends TestCase
     public function testCountsValuesOfADecodedDocument(): void
     {
         $this->expectException(LimitExceeded::class);
-        $this->expectExceptionMessageIsOrContains('The document exceeds the maxValues limit of 2');
+        $this->expectExceptionMessageIsOrContains('The maxValues limit of 2 was exceeded');
 
         (new DocumentReader(new Limits(maxValues: 2)))->read(['a' => 1, 'b' => 2]);
     }

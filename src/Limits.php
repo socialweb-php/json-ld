@@ -28,17 +28,22 @@ use SocialWeb\JsonLd\Exception\InvalidArgument;
 use function sprintf;
 
 /**
- * Bounds on the size of a document the processor will accept
+ * Bounds on the work the processor will do for one document
  *
  * `maxDepth` bounds every recursion in the algorithms: through the document's
  * structure, through contexts that include one another, and through terms that
  * depend on one another.
  *
- * `maxValues` bounds the size of the document, and with it the work. The work
- * grows with the number of values and with the number of terms in the active
- * context, and a document's own contexts may define as many terms as the limit
- * allows. A caller who reads untrusted documents can lower it to shorten the
- * longest possible run.
+ * `maxValues` bounds the size of the document. It also controls the cost of
+ * copying term definitions. A context that defines a term copies the term
+ * definitions of the active context once, and a document's own contexts may
+ * define as many terms as `maxValues` allows. A caller who reads untrusted
+ * documents can lower `maxValues` to shorten the longest possible run.
+ *
+ * `maxTermDefinitions` bounds the number of term definitions that one call
+ * creates. A scoped context is processed again for each active context it
+ * applies to, so a small document can ask for many more term definitions than
+ * it has values.
  *
  * To disable a limit, pass `PHP_INT_MAX`.
  */
@@ -64,9 +69,21 @@ final readonly class Limits
     public int $maxValues;
 
     /**
-     * @throws InvalidArgument if either limit is less than 1
+     * The greatest number of term definitions that one call may create, in
+     * every context it processes: the document's own contexts, scoped
+     * contexts, and contexts from the document loader
+     *
+     * A term that is already defined when the algorithm reaches it, and a
+     * term the algorithm ignores, do not count.
+     *
+     * @var int<1, max>
      */
-    public function __construct(int $maxDepth = 128, int $maxValues = 100_000)
+    public int $maxTermDefinitions;
+
+    /**
+     * @throws InvalidArgument if a limit is less than 1
+     */
+    public function __construct(int $maxDepth = 128, int $maxValues = 100_000, int $maxTermDefinitions = 1_000_000)
     {
         if ($maxDepth < 1) {
             throw new InvalidArgument(sprintf('maxDepth must be at least 1; %d given', $maxDepth));
@@ -76,7 +93,14 @@ final readonly class Limits
             throw new InvalidArgument(sprintf('maxValues must be at least 1; %d given', $maxValues));
         }
 
+        if ($maxTermDefinitions < 1) {
+            throw new InvalidArgument(
+                sprintf('maxTermDefinitions must be at least 1; %d given', $maxTermDefinitions),
+            );
+        }
+
         $this->maxDepth = $maxDepth;
         $this->maxValues = $maxValues;
+        $this->maxTermDefinitions = $maxTermDefinitions;
     }
 }

@@ -29,17 +29,17 @@ use Throwable;
 use function sprintf;
 
 /**
- * Thrown when a document exceeds one of the caller's limits
+ * Thrown when processing a document exceeds one of the caller's limits
  */
 final class LimitExceeded extends RuntimeException implements JsonLdException
 {
     /**
-     * @param string $limit The name of the Limits option that was exceeded,
-     *     `maxDepth` or `maxValues`
+     * @param string $limit The name of the Limits option that was exceeded:
+     *     `maxDepth`, `maxValues`, or `maxTermDefinitions`
      * @param int $value The configured limit
      */
     public function __construct(public readonly string $limit, public readonly int $value, ?Throwable $previous = null)
     {
-        parent::__construct(sprintf('The document exceeds the %s limit of %d', $limit, $value), 0, $previous);
+        parent::__construct(sprintf('The %s limit of %d was exceeded', $limit, $value), 0, $previous);
     }
 }
