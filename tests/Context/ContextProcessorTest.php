@@ -908,6 +908,32 @@ class ContextProcessorTest extends TestCase
         $processor->process($active, 'https://example.org/context', null);
     }
 
+    public function testAppliesAContextNamedByUrlWhetherOrNotItPropagates(): void
+    {
+        $loader = (new BundledDocumentLoader())->with('https://example.org/context', '{"@context": {"a": "ex:a"}}');
+        $processor = self::processor(loader: $loader);
+        $active = $processor->process(
+            new ActiveContext(),
+            json_decode(
+                '{"items": {"@id": "ex:items", "@context": "https://example.org/context"}}',
+                flags: JSON_THROW_ON_ERROR,
+            ),
+            null,
+        );
+        $definition = self::definitionOf($active, 'items');
+
+        $propagated = $processor->processScoped($active, $definition);
+        $notPropagated = $processor->processScoped($active, $definition, propagate: false);
+
+        $this->assertNotSame($propagated, $notPropagated);
+        $this->assertSame('ex:a', $propagated->termDefinition('a')?->iriMapping);
+        $this->assertNull($propagated->previousContext);
+        $this->assertSame('ex:a', $notPropagated->termDefinition('a')?->iriMapping);
+        $this->assertSame($active, $notPropagated->previousContext);
+        $this->assertSame($propagated, $processor->processScoped($active, $definition));
+        $this->assertSame($notPropagated, $processor->processScoped($active, $definition, propagate: false));
+    }
+
     public function testKeepsNoContextThatALoadedContextNames(): void
     {
         $loader = (new BundledDocumentLoader())
@@ -940,6 +966,84 @@ class ContextProcessorTest extends TestCase
 
         $this->assertSame(['items'], array_keys($result->termDefinitions));
         $this->assertSame(0, $cache->termDefinitions());
+    }
+
+    public function testStoresAScopedContextNamedByUrlOnce(): void
+    {
+        $loader = (new BundledDocumentLoader())
+            ->with('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b"}}');
+        $cache = new ProcessedContextCache();
+        $processor = new ContextProcessor(new Options(documentLoader: $loader), $cache);
+        $active = $processor->process(
+            new ActiveContext(),
+            json_decode(
+                '{"items": {"@id": "ex:items", "@context": "https://example.org/context"}}',
+                flags: JSON_THROW_ON_ERROR,
+            ),
+            null,
+        );
+        $definition = self::definitionOf($active, 'items');
+
+        // The result has three term definitions. It is stored once, for the
+        // term definition, and not a second time for the URL.
+        $result = $processor->processScoped($active, $definition);
+
+        $this->assertSame(['items', 'a', 'b'], array_keys($result->termDefinitions));
+        $this->assertSame(3, $cache->termDefinitions());
+        $this->assertSame($result, $processor->processScoped($active, $definition));
+
+        // The document applies the same URL to the same active context. No
+        // result was stored for the URL, so the context is processed again,
+        // and the result is stored for the URL this time.
+        $processor->process($active, 'https://example.org/context', null);
+
+        $this->assertSame(6, $cache->termDefinitions());
+    }
+
+    public function testAUrlInsideAScopedContextIsServedByTheCache(): void
+    {
+        $loader = (new BundledDocumentLoader())
+            ->with('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b"}}');
+        $processor = new ContextProcessor(
+            new Options(limits: new Limits(maxContextOperations: 11), documentLoader: $loader),
+        );
+
+        // Six operations: one for the map, one for "items", and four while
+        // the scoped context is validated, for the URL, the map behind it, and
+        // its two terms.
+        $active = $processor->process(
+            new ActiveContext(),
+            json_decode(
+                '{"items": {"@id": "ex:items", "@context": "https://example.org/context"}}',
+                flags: JSON_THROW_ON_ERROR,
+            ),
+            null,
+        );
+        $definition = self::definitionOf($active, 'items');
+
+        // Four more when the document applies the URL to the active context,
+        // and the result is stored for the URL.
+        $byTheDocument = $processor->process($active, 'https://example.org/context', null);
+
+        // One for the URL inside the scoped context, which the cache serves.
+        $this->assertSame($byTheDocument, $processor->processScoped($active, $definition));
+
+        $refused = new ContextProcessor(
+            new Options(limits: new Limits(maxContextOperations: 10), documentLoader: $loader),
+        );
+        $active = $refused->process(
+            new ActiveContext(),
+            json_decode(
+                '{"items": {"@id": "ex:items", "@context": "https://example.org/context"}}',
+                flags: JSON_THROW_ON_ERROR,
+            ),
+            null,
+        );
+        $refused->process($active, 'https://example.org/context', null);
+
+        $this->expectExceptionObject(new LimitExceeded('maxContextOperations', 10));
+
+        $refused->processScoped($active, self::definitionOf($active, 'items'));
     }
 
     public function testAFailedLoadIsTriedAgain(): void

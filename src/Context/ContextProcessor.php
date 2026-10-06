@@ -162,6 +162,10 @@ final class ContextProcessor
     /**
      * Returns the active context that results from applying a local context
      *
+     * The result of a context named by URL comes from the cache if the same
+     * URL was applied to the same active context with the same flag before.
+     * Otherwise, the context is processed and the result is stored.
+     *
      * @param mixed $localContext The value of an `@context` entry, in the
      *     internal form
      * @param string | null $baseUrl The base for resolving context URLs: the
@@ -190,6 +194,88 @@ final class ContextProcessor
         bool $overrideProtected = false,
         bool $propagate = true,
         bool $validateScopedContext = true,
+    ): ActiveContext {
+        return $this->processLocalContext(
+            $activeContext,
+            $localContext,
+            $baseUrl,
+            $remoteContexts,
+            $overrideProtected,
+            $propagate,
+            $validateScopedContext,
+            storeRemoteResults: true,
+        );
+    }
+
+    /**
+     * Returns the active context that results from applying the scoped context
+     * of a term definition
+     *
+     * The result comes from the cache if the same scoped context was applied
+     * to the same active context with the same flags before, and then costs
+     * no operation. Otherwise, the scoped context is processed and the result
+     * is stored. A URL inside the scoped context is looked up in the cache,
+     * but its result is not stored, because the result stored for the term
+     * definition covers it.
+     *
+     * @param ActiveContext $activeContext The active context to apply the
+     *     scoped context to
+     * @param TermDefinition $definition A term definition that has a scoped
+     *     context
+     * @param bool $overrideProtected Whether protected terms may be redefined
+     * @param bool $propagate Whether the context stays in effect inside node
+     *     objects nested below the one it applies to
+     *
+     * @throws JsonLdError if the scoped context breaks a rule of the
+     *     specification or a remote context cannot be loaded
+     * @throws DataLoss in strict mode, if a term would be ignored because it
+     *     or its IRI has the form of a keyword
+     * @throws LimitExceeded if a chain of terms that depend on one another is
+     *     longer than the depth limit, or if more context operations would be
+     *     made since the last reset than the limit allows
+     */
+    public function processScoped(
+        ActiveContext $activeContext,
+        TermDefinition $definition,
+        bool $overrideProtected = false,
+        bool $propagate = true,
+    ): ActiveContext {
+        $result = $this->cache->scoped($activeContext, $definition, $overrideProtected, $propagate);
+
+        if ($result === null) {
+            $result = $this->processLocalContext(
+                $activeContext,
+                $definition->context,
+                $definition->baseUrl,
+                remoteContexts: [],
+                overrideProtected: $overrideProtected,
+                propagate: $propagate,
+                validateScopedContext: true,
+                storeRemoteResults: false,
+            );
+
+            $this->cache->storeScoped($activeContext, $definition, $overrideProtected, $propagate, $result);
+        }
+
+        return $result;
+    }
+
+    /**
+     * The Context Processing Algorithm, section 4.1
+     *
+     * @param list<string> $remoteContexts
+     * @param bool $storeRemoteResults Whether the result of a context named
+     *     by URL is stored in the cache
+     */
+    private function processLocalContext(
+        ActiveContext $activeContext,
+        mixed $localContext,
+        ?string $baseUrl,
+        array $remoteContexts,
+        bool $overrideProtected,
+        bool $propagate,
+        bool $validateScopedContext,
+        bool $storeRemoteResults,
     ): ActiveContext {
         // Step 1.
         $result = $activeContext;
@@ -246,6 +332,7 @@ final class ContextProcessor
                     $remoteContexts,
                     $overrideProtected,
                     $validateScopedContext,
+                    $storeRemoteResults,
                 );
 
                 continue;
@@ -272,61 +359,14 @@ final class ContextProcessor
     }
 
     /**
-     * Returns the active context that results from applying the scoped context
-     * of a term definition
-     *
-     * The result comes from the cache if the same scoped context was applied
-     * to the same active context with the same flags before, and then costs
-     * no operation. Otherwise, the scoped context is processed and the result
-     * is stored.
-     *
-     * @param ActiveContext $activeContext The active context to apply the
-     *     scoped context to
-     * @param TermDefinition $definition A term definition that has a scoped
-     *     context
-     * @param bool $overrideProtected Whether protected terms may be redefined
-     * @param bool $propagate Whether the context stays in effect inside node
-     *     objects nested below the one it applies to
-     *
-     * @throws JsonLdError if the scoped context breaks a rule of the
-     *     specification or a remote context cannot be loaded
-     * @throws DataLoss in strict mode, if a term would be ignored because it
-     *     or its IRI has the form of a keyword
-     * @throws LimitExceeded if a chain of terms that depend on one another is
-     *     longer than the depth limit, or if more context operations would be
-     *     made since the last reset than the limit allows
-     */
-    public function processScoped(
-        ActiveContext $activeContext,
-        TermDefinition $definition,
-        bool $overrideProtected = false,
-        bool $propagate = true,
-    ): ActiveContext {
-        $result = $this->cache->scoped($activeContext, $definition, $overrideProtected, $propagate);
-
-        if ($result === null) {
-            $result = $this->process(
-                $activeContext,
-                $definition->context,
-                $definition->baseUrl,
-                overrideProtected: $overrideProtected,
-                propagate: $propagate,
-            );
-
-            $this->cache->storeScoped($activeContext, $definition, $overrideProtected, $propagate, $result);
-        }
-
-        return $result;
-    }
-
-    /**
      * Step 5.2: a context given by reference
      *
      * The cache is asked for a URL that the document or a scoped context
      * names. It is not asked for a URL that a loaded context names, because the
      * result for the loaded context covers it. It is not asked while Create
      * Term Definition validates a scoped context, because nothing asks again
-     * about the active context that the validation uses.
+     * about the active context that the validation uses. A result is stored
+     * only where it is asked, and only if the caller stores results for URLs.
      *
      * @param list<string> $remoteContexts
      */
@@ -337,6 +377,7 @@ final class ContextProcessor
         array $remoteContexts,
         bool $overrideProtected,
         bool $validateScopedContext,
+        bool $storeRemoteResults,
     ): ActiveContext {
         // Step 5.2.1.
         $context = $this->resolveContextUrl($context, $baseUrl);
@@ -378,7 +419,7 @@ final class ContextProcessor
             validateScopedContext: $validateScopedContext,
         );
 
-        if ($useCache) {
+        if ($useCache && $storeRemoteResults) {
             $this->cache->storeRemote($result, $context, $overrideProtected, $processed);
         }
 
