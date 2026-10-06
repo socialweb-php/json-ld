@@ -1151,24 +1151,25 @@ class ExpanderTest extends TestCase
     }
 
     /**
-     * The scoped context in each document has two terms. A document needs the
-     * given number of term definitions only if the scoped context is processed
-     * once, however many times it applies.
+     * The scoped context in each document has two terms, so defining the term
+     * that carries it takes five operations and applying it takes three. A
+     * document needs the given number of context operations only if the scoped
+     * context is processed once, however many times it applies.
      */
     #[DataProvider('repeatedScopedContexts')]
     public function testProcessesAScopedContextOnceForEachActiveContext(
         string $expected,
         string $document,
-        int $termDefinitions,
+        int $contextOperations,
     ): void {
         $this->assertSame(
             JsonCanonicalizer::canonicalize(json_decode($expected, flags: JSON_THROW_ON_ERROR)),
-            JsonCanonicalizer::canonicalize(self::expandWithin($termDefinitions, $document)),
+            JsonCanonicalizer::canonicalize(self::expandWithin($contextOperations, $document)),
         );
 
-        $this->expectExceptionObject(new LimitExceeded('maxTermDefinitions', $termDefinitions - 1));
+        $this->expectExceptionObject(new LimitExceeded('maxContextOperations', $contextOperations - 1));
 
-        self::expandWithin($termDefinitions - 1, $document);
+        self::expandWithin($contextOperations - 1, $document);
     }
 
     /**
@@ -1181,12 +1182,12 @@ class ExpanderTest extends TestCase
         yield 'step 4.2, a property with scalar values' => [
             '{"ex:scoped": [{"@value": "x"}, {"@value": "y"}, {"@value": "z"}]}',
             '{"@context": {"scoped": ' . $scoped . '}, "scoped": ["x", "y", "z"]}',
-            5,
+            8,
         ];
         yield 'step 8, a property whose values are maps' => [
             '{"ex:scoped": [{"ex:a": [{"@value": 1}]}, {"ex:a": [{"@value": 2}]}, {"ex:a": [{"@value": 3}]}]}',
             '{"@context": {"scoped": ' . $scoped . '}, "scoped": [{"a": 1}, {"a": 2}, {"a": 3}]}',
-            5,
+            8,
         ];
         yield 'step 11.2, a type' => [
             '{"@graph": [{"@type": ["ex:scoped"], "ex:a": [{"@value": 1}]},'
@@ -1194,7 +1195,7 @@ class ExpanderTest extends TestCase
                 . ' {"@type": ["ex:scoped"], "ex:a": [{"@value": 3}]}]}',
             '{"@context": {"scoped": ' . $scoped . '}, "@graph": [{"@type": "scoped", "a": 1},'
                 . ' {"@type": "scoped", "a": 2}, {"@type": "scoped", "a": 3}]}',
-            5,
+            8,
         ];
         yield 'step 13.8.3.2, the key of a type map' => [
             '{"@graph": [{"ex:map": [{"@type": ["ex:scoped"], "ex:a": [{"@value": 1}]}]},'
@@ -1202,21 +1203,21 @@ class ExpanderTest extends TestCase
                 . ' {"ex:map": [{"@type": ["ex:scoped"], "ex:a": [{"@value": 3}]}]}]}',
             '{"@context": {"scoped": ' . $scoped . ', "map": {"@id": "ex:map", "@container": "@type"}}, "@graph": ['
                 . '{"map": {"scoped": {"a": 1}}}, {"map": {"scoped": {"a": 2}}}, {"map": {"scoped": {"a": 3}}}]}',
-            6,
+            9,
         ];
         yield 'step 14, an alias of @nest' => [
             '{"@graph": [{"ex:a": [{"@value": 1}]}, {"ex:a": [{"@value": 2}]}, {"ex:a": [{"@value": 3}]}]}',
             '{"@context": {"nested": {"@id": "@nest", "@context": {"a": "ex:a", "b": "ex:b"}}}, "@graph": ['
                 . '{"nested": {"a": 1}}, {"nested": {"a": 2}}, {"nested": {"a": 3}}]}',
-            5,
+            8,
         ];
     }
 
     public function testProcessesAScopedContextAgainForAnotherActiveContext(): void
     {
         // Each node has a context of its own, so the scoped context applies
-        // to a different active context each time: three term definitions for
-        // the outer context, and for each node one for its own context and two
+        // to a different active context each time: five operations for the
+        // outer context, and for each node two for its own context and three
         // for the scoped context.
         $document = '{"@context": {"scoped": {"@id": "ex:scoped", "@context": {"a": "ex:a", "b": "ex:b"}}},'
             . ' "@graph": [{"@context": {"own": "ex:one"}, "scoped": "x"},'
@@ -1225,12 +1226,12 @@ class ExpanderTest extends TestCase
         $this->assertSame(
             '{"@graph":[{"ex:scoped":[{"@value":"x"}]},{"ex:scoped":[{"@value":"y"}]},'
                 . '{"ex:scoped":[{"@value":"z"}]}]}',
-            json_encode(self::expandWithin(12, $document), JSON_THROW_ON_ERROR),
+            json_encode(self::expandWithin(20, $document), JSON_THROW_ON_ERROR),
         );
 
-        $this->expectExceptionObject(new LimitExceeded('maxTermDefinitions', 11));
+        $this->expectExceptionObject(new LimitExceeded('maxContextOperations', 19));
 
-        self::expandWithin(11, $document);
+        self::expandWithin(19, $document);
     }
 
     public function testATermMayBeAPropertyAndATypeInOneNode(): void
@@ -1265,9 +1266,9 @@ class ExpanderTest extends TestCase
         );
     }
 
-    private static function expandWithin(int $termDefinitions, string $document): mixed
+    private static function expandWithin(int $contextOperations, string $document): mixed
     {
-        $options = new Options(limits: new Limits(maxTermDefinitions: $termDefinitions));
+        $options = new Options(limits: new Limits(maxContextOperations: $contextOperations));
         $expander = new Expander($options, new ContextProcessor($options));
 
         return $expander->expand(

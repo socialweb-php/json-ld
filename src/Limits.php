@@ -40,10 +40,14 @@ use function sprintf;
  * define as many terms as `maxValues` allows. A caller who reads untrusted
  * documents can lower `maxValues` to shorten the longest possible run.
  *
- * `maxTermDefinitions` bounds the number of term definitions that one call
- * creates. A scoped context is processed again for each active context it
- * applies to, so a small document can ask for many more term definitions than
- * it has values.
+ * `maxContextOperations` bounds the work of context processing in one call. An
+ * operation is one item of a context, whether a map, a `null`, or a URL, or one
+ * term that the processor takes up. A scoped context is processed again for
+ * each active context it applies to, and a document may give every node a
+ * context of its own, so a small document can ask for many more operations than
+ * it has values. These cost nothing: a term that is already defined when the
+ * processor reaches it, a scoped context applied again to the same active
+ * context, and the keyword entries of a context definition, such as `@vocab`.
  *
  * To disable a limit, pass `PHP_INT_MAX`.
  */
@@ -69,21 +73,25 @@ final readonly class Limits
     public int $maxValues;
 
     /**
-     * The greatest number of term definitions that one call may create, in
+     * The greatest number of context operations that one call may make, in
      * every context it processes: the document's own contexts, scoped
      * contexts, and contexts from the document loader
      *
-     * A term that is already defined when the algorithm reaches it, and a
-     * term the algorithm ignores, do not count.
+     * An operation is one item of a context, whether a map, a `null`, or a
+     * URL, or one term that the processor takes up, whether the term ends up
+     * defined, defined as `null`, or ignored. A term that is already defined
+     * when the processor reaches it, a scoped context applied again to the
+     * same active context, and the keyword entries of a context definition
+     * cost nothing.
      *
      * @var int<1, max>
      */
-    public int $maxTermDefinitions;
+    public int $maxContextOperations;
 
     /**
      * @throws InvalidArgument if a limit is less than 1
      */
-    public function __construct(int $maxDepth = 128, int $maxValues = 100_000, int $maxTermDefinitions = 1_000_000)
+    public function __construct(int $maxDepth = 128, int $maxValues = 100_000, int $maxContextOperations = 1_000_000)
     {
         if ($maxDepth < 1) {
             throw new InvalidArgument(sprintf('maxDepth must be at least 1; %d given', $maxDepth));
@@ -93,14 +101,14 @@ final readonly class Limits
             throw new InvalidArgument(sprintf('maxValues must be at least 1; %d given', $maxValues));
         }
 
-        if ($maxTermDefinitions < 1) {
+        if ($maxContextOperations < 1) {
             throw new InvalidArgument(
-                sprintf('maxTermDefinitions must be at least 1; %d given', $maxTermDefinitions),
+                sprintf('maxContextOperations must be at least 1; %d given', $maxContextOperations),
             );
         }
 
         $this->maxDepth = $maxDepth;
         $this->maxValues = $maxValues;
-        $this->maxTermDefinitions = $maxTermDefinitions;
+        $this->maxContextOperations = $maxContextOperations;
     }
 }

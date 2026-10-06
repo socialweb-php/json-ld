@@ -35,7 +35,7 @@ final class LimitExceeded extends RuntimeException implements JsonLdException
 {
     /**
      * @param string $limit The name of the Limits option that was exceeded:
-     *     `maxDepth`, `maxValues`, or `maxTermDefinitions`
+     *     `maxDepth`, `maxValues`, or `maxContextOperations`
      * @param int $value The configured limit
      */
     public function __construct(public readonly string $limit, public readonly int $value, ?Throwable $previous = null)

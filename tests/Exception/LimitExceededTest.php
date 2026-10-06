@@ -27,12 +27,12 @@ class LimitExceededTest extends TestCase
 
     public function testCarriesTheLimitAndValue(): void
     {
-        $exception = new LimitExceeded('maxValues', 100_000);
+        $exception = new LimitExceeded('maxContextOperations', 1_000_000);
 
-        $this->assertSame('maxValues', $exception->limit);
+        $this->assertSame('maxContextOperations', $exception->limit);
         $this->assertSame(0, $exception->getCode());
-        $this->assertSame(100_000, $exception->value);
-        $this->assertSame('The maxValues limit of 100000 was exceeded', $exception->getMessage());
+        $this->assertSame(1_000_000, $exception->value);
+        $this->assertSame('The maxContextOperations limit of 1000000 was exceeded', $exception->getMessage());
     }
 
     public function testAcceptsPreviousThrowable(): void

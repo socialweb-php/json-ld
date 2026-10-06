@@ -295,31 +295,53 @@ class ProcessorTest extends TestCase
     }
 
     #[DataProvider('modes')]
-    public function testEnforcesTheLimitOnTermDefinitions(bool $strict): void
+    public function testEnforcesTheLimitOnContextOperations(bool $strict): void
     {
         // The scoped context of "items" has ten terms, and the property has
-        // ten values.
+        // ten values. Defining "items" takes thirteen operations: one for the
+        // map, one for the term, and one for the scoped context's map and each
+        // of its ten terms while it is validated. Applying the scoped context
+        // takes eleven more.
         $manyValues = self::scopedContextDocument('"items": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]');
 
         try {
-            self::processorWithin(20, $strict)->expand($manyValues);
+            self::processorWithin(23, $strict)->expand($manyValues);
             $this->fail('Expected a LimitExceeded');
         } catch (LimitExceeded $exception) {
-            $this->assertSame('maxTermDefinitions', $exception->limit);
-            $this->assertSame(20, $exception->value);
+            $this->assertSame('maxContextOperations', $exception->limit);
+            $this->assertSame(23, $exception->value);
         }
 
-        // One term definition for "items", ten while its scoped context is
-        // validated, and eleven for each node: one for its own context and ten
-        // for the scoped context.
+        // Thirteen operations to define "items", and thirteen for each node:
+        // two for its own context, and eleven for the scoped context.
         $this->assertSame(
             '[{"ex:items":[{"@value":1}]},{"ex:items":[{"@value":2}]}]',
-            self::processorWithin(33, $strict)->expand(self::twoNodes())->toJson(),
+            self::processorWithin(39, $strict)->expand(self::twoNodes())->toJson(),
         );
 
-        $this->expectExceptionObject(new LimitExceeded('maxTermDefinitions', 32));
+        $this->expectExceptionObject(new LimitExceeded('maxContextOperations', 38));
 
-        self::processorWithin(32, $strict)->expand(self::twoNodes());
+        self::processorWithin(38, $strict)->expand(self::twoNodes());
+    }
+
+    #[DataProvider('modes')]
+    public function testBoundsAScopedContextThatDefinesNothing(bool $strict): void
+    {
+        // The scoped context is a list of three empty maps, and each of the
+        // three nodes has an empty context of its own. Five operations to
+        // define "items", and four for each node: one for its own context, and
+        // one for each empty map of the scoped context.
+        $document = '{"@context": {"items": {"@id": "ex:items", "@context": [{}, {}, {}]}},'
+            . ' "@graph": [{"@context": {}, "items": 1}, {"@context": {}, "items": 2}, {"@context": {}, "items": 3}]}';
+
+        $this->assertSame(
+            '[{"ex:items":[{"@value":1}]},{"ex:items":[{"@value":2}]},{"ex:items":[{"@value":3}]}]',
+            self::processorWithin(17, $strict)->expand($document)->toJson(),
+        );
+
+        $this->expectExceptionObject(new LimitExceeded('maxContextOperations', 16));
+
+        self::processorWithin(16, $strict)->expand($document);
     }
 
     /**
@@ -331,9 +353,9 @@ class ProcessorTest extends TestCase
         yield 'lenient mode' => [false];
     }
 
-    public function testEachCallMayCreateAsManyTermDefinitionsAsTheLimitAllows(): void
+    public function testEachCallMayMakeAsManyContextOperationsAsTheLimitAllows(): void
     {
-        $processor = self::processorWithin(33, true);
+        $processor = self::processorWithin(39, true);
         $expected = '[{"ex:items":[{"@value":1}]},{"ex:items":[{"@value":2}]}]';
 
         $this->assertSame($expected, $processor->expand(self::twoNodes())->toJson());
@@ -342,17 +364,17 @@ class ProcessorTest extends TestCase
 
     public function testExpandsAnotherDocumentAfterRefusingOne(): void
     {
-        $processor = self::processorWithin(32, true);
+        $processor = self::processorWithin(38, true);
 
         try {
             $processor->expand(self::twoNodes());
             $this->fail('Expected a LimitExceeded');
         } catch (LimitExceeded $exception) {
-            $this->assertSame('maxTermDefinitions', $exception->limit);
+            $this->assertSame('maxContextOperations', $exception->limit);
         }
 
         // The second node has no context of its own, so this document needs
-        // one term definition fewer: all 32.
+        // two operations fewer: 37 of the 38.
         $document = self::scopedContextDocument(
             '"@graph": [{"@context": {"own": "ex:one"}, "items": 1}, {"items": 2}]',
         );
@@ -363,9 +385,9 @@ class ProcessorTest extends TestCase
         );
     }
 
-    public function testTheLimitOnTermDefinitionsMayBeDisabled(): void
+    public function testTheLimitOnContextOperationsMayBeDisabled(): void
     {
-        $processor = new Processor(new Options(limits: new Limits(maxTermDefinitions: PHP_INT_MAX)));
+        $processor = new Processor(new Options(limits: new Limits(maxContextOperations: PHP_INT_MAX)));
 
         $this->assertSame(
             '[{"ex:items":[{"@value":1},{"@value":2}]}]',
@@ -373,11 +395,13 @@ class ProcessorTest extends TestCase
         );
     }
 
-    public function testTheLimitOnTermDefinitionsCoversTheExpandContext(): void
+    public function testTheLimitOnContextOperationsCoversTheExpandContext(): void
     {
+        // Three operations for the expand context, and two for the document's
+        // own context.
         $options = new Options(
             expandContext: ['a' => 'ex:a', 'b' => 'ex:b'],
-            limits: new Limits(maxTermDefinitions: 3),
+            limits: new Limits(maxContextOperations: 5),
         );
 
         $this->assertSame(
@@ -385,7 +409,7 @@ class ProcessorTest extends TestCase
             (new Processor($options))->expand('{"@context": {"c": "ex:c"}, "c": 1}')->toJson(),
         );
 
-        $this->expectExceptionObject(new LimitExceeded('maxTermDefinitions', 3));
+        $this->expectExceptionObject(new LimitExceeded('maxContextOperations', 5));
 
         (new Processor($options))->expand('{"@context": {"c": "ex:c", "d": "ex:d"}, "c": 1}');
     }
@@ -393,19 +417,21 @@ class ProcessorTest extends TestCase
     #[DataProvider('modes')]
     public function testProcessesAScopedContextOnceForTheValuesOfAProperty(bool $strict): void
     {
-        // One term definition for "items", ten while its scoped context is
-        // validated, and ten when the scoped context is first applied. The
-        // other nine values take none.
+        // Thirteen operations to define "items", and eleven when its scoped
+        // context is first applied. The other nine values take none.
         $document = self::scopedContextDocument('"items": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]');
 
-        $this->assertCount(1, self::processorWithin(21, $strict)->expand($document)->jsonSerialize());
+        $this->assertCount(1, self::processorWithin(24, $strict)->expand($document)->jsonSerialize());
     }
 
     public function testProcessesARepeatedContextUrlOnce(): void
     {
-        // The context has 148 terms. It applies to the initial active
-        // context, and then to the result of that for the items. The items
-        // all share one active context, so the second time is the last.
+        // The context has 148 terms, so applying it by URL takes 150
+        // operations: one for the URL, one for the map behind it, and one for
+        // each term. It applies to the initial active context, and then to the
+        // result of that for the items. The items all share one active
+        // context, so the second time is the last, and the other two items
+        // take one operation each for the URL that the cache serves.
         $url = 'https://www.w3.org/ns/activitystreams';
         $item = '{"@context": "' . $url . '", "type": "Note"}';
         $document = '{"@context": "' . $url . '", "type": "Collection", "items": ['
@@ -415,12 +441,12 @@ class ProcessorTest extends TestCase
         $this->assertSame(
             '[{"@type":["https://www.w3.org/ns/activitystreams#Collection"],'
                 . '"https://www.w3.org/ns/activitystreams#items":[' . $note . ',' . $note . ',' . $note . ']}]',
-            self::processorWithin(296, true)->expand($document)->toJson(),
+            self::processorWithin(302, true)->expand($document)->toJson(),
         );
 
-        $this->expectExceptionObject(new LimitExceeded('maxTermDefinitions', 295));
+        $this->expectExceptionObject(new LimitExceeded('maxContextOperations', 301));
 
-        self::processorWithin(295, true)->expand($document);
+        self::processorWithin(301, true)->expand($document);
     }
 
     public function testAppliesTheRestrictionsToTheExpandedDocument(): void
@@ -457,14 +483,16 @@ class ProcessorTest extends TestCase
         (new Processor(new Options(restrictions: Restrictions::all())))->expand($document);
     }
 
-    private static function processorWithin(int $termDefinitions, bool $strict): Processor
+    private static function processorWithin(int $contextOperations, bool $strict): Processor
     {
-        return new Processor(new Options(strict: $strict, limits: new Limits(maxTermDefinitions: $termDefinitions)));
+        return new Processor(
+            new Options(strict: $strict, limits: new Limits(maxContextOperations: $contextOperations)),
+        );
     }
 
     /**
-     * Returns a document whose two nodes each have a context of their own, and
-     * in each node the property "items"
+     * Returns a document whose two nodes each have a context of their own and
+     * each have the property "items"
      */
     private static function twoNodes(): string
     {

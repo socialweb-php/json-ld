@@ -83,7 +83,7 @@ final class Processor
      * @throws InvalidArgument if the document holds something that is not a
      *     JSON value
      * @throws LimitExceeded if the document exceeds a limit, or its contexts
-     *     would create more term definitions than the limit allows
+     *     would take more operations to process than the limit allows
      * @throws JsonLdError if the document breaks a rule of the specification
      * @throws DataLoss in strict mode, if part of the document would be
      *     dropped

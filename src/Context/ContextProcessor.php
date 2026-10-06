@@ -73,11 +73,12 @@ use const SORT_STRING;
  * point order, so that the first error reported for a context with several
  * errors does not depend on how the context was written.
  *
- * The processor counts the term definitions it creates and refuses to create
- * more than `Limits::maxTermDefinitions`. It keeps the results of scoped
- * contexts and of contexts named by URL in a `ProcessedContextCache`. The count
- * and the cache go on from one call of `process()` to the next until `reset()`
- * is called.
+ * The processor counts the operations of context processing, one for each
+ * item of a context and one for each term it takes up, and refuses to go past
+ * `Limits::maxContextOperations`. It keeps the results of scoped contexts and
+ * of contexts named by URL in a `ProcessedContextCache`. The count and the
+ * cache go on from one call of `process()` to the next until `reset()` is
+ * called.
  *
  * @internal
  */
@@ -134,9 +135,9 @@ final class ContextProcessor
     private array $dereferenced = [];
 
     /**
-     * The number of term definitions created since the last call to `reset()`
+     * The number of context operations made since the last call to `reset()`
      */
-    private int $termDefinitions = 0;
+    private int $contextOperations = 0;
 
     public function __construct(
         private readonly Options $options,
@@ -145,16 +146,16 @@ final class ContextProcessor
     }
 
     /**
-     * Sets the count of term definitions to zero and empties the cache of
+     * Sets the count of context operations to zero and empties the cache of
      * processed contexts
      *
      * `Processor` calls this at the start of each call, so that the limit on
-     * term definitions and the cache both cover one call. The documents that
+     * context operations and the cache both cover one call. The documents that
      * were loaded are kept.
      */
     public function reset(): void
     {
-        $this->termDefinitions = 0;
+        $this->contextOperations = 0;
         $this->cache->clear();
     }
 
@@ -178,8 +179,8 @@ final class ContextProcessor
      * @throws DataLoss in strict mode, if a term would be ignored because it
      *     or its IRI has the form of a keyword
      * @throws LimitExceeded if a chain of terms that depend on one another is
-     *     longer than the depth limit, or if more term definitions would be
-     *     created since the last reset than the limit allows
+     *     longer than the depth limit, or if more context operations would be
+     *     made since the last reset than the limit allows
      */
     public function process(
         ActiveContext $activeContext,
@@ -208,8 +209,15 @@ final class ContextProcessor
             $localContext = [$localContext];
         }
 
-        // Step 5.
+        // Step 5. Each item is one operation, and is refused if the limit is
+        // reached.
         foreach ($localContext as $context) {
+            if ($this->contextOperations >= $this->options->limits->maxContextOperations) {
+                throw new LimitExceeded('maxContextOperations', $this->options->limits->maxContextOperations);
+            }
+
+            $this->contextOperations++;
+
             // Step 5.1.
             if ($context === null) {
                 // Step 5.1.1. The check is made against the result so far, so
@@ -268,8 +276,9 @@ final class ContextProcessor
      * of a term definition
      *
      * The result comes from the cache if the same scoped context was applied
-     * to the same active context with the same flags before. Otherwise, the
-     * scoped context is processed and the result is stored.
+     * to the same active context with the same flags before, and then costs
+     * no operation. Otherwise, the scoped context is processed and the result
+     * is stored.
      *
      * @param ActiveContext $activeContext The active context to apply the
      *     scoped context to
@@ -284,8 +293,8 @@ final class ContextProcessor
      * @throws DataLoss in strict mode, if a term would be ignored because it
      *     or its IRI has the form of a keyword
      * @throws LimitExceeded if a chain of terms that depend on one another is
-     *     longer than the depth limit, or if more term definitions would be
-     *     created since the last reset than the limit allows
+     *     longer than the depth limit, or if more context operations would be
+     *     made since the last reset than the limit allows
      */
     public function processScoped(
         ActiveContext $activeContext,
@@ -581,9 +590,10 @@ final class ContextProcessor
      * once for each, so the depth limit bounds the length of such a chain;
      * the specification has no rule for this.
      *
-     * Each term definition that step 28 sets counts toward the limit on term
-     * definitions; the specification has no rule for this either. A term that
-     * step 1 finds already defined, and a term that is ignored, do not count.
+     * Each term that gets past step 1 is one operation toward the limit on
+     * context operations, whether it ends up defined, defined as `null`, or
+     * ignored; the specification has no rule for this either. A term that
+     * step 1 finds already defined costs nothing.
      *
      * @param array<mixed> $localContext The entries of the context definition
      * @param array<bool> $defined Terms by name: true once defined, false
@@ -614,6 +624,13 @@ final class ContextProcessor
 
             throw new JsonLdError(ErrorCode::CyclicIriMapping, $term);
         }
+
+        // The term is one operation, and is refused if the limit is reached.
+        if ($this->contextOperations >= $this->options->limits->maxContextOperations) {
+            throw new LimitExceeded('maxContextOperations', $this->options->limits->maxContextOperations);
+        }
+
+        $this->contextOperations++;
 
         if ($depth > $this->options->limits->maxDepth) {
             throw new LimitExceeded('maxDepth', $this->options->limits->maxDepth);
@@ -920,14 +937,6 @@ final class ContextProcessor
         // Step 27.
         $definition = $this->keepProtected($definition, $previousDefinition, $overrideProtected, $term);
 
-        // The term definition counts toward the limit, and is refused if the
-        // limit is reached.
-        if ($this->termDefinitions >= $this->options->limits->maxTermDefinitions) {
-            throw new LimitExceeded('maxTermDefinitions', $this->options->limits->maxTermDefinitions);
-        }
-
-        $this->termDefinitions++;
-
         // Step 28.
         $activeContext->set($term, $definition);
         $defined[$term] = true;
@@ -1172,8 +1181,8 @@ final class ContextProcessor
      * the first time and from memory after that
      *
      * Documents from the loader are not subject to the limits on depth and
-     * on the number of values. The term definitions that their contexts create
-     * count toward the limit on term definitions.
+     * on the number of values. The items and the terms of their contexts count
+     * toward the limit on context operations.
      *
      * @return array{string, mixed} The document URL and the document in the
      *     internal form

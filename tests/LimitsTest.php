@@ -17,16 +17,16 @@ class LimitsTest extends TestCase
 
         $this->assertSame(128, $limits->maxDepth);
         $this->assertSame(100_000, $limits->maxValues);
-        $this->assertSame(1_000_000, $limits->maxTermDefinitions);
+        $this->assertSame(1_000_000, $limits->maxContextOperations);
     }
 
     public function testAcceptsExplicitValues(): void
     {
-        $limits = new Limits(maxDepth: 1, maxValues: PHP_INT_MAX, maxTermDefinitions: 5);
+        $limits = new Limits(maxDepth: 1, maxValues: PHP_INT_MAX, maxContextOperations: 5);
 
         $this->assertSame(1, $limits->maxDepth);
         $this->assertSame(PHP_INT_MAX, $limits->maxValues);
-        $this->assertSame(5, $limits->maxTermDefinitions);
+        $this->assertSame(5, $limits->maxContextOperations);
     }
 
     public function testTakesTheLimitsInADocumentedOrder(): void
@@ -35,16 +35,16 @@ class LimitsTest extends TestCase
 
         $this->assertSame(2, $limits->maxDepth);
         $this->assertSame(3, $limits->maxValues);
-        $this->assertSame(4, $limits->maxTermDefinitions);
+        $this->assertSame(4, $limits->maxContextOperations);
     }
 
     public function testAcceptsOneAsTheSmallestLimit(): void
     {
-        $limits = new Limits(maxDepth: 1, maxValues: 1, maxTermDefinitions: 1);
+        $limits = new Limits(maxDepth: 1, maxValues: 1, maxContextOperations: 1);
 
         $this->assertSame(1, $limits->maxDepth);
         $this->assertSame(1, $limits->maxValues);
-        $this->assertSame(1, $limits->maxTermDefinitions);
+        $this->assertSame(1, $limits->maxContextOperations);
     }
 
     public function testRejectsADepthBelowOne(): void
@@ -63,11 +63,11 @@ class LimitsTest extends TestCase
         new Limits(maxValues: -5);
     }
 
-    public function testRejectsATermDefinitionCountBelowOne(): void
+    public function testRejectsAContextOperationCountBelowOne(): void
     {
         $this->expectException(InvalidArgument::class);
-        $this->expectExceptionMessageIsOrContains('maxTermDefinitions must be at least 1; 0 given');
+        $this->expectExceptionMessageIsOrContains('maxContextOperations must be at least 1; 0 given');
 
-        new Limits(maxTermDefinitions: 0);
+        new Limits(maxContextOperations: 0);
     }
 }

@@ -50,7 +50,7 @@ final readonly class Options
      *     `null`, the default, ignores it
      * @param bool $strict If `true`, data the algorithms would drop is treated
      *     as an error
-     * @param Limits $limits Bounds on document size
+     * @param Limits $limits Bounds on the work done for one document
      * @param Restrictions $restrictions Features of the expanded document to
      *     refuse
      * @param DocumentLoader $documentLoader Supplies the contexts that
