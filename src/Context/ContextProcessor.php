@@ -164,7 +164,8 @@ final class ContextProcessor
      *
      * The result of a context named by URL comes from the cache if the same
      * URL was applied to the same active context with the same flag before.
-     * Otherwise, the context is processed and the result is stored.
+     * Otherwise, the context is processed, and the result is stored when the
+     * cache is in use.
      *
      * @param mixed $localContext The value of an `@context` entry, in the
      *     internal form

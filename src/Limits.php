@@ -46,8 +46,8 @@ use function sprintf;
  * each active context it applies to, and a document may give every node a
  * context of its own, so a small document can ask for many more operations than
  * it has values. These cost nothing: a term that is already defined when the
- * processor reaches it, a scoped context applied again to the same active
- * context, and the keyword entries of a context definition, such as `@vocab`.
+ * processor reaches it, a scoped context that the cache of processed contexts
+ * serves, and the keyword entries of a context definition, such as `@vocab`.
  *
  * To disable a limit, pass `PHP_INT_MAX`.
  */
@@ -80,9 +80,9 @@ final readonly class Limits
      * An operation is one item of a context, whether a map, a `null`, or a
      * URL, or one term that the processor takes up, whether the term ends up
      * defined, defined as `null`, or ignored. A term that is already defined
-     * when the processor reaches it, a scoped context applied again to the
-     * same active context, and the keyword entries of a context definition
-     * cost nothing.
+     * when the processor reaches it, a scoped context that the cache of
+     * processed contexts serves, and the keyword entries of a context
+     * definition cost nothing.
      *
      * @var int<1, max>
      */
