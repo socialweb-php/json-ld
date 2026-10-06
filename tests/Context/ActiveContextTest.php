@@ -21,6 +21,7 @@ class ActiveContextTest extends TestCase
         $this->assertNull($context->defaultLanguage);
         $this->assertNull($context->defaultBaseDirection);
         $this->assertNull($context->previousContext);
+        $this->assertSame(0, $context->protectedTermDefinitions);
         $this->assertFalse($context->hasProtectedTermDefinitions());
     }
 
@@ -31,6 +32,7 @@ class ActiveContextTest extends TestCase
         $this->assertSame('https://example.com/doc', $context->baseIri);
         $this->assertSame('https://example.com/doc', $context->originalBaseUrl);
         $this->assertSame([], $context->termDefinitions);
+        $this->assertSame(0, $context->protectedTermDefinitions);
         $this->assertNull(ActiveContext::initial(null)->baseIri);
         $this->assertNull(ActiveContext::initial(null)->originalBaseUrl);
     }
@@ -59,19 +61,38 @@ class ActiveContextTest extends TestCase
         $this->assertNull($context->termDefinition('124'));
     }
 
-    public function testKnowsWhetherAnyTermIsProtected(): void
+    public function testCountsItsProtectedTermDefinitionsWhenItIsMade(): void
     {
         $open = new TermDefinition(iriMapping: 'https://example.com/open');
-        $context = (new ActiveContext())->withTermDefinitions(['open' => $open]);
+        $closed = new TermDefinition(iriMapping: 'ex:closed', protected: true);
+        $context = new ActiveContext(['open' => $open]);
 
+        $this->assertSame(0, $context->protectedTermDefinitions);
         $this->assertFalse($context->hasProtectedTermDefinitions());
 
-        $context = $context->withTermDefinitions([
-            'open' => $open,
-            'closed' => new TermDefinition(iriMapping: 'ex:closed', protected: true),
-            'other' => new TermDefinition(iriMapping: 'https://example.com/other'),
-        ]);
+        $context = $context->withTermDefinitions(['open' => $open, 'closed' => $closed, 'other' => $closed]);
 
+        $this->assertSame(2, $context->protectedTermDefinitions);
+        $this->assertTrue($context->hasProtectedTermDefinitions());
+        $this->assertSame(2, $context->withDefaultLanguage('en')->protectedTermDefinitions);
+        $this->assertSame(0, $context->withTermDefinitions([])->protectedTermDefinitions);
+    }
+
+    public function testTakesTheNumberOfProtectedTermDefinitionsItIsGiven(): void
+    {
+        // The builder keeps the number up to date as it sets and removes term
+        // definitions, and hands it over so that they are not counted again.
+        $open = new TermDefinition(iriMapping: 'https://example.com/open');
+        $closed = new TermDefinition(iriMapping: 'ex:closed', protected: true);
+
+        $context = new ActiveContext(['closed' => $closed], protectedTermDefinitions: 0);
+
+        $this->assertSame(0, $context->protectedTermDefinitions);
+        $this->assertFalse($context->hasProtectedTermDefinitions());
+
+        $context = $context->withTermDefinitions(['open' => $open], 1);
+
+        $this->assertSame(1, $context->protectedTermDefinitions);
         $this->assertTrue($context->hasProtectedTermDefinitions());
     }
 

@@ -89,4 +89,48 @@ class ActiveContextBuilderTest extends TestCase
         $this->assertSame([], $built->termDefinitions);
         $this->assertSame(['later' => $name], $builder->build()->termDefinitions);
     }
+
+    public function testKeepsTheNumberOfProtectedTermDefinitionsUpToDate(): void
+    {
+        $open = new TermDefinition(iriMapping: 'https://example.com/open');
+        $closed = new TermDefinition(iriMapping: 'ex:closed', protected: true);
+        $builder = new ActiveContextBuilder((new ActiveContext())->withTermDefinitions(['first' => $closed]));
+
+        $this->assertSame(1, $builder->build()->protectedTermDefinitions);
+
+        // A protected term is set, and then replaced by another protected one.
+        $builder->set('second', $closed);
+        $builder->set('second', $closed);
+
+        $this->assertSame(2, $builder->build()->protectedTermDefinitions);
+
+        // A protected term is replaced by one that is not protected.
+        $builder->set('first', $open);
+
+        $this->assertSame(1, $builder->build()->protectedTermDefinitions);
+
+        // A term that is not protected is set, and then replaced by a
+        // protected one.
+        $builder->set('third', $open);
+
+        $this->assertSame(1, $builder->build()->protectedTermDefinitions);
+
+        $builder->set('third', $closed);
+
+        $this->assertSame(2, $builder->build()->protectedTermDefinitions);
+
+        // A protected term, a term that is not protected, and a term that was
+        // never defined are removed.
+        $builder->remove('third');
+        $builder->remove('first');
+        $builder->remove('never defined');
+
+        $this->assertSame(1, $builder->build()->protectedTermDefinitions);
+        $this->assertTrue($builder->build()->hasProtectedTermDefinitions());
+
+        $builder->remove('second');
+
+        $this->assertSame(0, $builder->build()->protectedTermDefinitions);
+        $this->assertFalse($builder->build()->hasProtectedTermDefinitions());
+    }
 }

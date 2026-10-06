@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace SocialWeb\JsonLd\Context;
 
-use function array_any;
-
 /**
  * An active context, as JSON-LD 1.1 Processing Algorithms and API section 4.1
  * describes it
@@ -39,6 +37,15 @@ use function array_any;
 final readonly class ActiveContext implements IriExpansionContext
 {
     /**
+     * The number of the term definitions that are protected
+     *
+     * Context processing asks whether any term definition is protected before
+     * a context of `null` may clear them all. The number answers that in
+     * constant time, however many term definitions there are.
+     */
+    public int $protectedTermDefinitions;
+
+    /**
      * @param array<TermDefinition> $termDefinitions The term definitions by
      *     term; PHP turns a term made of digits into an integer key, so cast
      *     keys to string when reading them
@@ -51,6 +58,9 @@ final readonly class ActiveContext implements IriExpansionContext
      * @param string | null $defaultBaseDirection `ltr`, `rtl`, or null
      * @param self | null $previousContext The context to return to when a
      *     non-propagated context goes out of scope
+     * @param int | null $protectedTermDefinitions The number of the term
+     *     definitions that are protected, when the caller knows it; otherwise
+     *     they are counted
      */
     public function __construct(
         public array $termDefinitions = [],
@@ -60,7 +70,9 @@ final readonly class ActiveContext implements IriExpansionContext
         public ?string $defaultLanguage = null,
         public ?string $defaultBaseDirection = null,
         public ?self $previousContext = null,
+        ?int $protectedTermDefinitions = null,
     ) {
+        $this->protectedTermDefinitions = $protectedTermDefinitions ?? self::countProtected($termDefinitions);
     }
 
     /**
@@ -82,15 +94,21 @@ final readonly class ActiveContext implements IriExpansionContext
      */
     public function hasProtectedTermDefinitions(): bool
     {
-        return array_any($this->termDefinitions, fn ($definition) => $definition->protected);
+        return $this->protectedTermDefinitions > 0;
     }
 
     /**
      * @param array<TermDefinition> $termDefinitions
+     * @param int | null $protectedTermDefinitions The number of the term
+     *     definitions that are protected, when the caller knows it; otherwise
+     *     they are counted
      */
-    public function withTermDefinitions(array $termDefinitions): self
+    public function withTermDefinitions(array $termDefinitions, ?int $protectedTermDefinitions = null): self
     {
-        return clone($this, ['termDefinitions' => $termDefinitions]);
+        return clone($this, [
+            'termDefinitions' => $termDefinitions,
+            'protectedTermDefinitions' => $protectedTermDefinitions ?? self::countProtected($termDefinitions),
+        ]);
     }
 
     public function withBaseIri(?string $baseIri): self
@@ -116,5 +134,21 @@ final readonly class ActiveContext implements IriExpansionContext
     public function withPreviousContext(?self $previousContext): self
     {
         return clone($this, ['previousContext' => $previousContext]);
+    }
+
+    /**
+     * @param array<TermDefinition> $termDefinitions
+     */
+    private static function countProtected(array $termDefinitions): int
+    {
+        $protected = 0;
+
+        foreach ($termDefinitions as $definition) {
+            if ($definition->protected) {
+                $protected++;
+            }
+        }
+
+        return $protected;
     }
 }

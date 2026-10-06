@@ -85,6 +85,34 @@ class ContextProcessorTest extends TestCase
         $this->assertError(ErrorCode::InvalidContextNullification, '[{"@protected": true, "a": "ex:a"}, null]');
     }
 
+    #[DataProvider('protectedTermsThatAreKept')]
+    public function testNullIsStillRefusedAfterAProtectedTermIsKept(string $redefinition, bool $strict): void
+    {
+        // The second map removes the protected term "a" while it takes it up,
+        // and then puts a protected definition back: the one it made, which is
+        // the same as before, or the earlier one, when the term is ignored.
+        // The number of protected term definitions must be right afterwards,
+        // or the null would clear the active context.
+        $processor = self::processor(strict: $strict);
+
+        $this->expectExceptionObject(new JsonLdError(ErrorCode::InvalidContextNullification));
+
+        $processor->process(
+            new ActiveContext(),
+            json_decode('[{"@protected": true, "a": "ex:a"}, ' . $redefinition . ', null]', flags: JSON_THROW_ON_ERROR),
+            null,
+        );
+    }
+
+    /**
+     * @return iterable<string, array{string, bool}>
+     */
+    public static function protectedTermsThatAreKept(): iterable
+    {
+        yield 'defined again as it was' => ['{"a": "ex:a"}', true];
+        yield 'ignored in lenient mode, and put back' => ['{"a": {"@id": "@ignored"}}', false];
+    }
+
     public function testNullMayDiscardProtectedTermsWhenOverriding(): void
     {
         $active = self::process('{"@protected": true, "a": "ex:a"}');

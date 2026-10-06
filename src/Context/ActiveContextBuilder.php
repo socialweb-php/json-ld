@@ -36,6 +36,10 @@ namespace SocialWeb\JsonLd\Context;
  * one it has built: PHP copies an array that has two holders before writing
  * to it.
  *
+ * The builder keeps the number of its term definitions that are protected up
+ * to date as it sets and removes them, and hands the number to the active
+ * context it builds, so that no active context has to count them.
+ *
  * @internal
  */
 final class ActiveContextBuilder implements IriExpansionContext
@@ -49,11 +53,14 @@ final class ActiveContextBuilder implements IriExpansionContext
      */
     private array $termDefinitions;
 
+    private int $protectedTermDefinitions;
+
     public function __construct(private readonly ActiveContext $activeContext)
     {
         $this->baseIri = $activeContext->baseIri;
         $this->vocabularyMapping = $activeContext->vocabularyMapping;
         $this->termDefinitions = $activeContext->termDefinitions;
+        $this->protectedTermDefinitions = $activeContext->protectedTermDefinitions;
     }
 
     public function termDefinition(string $term): ?TermDefinition
@@ -63,11 +70,27 @@ final class ActiveContextBuilder implements IriExpansionContext
 
     public function set(string $term, TermDefinition $definition): void
     {
+        $previous = $this->termDefinitions[$term] ?? null;
+
+        if ($previous !== null && $previous->protected) {
+            $this->protectedTermDefinitions--;
+        }
+
+        if ($definition->protected) {
+            $this->protectedTermDefinitions++;
+        }
+
         $this->termDefinitions[$term] = $definition;
     }
 
     public function remove(string $term): void
     {
+        $previous = $this->termDefinitions[$term] ?? null;
+
+        if ($previous !== null && $previous->protected) {
+            $this->protectedTermDefinitions--;
+        }
+
         unset($this->termDefinitions[$term]);
     }
 
@@ -77,6 +100,6 @@ final class ActiveContextBuilder implements IriExpansionContext
      */
     public function build(): ActiveContext
     {
-        return $this->activeContext->withTermDefinitions($this->termDefinitions);
+        return $this->activeContext->withTermDefinitions($this->termDefinitions, $this->protectedTermDefinitions);
     }
 }
