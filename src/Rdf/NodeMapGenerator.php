@@ -158,10 +158,10 @@ final class NodeMapGenerator
 
         // Step 6: the element is a node object.
 
-        // Step 6.1. An `@id` of null, which lenient expansion leaves where a
-        // value had the form of a keyword, is read as the empty string: a map
-        // cannot be keyed by null, and the empty string is no more an IRI than
-        // null is, so conversion treats the node the same way.
+        // Steps 6.1 and 6.2. An `@id` of null, which lenient expansion leaves
+        // where a value had the form of a keyword, is read as the empty string:
+        // a map cannot be keyed by null, and the empty string is no more an IRI
+        // than null is, so conversion treats the node the same way.
         if (array_key_exists('@id', $entries)) {
             $id = is_string($entries['@id']) ? $entries['@id'] : '';
 
@@ -172,14 +172,14 @@ final class NodeMapGenerator
             $id = $this->issuer->issue();
         }
 
-        // Steps 6.2 and 6.3.
+        // Steps 6.3 and 6.4.
         $node = $this->nodeMap->node($activeGraph, $id);
 
         if ($activeSubject instanceof stdClass && $activeProperty !== null) {
-            // Step 6.4.
+            // Step 6.5.
             $node->appendOnce($activeProperty, $activeSubject);
         } elseif ($activeProperty !== null) {
-            // Step 6.5.
+            // Step 6.6.
             $reference = (object) ['@id' => $id];
 
             if ($list === null) {
@@ -190,7 +190,7 @@ final class NodeMapGenerator
             }
         }
 
-        // Step 6.6. The types of a node object are a list in expanded form.
+        // Step 6.7. The types of a node object are a list in expanded form.
         // Expansion leaves a `@type` written as a string beside an `@set` or
         // `@list` entry, and that string is the node's one type.
         if ($types !== null) {
@@ -199,7 +199,7 @@ final class NodeMapGenerator
             }
         }
 
-        // Step 6.7.
+        // Step 6.8.
         if (array_key_exists('@index', $entries)) {
             /** @var string $index */
             $index = $entries['@index'];
@@ -211,7 +211,7 @@ final class NodeMapGenerator
             $node->setIndex($index);
         }
 
-        // Step 6.8. The reverse map is visited in code point order of its
+        // Step 6.9. The reverse map is visited in code point order of its
         // properties, so the labels the issuer gives the nodes under it do not
         // depend on the order the document wrote them in.
         if (array_key_exists('@reverse', $entries)) {
@@ -227,17 +227,17 @@ final class NodeMapGenerator
             }
         }
 
-        // Step 6.9.
+        // Step 6.10.
         if (array_key_exists('@graph', $entries)) {
             $this->visit($entries['@graph'], $id, null, null);
         }
 
-        // Step 6.10.
+        // Step 6.11.
         if (array_key_exists('@included', $entries)) {
             $this->visit($entries['@included'], $activeGraph, null, null);
         }
 
-        // Step 6.11.
+        // Step 6.12.
         unset(
             $entries['@id'],
             $entries['@type'],
@@ -251,15 +251,15 @@ final class NodeMapGenerator
         foreach ($entries as $property => $value) {
             $property = (string) $property;
 
-            // Step 6.11.1.
+            // Step 6.12.1.
             if (self::isBlankNodeIdentifier($property)) {
                 $property = $this->issuer->issue($property);
             }
 
-            // Step 6.11.2.
+            // Step 6.12.2.
             $node->addProperty($property);
 
-            // Step 6.11.3.
+            // Step 6.12.3.
             $this->visit($value, $activeGraph, $id, $property);
         }
     }
