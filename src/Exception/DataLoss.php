@@ -27,23 +27,70 @@ use RuntimeException;
 use SocialWeb\JsonLd\DataLossCondition;
 use Throwable;
 
+use function preg_match;
+use function preg_match_all;
 use function sprintf;
+use function strlen;
+use function substr;
 
 /**
  * Thrown in strict mode where the algorithms would otherwise silently drop
  * data
+ *
+ * The detail is everything that would have been dropped, however large. The
+ * message, which is what a log usually receives, carries the condition and
+ * the first characters of the detail, and says how many there are when it
+ * does not carry them all.
  */
 final class DataLoss extends RuntimeException implements JsonLdException
 {
     /**
+     * The greatest number of characters of the detail that the message
+     * carries
+     */
+    public const int MESSAGE_DETAIL_LENGTH = 256;
+
+    /**
      * @param DataLossCondition $condition Which drop point was reached
-     * @param string $detail The term, value, or IRI that would have been dropped
+     * @param string $detail The term, value, or IRI that would have been
+     *     dropped, whole: a string as it was, or a map or an array as its
+     *     canonical JSON
      */
     public function __construct(
         public readonly DataLossCondition $condition,
         public readonly string $detail,
         ?Throwable $previous = null,
     ) {
-        parent::__construct(sprintf('Data loss detected (%s): %s', $condition->value, $detail), 0, $previous);
+        parent::__construct(
+            sprintf('Data loss detected (%s): %s', $condition->value, self::summary($detail)),
+            0,
+            $previous,
+        );
+    }
+
+    /**
+     * Returns the detail when it is short, and otherwise its first characters
+     * and a count of all of them
+     *
+     * Characters are counted as code points when the detail is valid UTF-8,
+     * so the cut never splits a character; a detail that is not valid UTF-8
+     * is cut by bytes.
+     */
+    private static function summary(string $detail): string
+    {
+        $limit = self::MESSAGE_DETAIL_LENGTH;
+
+        if (preg_match('/\A.{0,' . $limit . '}\z/su', $detail) === 1) {
+            return $detail;
+        }
+
+        if (preg_match('/\A.{' . $limit . '}/su', $detail, $matches) === 1) {
+            return sprintf('%s (first %d of %d characters)', $matches[0], $limit, preg_match_all('/./su', $detail));
+        }
+
+        // The detail is not valid UTF-8, so it is cut by bytes.
+        return strlen($detail) <= $limit
+            ? $detail
+            : sprintf('%s (first %d of %d bytes)', substr($detail, 0, $limit), $limit, strlen($detail));
     }
 }
