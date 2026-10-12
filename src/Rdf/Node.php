@@ -46,9 +46,11 @@ final class Node
     /**
      * @var array<string, list<mixed>> The values of each property: value
      *     objects, node references, and list objects, in the order the
-     *     document gave them. PHP stores a property name that is only digits
-     *     as an integer key, so cast a key with `(string)` before using it as
-     *     a string.
+     *     document gave them. The value objects are the document's own
+     *     `stdClass` instances, and one node reference may be shared by every
+     *     node under a reverse property, so a reader must not change them.
+     *     PHP stores a property name that is only digits as an integer key,
+     *     so cast a key with `(string)` before using it as a string.
      */
     public private(set) array $properties = [];
 

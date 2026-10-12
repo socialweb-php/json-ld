@@ -23,7 +23,9 @@ declare(strict_types=1);
 
 namespace SocialWeb\JsonLd\Rdf;
 
+use SocialWeb\JsonLd\DataLossCondition;
 use SocialWeb\JsonLd\ErrorCode;
+use SocialWeb\JsonLd\Exception\DataLoss;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
 use stdClass;
@@ -43,14 +45,17 @@ use const SORT_STRING;
  *
  * This is the Node Map Generation algorithm. It collects everything the
  * document says about a node in one place, under the graph the node is in,
- * and relabels every blank node through a BlankNodeIssuer, so that the labels
- * in the result are the ones the reference processors produce. Map entries
- * are visited in code point order of their keys, so the labels do not depend
- * on the order the document wrote its entries in.
+ * and relabels every blank node through a BlankNodeIssuer. Map entries are
+ * visited in code point order of their keys, so the labels do not depend on
+ * the order the document wrote its entries in: they are the ones the
+ * algorithm produces when map entries are visited in that order, and a
+ * processor that visits them in document order can give other labels to a
+ * document whose entries are not in code point order.
  *
  * The document is not changed. A value object is put in the node map as it
  * is, and copied only when its `@type` is a blank node identifier that has to
- * be relabeled.
+ * be relabeled, so the node map holds the document's own objects and must be
+ * read without changing them.
  *
  * @internal
  *
@@ -60,28 +65,38 @@ final class NodeMapGenerator
 {
     private readonly NodeMap $nodeMap;
 
-    private function __construct(private readonly BlankNodeIssuer $issuer)
+    private function __construct(private readonly BlankNodeIssuer $issuer, private readonly bool $strict)
     {
         $this->nodeMap = new NodeMap();
     }
 
     /**
      * Returns the node map of an expanded document, with its blank nodes
-     * relabeled by a new issuer
+     * relabeled by the issuer
      *
-     * @param list<mixed> $nodes The expanded document, as
-     *     `ExpandedDocument::jsonSerialize()` returns it: a list of expanded
+     * @param list<mixed> $nodes The expanded document: a list of expanded
      *     node objects, with JSON objects as `stdClass`
+     * @param BlankNodeIssuer $issuer A new issuer, which relabels the blank
+     *     nodes of the document, and which conversion to RDF goes on using for
+     *     the blank nodes it makes
+     * @param bool $strict If true, a `@type` entry beside `@list`, which the
+     *     algorithm drops, is an error
      *
      * @throws JsonLdError with the code `conflicting indexes` if two parts of
      *     the document give one node different `@index` values
+     * @throws DataLoss in strict mode, with the condition `undefined property`
+     *     and the detail `@type`, if a list object carries a `@type` entry,
+     *     which expansion leaves when a map has `@list` beside a `@type`
+     *     written as a string
      * @throws InvalidArgument if the document is not in expanded form:
-     *     something in it is neither a map nor an array, or a value object or
-     *     list object is not the value of a property of a node object
+     *     something in it is neither a map nor an array; a value object or
+     *     list object is not the value of a property of a node object; or an
+     *     `@id` is neither a string nor null, an `@index` is not a string, or
+     *     an `@reverse` is not a map
      */
-    public static function generate(array $nodes): NodeMap
+    public static function generate(array $nodes, BlankNodeIssuer $issuer, bool $strict): NodeMap
     {
-        $generator = new self(new BlankNodeIssuer());
+        $generator = new self($issuer, $strict);
         $generator->visit($nodes, NodeMap::DEFAULT_GRAPH, null, null);
 
         return $generator->nodeMap;
@@ -140,8 +155,14 @@ final class NodeMapGenerator
             return;
         }
 
-        // Step 5.
+        // Step 5. The algorithm reads only the `@list` entry, so a `@type`
+        // beside it, which expansion leaves when the type is written as a
+        // string, is dropped here; strict mode refuses to drop it.
         if (array_key_exists('@list', $entries)) {
+            if ($this->strict && array_key_exists('@type', $entries)) {
+                throw new DataLoss(DataLossCondition::UndefinedProperty, '@type');
+            }
+
             $items = [];
             $this->visit($entries['@list'], $activeGraph, $activeSubject, $activeProperty, $items);
             $result = (object) ['@list' => $items];
@@ -161,9 +182,14 @@ final class NodeMapGenerator
         // Steps 6.1 and 6.2. An `@id` of null, which lenient expansion leaves
         // where a value had the form of a keyword, is read as the empty string:
         // a map cannot be keyed by null, and the empty string is no more an IRI
-        // than null is, so conversion treats the node the same way.
+        // than null is, so conversion treats the node the same way. Expansion
+        // leaves nothing else that is not a string.
         if (array_key_exists('@id', $entries)) {
-            $id = is_string($entries['@id']) ? $entries['@id'] : '';
+            $id = $entries['@id'] ?? '';
+
+            if (!is_string($id)) {
+                throw new InvalidArgument('The @id of a node object must be a string or null');
+            }
 
             if (self::isBlankNodeIdentifier($id)) {
                 $id = $this->issuer->issue($id);
@@ -201,8 +227,11 @@ final class NodeMapGenerator
 
         // Step 6.8.
         if (array_key_exists('@index', $entries)) {
-            /** @var string $index */
             $index = $entries['@index'];
+
+            if (!is_string($index)) {
+                throw new InvalidArgument('The @index of a node object must be a string');
+            }
 
             if ($node->index !== null && $node->index !== $index) {
                 throw new JsonLdError(ErrorCode::ConflictingIndexes, $id);
@@ -215,10 +244,13 @@ final class NodeMapGenerator
         // properties, so the labels the issuer gives the nodes under it do not
         // depend on the order the document wrote them in.
         if (array_key_exists('@reverse', $entries)) {
-            $referencedNode = (object) ['@id' => $id];
-
-            /** @var stdClass $reverseMap */
             $reverseMap = $entries['@reverse'];
+
+            if (!$reverseMap instanceof stdClass) {
+                throw new InvalidArgument('The @reverse of a node object must be a map');
+            }
+
+            $referencedNode = (object) ['@id' => $id];
             $reverse = get_object_vars($reverseMap);
             ksort($reverse, SORT_STRING);
 

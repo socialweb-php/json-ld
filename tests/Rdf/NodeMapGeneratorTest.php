@@ -6,17 +6,21 @@ namespace SocialWeb\Test\JsonLd\Rdf;
 
 use LogicException;
 use PHPUnit\Framework\Attributes\DataProvider;
+use SocialWeb\JsonLd\DataLossCondition;
 use SocialWeb\JsonLd\ErrorCode;
+use SocialWeb\JsonLd\Exception\DataLoss;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\Processor;
+use SocialWeb\JsonLd\Rdf\BlankNodeIssuer;
 use SocialWeb\JsonLd\Rdf\JsonCanonicalizer;
 use SocialWeb\JsonLd\Rdf\NodeMap;
 use SocialWeb\JsonLd\Rdf\NodeMapGenerator;
 use SocialWeb\Test\JsonLd\TestCase;
 use stdClass;
 
+use function array_column;
 use function array_is_list;
 use function is_array;
 use function json_decode;
@@ -60,13 +64,19 @@ class NodeMapGeneratorTest extends TestCase
     {
         $expanded = (new Processor(new Options(base: 'https://example.com/')))->expand(self::PEOPLE);
 
-        $this->assertNodeMap(self::PEOPLE_NODE_MAP, NodeMapGenerator::generate($expanded->jsonSerialize()));
+        $this->assertNodeMap(
+            self::PEOPLE_NODE_MAP,
+            NodeMapGenerator::generate($expanded->jsonSerialize(), new BlankNodeIssuer(), false),
+        );
     }
 
     #[DataProvider('documents')]
     public function testGenerates(string $expected, string $document): void
     {
-        $this->assertNodeMap($expected, NodeMapGenerator::generate(self::nodes($document)));
+        $this->assertNodeMap(
+            $expected,
+            NodeMapGenerator::generate(self::nodes($document), new BlankNodeIssuer(), false),
+        );
     }
 
     /**
@@ -298,6 +308,22 @@ class NodeMapGeneratorTest extends TestCase
             ]}}]',
         ];
 
+        yield 'a typed value inside a list is relabeled and kept in its place' => [
+            '{"@default": {
+                "https://example.com/a": {
+                    "@id": "https://example.com/a",
+                    "https://example.com/p": [{"@list": [
+                        {"@value": "x", "@type": "_:b0"},
+                        {"@value": "y", "@type": "https://example.com/T"}
+                    ]}]
+                }
+            }}',
+            '[{"@id": "https://example.com/a", "https://example.com/p": [{"@list": [
+                {"@value": "x", "@type": "_:t"},
+                {"@value": "y", "@type": "https://example.com/T"}
+            ]}]}]',
+        ];
+
         yield 'the items of a list keep their order, and a list may hold lists and nodes' => [
             '{"@default": {
                 "https://example.com/a": {
@@ -451,8 +477,8 @@ class NodeMapGeneratorTest extends TestCase
     public function testTheLabelsDoNotDependOnTheOrderOfEntries(string $document, string $reordered): void
     {
         $this->assertSame(
-            self::toJson(NodeMapGenerator::generate(self::nodes($document))),
-            self::toJson(NodeMapGenerator::generate(self::nodes($reordered))),
+            self::toJson(NodeMapGenerator::generate(self::nodes($document), new BlankNodeIssuer(), false)),
+            self::toJson(NodeMapGenerator::generate(self::nodes($reordered), new BlankNodeIssuer(), false)),
         );
     }
 
@@ -490,7 +516,7 @@ class NodeMapGeneratorTest extends TestCase
         );
         $before = JsonCanonicalizer::canonicalize($nodes);
 
-        NodeMapGenerator::generate($nodes);
+        NodeMapGenerator::generate($nodes, new BlankNodeIssuer(), false);
 
         $this->assertSame($before, JsonCanonicalizer::canonicalize($nodes));
     }
@@ -505,6 +531,8 @@ class NodeMapGeneratorTest extends TestCase
                         {"@id": "https://example.com/a", "@index": "j"}
                     ]',
                 ),
+                new BlankNodeIssuer(),
+                false,
             );
             $this->fail('Expected a JsonLdError');
         } catch (JsonLdError $exception) {
@@ -522,7 +550,7 @@ class NodeMapGeneratorTest extends TestCase
         $this->expectException(InvalidArgument::class);
         $this->expectExceptionMessage($message);
 
-        NodeMapGenerator::generate(self::nodes($document));
+        NodeMapGenerator::generate(self::nodes($document), new BlankNodeIssuer(), false);
     }
 
     /**
@@ -550,6 +578,56 @@ class NodeMapGeneratorTest extends TestCase
             '[{"@id": "https://example.com/a", "@reverse": {"https://example.com/p": [{"@value": 1}]}}]',
             $noProperty,
         ];
+        yield 'an identifier that is a number' => [
+            '[{"@id": 1}]',
+            'The @id of a node object must be a string or null',
+        ];
+        yield 'an index that is not a string' => [
+            '[{"@id": "https://example.com/a", "@index": 1}]',
+            'The @index of a node object must be a string',
+        ];
+        yield 'a reverse map that is an array' => [
+            '[{"@id": "https://example.com/a", "@reverse": []}]',
+            'The @reverse of a node object must be a map',
+        ];
+    }
+
+    public function testATypeBesideAListIsDroppedInLenientModeAndRefusedInStrictMode(): void
+    {
+        $document = '[{"@id": "https://example.com/a", "https://example.com/p": [
+            {"@list": [{"@value": 1}], "@type": "https://example.com/T"}
+        ]}]';
+
+        $this->assertNodeMap(
+            '{"@default": {"https://example.com/a": {
+                "@id": "https://example.com/a",
+                "https://example.com/p": [{"@list": [{"@value": 1}]}]
+            }}}',
+            NodeMapGenerator::generate(self::nodes($document), new BlankNodeIssuer(), false),
+        );
+
+        try {
+            NodeMapGenerator::generate(self::nodes($document), new BlankNodeIssuer(), true);
+            $this->fail('Expected a DataLoss');
+        } catch (DataLoss $dataLoss) {
+            $this->assertSame(DataLossCondition::UndefinedProperty, $dataLoss->condition);
+            $this->assertSame('@type', $dataLoss->detail);
+        }
+    }
+
+    public function testGoesOnIssuingFromTheIssuerItIsGiven(): void
+    {
+        $issuer = new BlankNodeIssuer();
+        $issuer->issue('_:first');
+
+        $map = NodeMapGenerator::generate(
+            self::nodes('[{"@id": "_:x", "https://example.com/p": [{"@id": "_:first"}, {}]}]'),
+            $issuer,
+            false,
+        );
+
+        $this->assertSame(['_:b0', '_:b1', '_:b2'], array_column($map->nodes('@default'), 'id'));
+        $this->assertSame('_:b3', $issuer->issue());
     }
 
     public function testReferencesAndListObjectsAreMaps(): void
@@ -565,6 +643,8 @@ class NodeMapGeneratorTest extends TestCase
                     "@reverse": {"https://example.com/q": [{"@id": "https://example.com/c"}]}
                 }]',
             ),
+            new BlankNodeIssuer(),
+            false,
         );
 
         [$a, $b, $c] = $map->nodes('@default');
@@ -591,6 +671,8 @@ class NodeMapGeneratorTest extends TestCase
 
         $map = NodeMapGenerator::generate(
             [(object) ['@id' => 'https://example.com/a', 'https://example.com/p' => $values]],
+            new BlankNodeIssuer(),
+            false,
         );
 
         $this->assertCount(4, $map->node('@default', 'https://example.com/a')->properties['https://example.com/p']);
