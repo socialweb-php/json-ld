@@ -9,10 +9,11 @@ library, and they are left out of distribution archives.
 | --- | --- | --- |
 | `jcs/` | Test data for RFC 8785, the JSON Canonicalization Scheme (JCS) | <https://github.com/cyberphone/json-canonicalization> |
 | `json-ld-api/` | The expansion and RDF conversion tests of the World Wide Web Consortium (W3C) test suite for JSON-LD 1.1 Processing Algorithms and API | <https://github.com/w3c/json-ld-api> |
+| `vc-di-eddsa/` | The `eddsa-rdfc-2022` test vector of the W3C Data Integrity EdDSA Cryptosuites v1.0 Recommendation, Appendix B.1, and the two JSON-LD contexts it references | <https://www.w3.org/TR/vc-di-eddsa/> |
 
 [`manifest.json`](manifest.json) records the rest for each set of fixtures: the
-commit the files were taken from, which directories and files of that
-repository are kept and where they are kept here, the copyright and license,
+commit or the version the files were taken from, which directories and files of
+that source are kept and where they are kept here, the copyright and license,
 and one SHA-256 checksum for the whole set.
 
 ## Checking the fixtures
@@ -30,8 +31,8 @@ check on every pull request and push to the main branch.
 
 A checksum that differs from the one in the manifest means that a fixture has
 changed since it was retrieved. If this happens, restore the files from the
-commit hash listed in the manifest. Do not record a new checksum unless the
-fixtures are being updated to a newer commit on purpose.
+commit hash or the version listed in the manifest. Do not record a new checksum
+unless the fixtures are being updated to a newer commit or version on purpose.
 
 ## How the checksums are made
 
@@ -66,6 +67,15 @@ And for `json-ld-api/`:
 (cd tests/fixtures/json-ld-api \
     && find ./expand ./toRdf ./context.jsonld ./expand-manifest.jsonld \
         ./toRdf-manifest.jsonld ./LICENSE.md -type f \
+    | LC_ALL=C sort | xargs sha256sum | sha256sum)
+```
+
+And for `vc-di-eddsa/`:
+
+```bash
+(cd tests/fixtures/vc-di-eddsa \
+    && find ./credential.jsonld ./credential.nq ./proof-options.jsonld \
+        ./proof-options.nq ./contexts -type f \
     | LC_ALL=C sort | xargs sha256sum | sha256sum)
 ```
 

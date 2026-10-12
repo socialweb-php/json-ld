@@ -70,6 +70,48 @@
                 }
             ],
             "sha256": "ca59635e45e4be5d8a22133271931166c4c4b0c6d1a60be89041b9db98caa9b1"
+        },
+        {
+            "name": "vc-di-eddsa",
+            "directory": "vc-di-eddsa",
+            "source": {
+                "title": "Data Integrity EdDSA Cryptosuites v1.0, Appendix B.1, and the JSON-LD contexts of the Verifiable Credentials Data Model v2.0",
+                "url": "https://www.w3.org/TR/vc-di-eddsa/",
+                "copyright": "Copyright 2025 World Wide Web Consortium"
+            },
+            "license": {
+                "name": "W3C Software and Document License",
+                "url": "https://www.w3.org/copyright/software-license-2023/"
+            },
+            "version": "https://www.w3.org/TR/2025/REC-vc-di-eddsa-20250515/",
+            "retrieved": "2026-10-11",
+            "paths": [
+                {
+                    "from": "Example 8: Credential without Proof",
+                    "to": "credential.jsonld"
+                },
+                {
+                    "from": "Example 9: Canonical Credential without Proof",
+                    "to": "credential.nq"
+                },
+                {
+                    "from": "Example 11: Proof Options Document",
+                    "to": "proof-options.jsonld"
+                },
+                {
+                    "from": "Example 12: Canonical Proof Options Document",
+                    "to": "proof-options.nq"
+                },
+                {
+                    "from": "https://www.w3.org/ns/credentials/v2",
+                    "to": "contexts/credentials-v2.jsonld"
+                },
+                {
+                    "from": "https://www.w3.org/ns/credentials/examples/v2",
+                    "to": "contexts/credentials-examples-v2.jsonld"
+                }
+            ],
+            "sha256": "f7bd9d9159a49d268425cbb8cd63f7ef1d95c3ea109416e3483f603f56b81736"
         }
     ]
 }

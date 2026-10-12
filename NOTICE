@@ -105,3 +105,18 @@ tests of the JSON-LD API test suite from the W3C json-ld-api repository,
 Consortium and are distributed under the W3C Test Suite License and the W3C
 3-clause BSD License, as described at
 <https://www.w3.org/copyright/test-suites-licenses/>.
+
+---
+
+The files under tests/fixtures/vc-di-eddsa/ include material copied from the
+following documents, Copyright © 2025 World Wide Web Consortium, provided under
+the W3C Software and Document License, <https://www.w3.org/copyright/software-license-2023/>,
+whose notice is given above:
+
+- Data Integrity EdDSA Cryptosuites v1.0 <https://www.w3.org/TR/vc-di-eddsa/>,
+  the test vector of Appendix B.1.
+
+- The JSON-LD contexts of the Verifiable Credentials Data Model v2.0
+  <https://www.w3.org/TR/vc-data-model-2.0/>, retrieved from
+  <https://www.w3.org/ns/credentials/v2> and
+  <https://www.w3.org/ns/credentials/examples/v2>.
