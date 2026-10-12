@@ -12,7 +12,6 @@
     ],
     "support": {
         "issues": "https://github.com/socialweb-php/json-ld/issues",
-        "forum": "https://github.com/socialweb-php/json-ld/discussions",
         "security": "https://github.com/socialweb-php/json-ld/security/policy"
     },
     "require": {
