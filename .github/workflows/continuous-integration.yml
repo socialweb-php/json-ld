@@ -24,7 +24,7 @@ env:
 jobs:
   lint:
     name: "Lint"
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-24.04"
 
     steps:
       - name: "Checkout repository"
@@ -33,7 +33,7 @@ jobs:
       - name: "Install PHP"
         uses: "shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240" # 2.37.2
         with:
-          php-version: "latest"
+          php-version: "8.5"
           coverage: "none"
 
       - name: "Install dependencies (Composer)"
@@ -44,7 +44,7 @@ jobs:
 
   fixtures:
     name: "Fixtures"
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-24.04"
 
     steps:
       - name: "Checkout repository"
@@ -53,7 +53,7 @@ jobs:
       - name: "Install PHP"
         uses: "shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240" # 2.37.2
         with:
-          php-version: "latest"
+          php-version: "8.5"
           coverage: "none"
 
       - name: "Check the test fixtures against their checksums"
@@ -62,7 +62,7 @@ jobs:
   benchmarks:
     name: "Benchmarks"
     needs: ["lint", "fixtures"]
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-24.04"
 
     steps:
       - name: "Checkout repository"
@@ -71,7 +71,7 @@ jobs:
       - name: "Install PHP"
         uses: "shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240" # 2.37.2
         with:
-          php-version: "latest"
+          php-version: "8.5"
           coverage: "none"
 
       - name: "Install dependencies (Composer)"
@@ -86,7 +86,7 @@ jobs:
   coverage:
     name: "Coverage"
     needs: ["lint", "fixtures"]
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-24.04"
 
     steps:
       - name: "Checkout repository"
@@ -95,7 +95,7 @@ jobs:
       - name: "Install PHP"
         uses: "shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240" # 2.37.2
         with:
-          php-version: "latest"
+          php-version: "8.5"
           coverage: "xdebug"
           ini-values: "memory_limit=-1"
 
@@ -111,7 +111,7 @@ jobs:
   mutation:
     name: "Mutation tests"
     needs: ["lint", "fixtures"]
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-24.04"
 
     steps:
       - name: "Checkout repository"
@@ -120,7 +120,7 @@ jobs:
       - name: "Install PHP"
         uses: "shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240" # 2.37.2
         with:
-          php-version: "latest"
+          php-version: "8.5"
           coverage: "xdebug"
           ini-values: "memory_limit=-1"
 
@@ -141,7 +141,7 @@ jobs:
         php:
           - "8.5"
         os:
-          - "ubuntu-latest"
+          - "ubuntu-24.04"
         composer-deps:
           - "lowest"
           - "highest"
