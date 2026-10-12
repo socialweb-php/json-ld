@@ -45,6 +45,11 @@ class DataLossTest extends TestCase
         $exception = new DataLoss(DataLossCondition::FreeFloatingNode, $detail);
 
         $this->assertSame('Data loss detected (free-floating node): ' . $detail, $exception->getMessage());
+
+        $wide = str_repeat('é', DataLoss::MESSAGE_DETAIL_LENGTH);
+        $wideException = new DataLoss(DataLossCondition::FreeFloatingNode, $wide);
+
+        $this->assertSame('Data loss detected (free-floating node): ' . $wide, $wideException->getMessage());
     }
 
     public function testTheMessageCutsALongDetailAndCountsItsCharacters(): void
@@ -57,6 +62,14 @@ class DataLossTest extends TestCase
             'Data loss detected (free-floating node): ' . str_repeat('é', DataLoss::MESSAGE_DETAIL_LENGTH)
                 . ' (first 256 of 259 characters)',
             $exception->getMessage(),
+        );
+
+        $oneOver = str_repeat('a', DataLoss::MESSAGE_DETAIL_LENGTH + 1);
+
+        $this->assertSame(
+            'Data loss detected (free-floating node): ' . str_repeat('a', DataLoss::MESSAGE_DETAIL_LENGTH)
+                . ' (first 256 of 257 characters)',
+            (new DataLoss(DataLossCondition::FreeFloatingNode, $oneOver))->getMessage(),
         );
     }
 

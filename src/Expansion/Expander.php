@@ -1068,10 +1068,11 @@ final class Expander
                 }
 
                 // Step 15.5. The `@type` of a value object must be an IRI. This
-                // code accepts what the RDF model accepts: an absolute IRI with
-                // no character that N-Quads forbids, such as a space.
-                // Otherwise, it raises `invalid typed value`, as W3C test
-                // #t0123 expects.
+                // code accepts what `Grammar::isWellFormedIri()` accepts: an
+                // absolute IRI with no character that N-Quads forbids, such as
+                // a space, and with at most one `#`, though the RDF model would
+                // accept a second. Otherwise, it raises `invalid typed value`,
+                // as W3C test #t0123 expects.
                 if (array_key_exists('@type', $result) && !(is_string($type) && Grammar::isWellFormedIri($type))) {
                     throw new JsonLdError(ErrorCode::InvalidTypedValue);
                 }

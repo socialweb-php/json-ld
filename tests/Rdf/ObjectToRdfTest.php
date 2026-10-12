@@ -190,6 +190,28 @@ class ObjectToRdfTest extends TestCase
         );
     }
 
+    public function testANullLanguageBesideADirectionWritesNoLanguageTriple(): void
+    {
+        $triples = [];
+        $objects = self::objects(RdfDirection::CompoundLiteral);
+
+        $term = $objects->convert(
+            (object) ['@value' => 'x', '@language' => null, '@direction' => 'rtl'],
+            new DefaultGraph(),
+            $triples,
+        );
+
+        $this->assertTrue($term?->equals(new BlankNode('b0')));
+        $this->assertSame(
+            <<<'NQUADS'
+            _:b0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#value> "x" .
+            _:b0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#direction> "rtl" .
+
+            NQUADS,
+            self::nquads($triples),
+        );
+    }
+
     #[DataProvider('itemsThatAreNotWellFormed')]
     public function testAnItemThatIsNotWellFormedIsNullInLenientModeAndRefusedInStrictMode(
         string $item,
@@ -236,6 +258,11 @@ class ObjectToRdfTest extends TestCase
             '{"@value": "x", "@type": "_:b0"}',
             DataLossCondition::MalformedDatatype,
             '_:b0',
+        ];
+        yield 'a langString datatype, which cannot carry a language tag' => [
+            '{"@value": "x", "@type": "' . self::RDF . 'langString"}',
+            DataLossCondition::MalformedDatatype,
+            self::RDF . 'langString',
         ];
         yield 'a language tag that is not well-formed' => [
             '{"@value": "x", "@language": "a b"}',
@@ -294,6 +321,10 @@ class ObjectToRdfTest extends TestCase
         yield 'a direction that is not a string' => [
             '{"@value": "x", "@direction": true}',
             'The @language and @direction of a value object must be strings',
+        ];
+        yield 'a direction that is not ltr or rtl' => [
+            '{"@value": "x", "@direction": "up"}',
+            'The @direction of a value object must be ltr or rtl',
         ];
         yield 'a language beside a datatype' => [
             '{"@value": "x", "@language": "en", "@type": "https://example.com/T"}',

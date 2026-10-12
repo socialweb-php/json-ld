@@ -89,5 +89,6 @@ class OptionsTest extends TestCase
         yield 'relative' => ['base/'];
         yield 'absolute path' => ['/base/'];
         yield 'space' => ['https://example.com/a b/'];
+        yield 'more than one number sign' => ['http://example.com/a#b#c'];
     }
 }

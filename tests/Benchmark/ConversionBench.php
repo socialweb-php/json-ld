@@ -7,6 +7,7 @@ namespace SocialWeb\Test\JsonLd\Benchmark;
 use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\ParamProviders;
 use PhpBench\Attributes\Revs;
+use SocialWeb\JsonLd\ExpandedDocument;
 use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\Processor;
 
@@ -23,7 +24,7 @@ final class ConversionBench
 {
     private const string VOCABULARY = 'https://example.com/ns#';
 
-    private string $document = '';
+    private ExpandedDocument $document;
     private Processor $processor;
 
     public function __construct()
@@ -77,10 +78,10 @@ final class ConversionBench
             ];
         }
 
-        $this->document = json_encode(
+        $this->document = $this->processor->expand(json_encode(
             ['@context' => ['@vocab' => self::VOCABULARY, 'next' => ['@type' => '@id']], '@graph' => $nodes],
             JSON_THROW_ON_ERROR,
-        );
+        ));
     }
 
     /**
@@ -94,14 +95,14 @@ final class ConversionBench
             $items[] = 'Item ' . $i;
         }
 
-        $this->document = json_encode(
+        $this->document = $this->processor->expand(json_encode(
             [
                 '@context' => ['@vocab' => self::VOCABULARY, 'items' => ['@container' => '@list']],
                 '@id' => 'https://example.com/list',
                 'items' => $items,
             ],
             JSON_THROW_ON_ERROR,
-        );
+        ));
     }
 
     /**

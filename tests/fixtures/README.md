@@ -37,9 +37,9 @@ unless the fixtures are being updated to a newer commit or version on purpose.
 ## How the checksums are made
 
 Each checksum is one SHA-256 value that covers a whole set of files. It was made
-from the files as they were retrieved from the repository at the commit the
-manifest names. It changes if the content of any file changes, if a file is
-renamed, or if a file is added to or removed from the paths it covers.
+from the files as they were retrieved from the source at the commit or the
+version the manifest names. It changes if the content of any file changes, if a
+file is renamed, or if a file is added to or removed from the paths it covers.
 
 It is made in four steps:
 

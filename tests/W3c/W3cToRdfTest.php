@@ -12,6 +12,7 @@ use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\Rdf\Canonicalization\Canonicalizer;
 use SocialWeb\Rdf\Dataset;
 use SocialWeb\Rdf\NQuads\Parser;
+use SocialWeb\Rdf\NQuads\Serializer;
 use SocialWeb\Test\JsonLd\TestCase;
 
 use function array_key_exists;
@@ -188,15 +189,19 @@ class W3cToRdfTest extends TestCase
 
     /**
      * A positive syntax entry has no expected output; conversion must
-     * complete, in both modes
+     * complete in both modes and give the same dataset
      */
     #[DataProvider('positiveSyntaxEntries')]
     public function testConvertsInBothModes(W3cEntry $entry): void
     {
         $input = W3cManifest::read($entry->input);
 
-        $this->assertCount(1, W3cProcessor::build($entry, strict: false)->toRdf($input));
-        $this->assertCount(1, W3cProcessor::build($entry, strict: true)->toRdf($input));
+        $serializer = new Serializer();
+        $lenient = $serializer->serialize(W3cProcessor::build($entry, strict: false)->toRdf($input));
+        $strict = $serializer->serialize(W3cProcessor::build($entry, strict: true)->toRdf($input));
+
+        $this->assertNotSame('', $lenient);
+        $this->assertSame($lenient, $strict);
     }
 
     public function testTheListsNameEntriesOfTheManifest(): void

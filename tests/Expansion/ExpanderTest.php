@@ -768,6 +768,11 @@ class ExpanderTest extends TestCase
             ErrorCode::InvalidTypedValue,
             '{"ex:p": {"@value": 1, "@type": "https://example.com/a b"}}',
         ];
+        yield 'a datatype that holds more than one number sign' => [
+            ErrorCode::InvalidTypedValue,
+            '{"@context": {"@vocab": "https://example.com/ns#"}, "@id": "https://example.com/a",'
+                . ' "p": {"@value": "x", "@type": "#foo"}}',
+        ];
         yield 'a datatype that is an array' => [
             ErrorCode::InvalidTypedValue,
             '{"ex:p": {"@value": 1, "@type": ["ex:t"]}}',

@@ -48,6 +48,16 @@ class RdfConverterTest extends TestCase
 
         yield 'a node with only an identifier makes no quad' => ['', '[{"@id": "ex:a"}]'];
 
+        yield 'a property with no values makes no quad' => ['', '[{"@id": "ex:a", "ex:p": []}]'];
+
+        yield 'a node that is a subject only in a named graph' => [
+            <<<'NQUADS'
+            <ex:b> <ex:p> "x" <ex:g> .
+
+            NQUADS,
+            '[{"@id": "ex:g", "@graph": [{"@id": "ex:b", "ex:p": [{"@value": "x"}]}]}]',
+        ];
+
         // `@default` sorts before `_:`, which sorts before every IRI, so the
         // default graph comes first and a blank node graph or subject before
         // an IRI; `_:b1` is the blank node graph, met before the list is.

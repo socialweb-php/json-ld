@@ -107,6 +107,11 @@ final class Processor
      * an identifier of this processor's making, and the dataset holds its quads
      * in one order for a document whatever the order of the document's entries.
      *
+     * A document that is not an `ExpandedDocument` is read and expanded under
+     * the limits of the options, as `expand()` does. An `ExpandedDocument` was
+     * read and expanded under the limits of the processor that made it, and
+     * `toRdf()` checks only the restrictions on it.
+     *
      * @link https://www.w3.org/TR/json-ld11-api/#dom-jsonldprocessor-tordf JSON-LD 1.1 API, toRdf()
      *
      * @param string | array<mixed> | object $document A JSON-encoded string;
@@ -119,8 +124,9 @@ final class Processor
      * @throws InvalidArgument if the document holds something that is not a
      *     JSON value, or an `ExpandedDocument` built by hand is not in
      *     expanded form
-     * @throws LimitExceeded if the document exceeds a limit, or its contexts
-     *     would take more operations to process than the limit allows
+     * @throws LimitExceeded if a document that is not an `ExpandedDocument`
+     *     exceeds a limit, or its contexts would take more operations to
+     *     process than the limit allows
      * @throws JsonLdError if the document breaks a rule of the specification,
      *     among them `conflicting indexes`, which conversion raises when two
      *     parts of the document give one node different `@index` values

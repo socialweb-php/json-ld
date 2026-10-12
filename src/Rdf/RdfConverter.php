@@ -63,12 +63,14 @@ final class RdfConverter
     private readonly bool $strict;
     private readonly ObjectToRdf $objects;
     private readonly Dataset $dataset;
+    private readonly Iri $type;
 
     private function __construct(BlankNodeIssuer $issuer, Options $options)
     {
         $this->strict = $options->strict;
         $this->objects = new ObjectToRdf($issuer, $options->strict, $options->rdfDirection);
         $this->dataset = new Dataset();
+        $this->type = new Iri(Vocabulary::RDF_TYPE);
     }
 
     /**
@@ -131,7 +133,7 @@ final class RdfConverter
                 $object = $this->objects->resource($type, DataLossCondition::RelativeType);
 
                 if ($object !== null) {
-                    $this->dataset->add(new Quad($subject, new Iri(Vocabulary::RDF_TYPE), $object, $graph));
+                    $this->dataset->add(new Quad($subject, $this->type, $object, $graph));
                 }
             }
 

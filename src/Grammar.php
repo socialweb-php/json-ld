@@ -81,9 +81,9 @@ final class Grammar
     }
 
     /**
-     * Returns true if the value is an absolute IRI that socialweb/rdf's Iri
-     * would accept, valid UTF-8, with a scheme, and free of the characters
-     * the N-Quads IRIREF production forbids, and that has at most one `#`
+     * Returns true if the value is valid UTF-8, has a scheme, holds none of
+     * the characters the N-Quads IRIREF production forbids, and holds at most
+     * one `#`
      *
      * RFC 3987 allows `#` once, at the start of the fragment, and the IRIREF
      * production does not say so. A vocabulary that ends in `#` joined to a

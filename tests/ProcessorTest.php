@@ -139,6 +139,12 @@ class ProcessorTest extends TestCase
         $this->assertSame(self::NQUADS, self::nquads($processor->toRdf($expanded->jsonSerialize())));
         $this->assertEquals($before, $document);
         $this->assertSame($expandedBefore, $expanded->toJson());
+
+        $array = json_decode(self::DOCUMENT, true, 512, JSON_THROW_ON_ERROR);
+        $this->assertIsArray($array);
+
+        $this->assertSame(self::NQUADS, self::nquads($processor->toRdf($array)));
+        $this->assertSame(json_decode(self::DOCUMENT, true, 512, JSON_THROW_ON_ERROR), $array);
     }
 
     public function testEachConversionLabelsBlankNodesFromTheStart(): void
@@ -195,6 +201,22 @@ class ProcessorTest extends TestCase
         } catch (DataLoss $dataLoss) {
             $this->assertSame(DataLossCondition::RelativeSubject, $dataLoss->condition);
             $this->assertSame('a', $dataLoss->detail);
+        }
+    }
+
+    public function testRefusesALanguageStringWithoutALanguage(): void
+    {
+        $document = '{"@id": "https://example.com/a", "https://example.com/p":'
+            . ' {"@value": "x", "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString"}}';
+
+        $this->assertSame('', self::nquads((new Processor(new Options(strict: false)))->toRdf($document)));
+
+        try {
+            (new Processor())->toRdf($document);
+            $this->fail('Expected a DataLoss');
+        } catch (DataLoss $dataLoss) {
+            $this->assertSame(DataLossCondition::MalformedDatatype, $dataLoss->condition);
+            $this->assertSame('http://www.w3.org/1999/02/22-rdf-syntax-ns#langString', $dataLoss->detail);
         }
     }
 

@@ -137,14 +137,23 @@ final class ObjectToRdf
             throw new InvalidArgument('The @language and @direction of a value object must be strings');
         }
 
+        if ($direction !== null && $direction !== 'ltr' && $direction !== 'rtl') {
+            throw new InvalidArgument('The @direction of a value object must be ltr or rtl');
+        }
+
         if (($language !== null || $direction !== null) && ($datatype !== null || !is_string($value))) {
             throw new InvalidArgument(
                 'Only a value object whose @value is a string and that has no @type may have @language or @direction',
             );
         }
 
-        // Step 5 is the datatype, read above. Step 6.
-        if ($datatype !== null && $datatype !== '@json' && !Grammar::isWellFormedIri($datatype)) {
+        // Step 5 is the datatype, read above. Step 6. The datatype
+        // rdf:langString is refused too: a language-tagged string needs a
+        // language tag, and a value object cannot give one beside @type.
+        if (
+            $datatype === Rdf::LANG_STRING
+            || ($datatype !== null && $datatype !== '@json' && !Grammar::isWellFormedIri($datatype))
+        ) {
             return $this->drop(DataLossCondition::MalformedDatatype, $datatype);
         }
 
@@ -192,6 +201,8 @@ final class ObjectToRdf
             if ($this->rdfDirection === null) {
                 $this->drop(DataLossCondition::DroppedDirection, JsonCanonicalizer::canonicalize($item));
             } else {
+                $hasLanguage = $language !== null;
+
                 // Step 13.1.
                 $language = strtolower($language ?? '');
 
@@ -204,7 +215,7 @@ final class ObjectToRdf
                 $literal = new BlankNode(substr($this->issuer->issue(), 2));
                 $triples[] = new Quad($literal, new Iri(Vocabulary::RDF_VALUE), new Literal($lexicalForm), $graph);
 
-                if (array_key_exists('@language', $entries)) {
+                if ($hasLanguage) {
                     $triples[] = new Quad($literal, new Iri(Vocabulary::RDF_LANGUAGE), new Literal($language), $graph);
                 }
 
