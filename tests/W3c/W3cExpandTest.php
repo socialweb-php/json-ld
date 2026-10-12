@@ -9,13 +9,9 @@ use SocialWeb\JsonLd\DataLossCondition;
 use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\DataLoss;
 use SocialWeb\JsonLd\Exception\JsonLdError;
-use SocialWeb\JsonLd\Options;
-use SocialWeb\JsonLd\ProcessingMode;
-use SocialWeb\JsonLd\Processor;
 use SocialWeb\Test\JsonLd\TestCase;
 
 use function array_keys;
-use function is_string;
 use function iterator_to_array;
 use function json_decode;
 
@@ -85,7 +81,7 @@ class W3cExpandTest extends TestCase
     {
         $this->assertNotNull($entry->expect);
 
-        $expanded = self::processor($entry, strict: false)->expand(W3cManifest::read($entry->input));
+        $expanded = W3cProcessor::build($entry, strict: false)->expand(W3cManifest::read($entry->input));
 
         $this->assertSame(
             JsonLdComparison::canonicalize(json_decode(W3cManifest::read($entry->expect), flags: JSON_THROW_ON_ERROR)),
@@ -99,7 +95,7 @@ class W3cExpandTest extends TestCase
         $this->assertNotNull($entry->expect);
 
         try {
-            $expanded = self::processor($entry, strict: true)->expand(W3cManifest::read($entry->input));
+            $expanded = W3cProcessor::build($entry, strict: true)->expand(W3cManifest::read($entry->input));
         } catch (DataLoss $dataLoss) {
             $this->assertSame(
                 self::STRICT_DATA_LOSS[$entry->id] ?? null,
@@ -123,7 +119,7 @@ class W3cExpandTest extends TestCase
         $this->assertNotNull($entry->expectErrorCode);
 
         try {
-            self::processor($entry, strict: false)->expand(W3cManifest::read($entry->input));
+            W3cProcessor::build($entry, strict: false)->expand(W3cManifest::read($entry->input));
         } catch (JsonLdError $error) {
             $this->assertSame(ErrorCode::from($entry->expectErrorCode), $error->errorCode, $error->getMessage());
 
@@ -139,7 +135,7 @@ class W3cExpandTest extends TestCase
         $this->assertNotNull($entry->expectErrorCode);
 
         try {
-            self::processor($entry, strict: true)->expand(W3cManifest::read($entry->input));
+            W3cProcessor::build($entry, strict: true)->expand(W3cManifest::read($entry->input));
         } catch (JsonLdError $error) {
             $this->assertArrayNotHasKey($entry->id, self::STRICT_DATA_LOSS_BEFORE_ERROR);
             $this->assertSame(ErrorCode::from($entry->expectErrorCode), $error->errorCode, $error->getMessage());
@@ -186,25 +182,5 @@ class W3cExpandTest extends TestCase
     public static function negativeEntries(): iterable
     {
         return W3cManifest::entries(W3cManifest::EXPAND, W3cManifest::NEGATIVE);
-    }
-
-    /**
-     * The input's URL is the base, unless the entry gives another.
-     */
-    private static function processor(W3cEntry $entry, bool $strict): Processor
-    {
-        $base = $entry->option['base'] ?? null;
-        $expandContext = $entry->option['expandContext'] ?? null;
-        $processingMode = $entry->option['processingMode'] ?? null;
-
-        return new Processor(new Options(
-            base: is_string($base) ? $base : $entry->inputUrl,
-            expandContext: is_string($expandContext) ? W3cManifest::BASE_IRI . $expandContext : null,
-            processingMode: is_string($processingMode)
-                ? ProcessingMode::from($processingMode)
-                : ProcessingMode::JsonLd11,
-            strict: $strict,
-            documentLoader: new FixtureDocumentLoader(),
-        ));
     }
 }

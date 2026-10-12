@@ -6,16 +6,14 @@ namespace SocialWeb\Test\JsonLd;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use SocialWeb\JsonLd\Options;
-use SocialWeb\JsonLd\ProcessingMode;
 use SocialWeb\JsonLd\Processor;
-use SocialWeb\Test\JsonLd\W3c\FixtureDocumentLoader;
 use SocialWeb\Test\JsonLd\W3c\W3cEntry;
 use SocialWeb\Test\JsonLd\W3c\W3cManifest;
+use SocialWeb\Test\JsonLd\W3c\W3cProcessor;
 
 use function in_array;
 use function is_array;
 use function is_object;
-use function is_string;
 use function json_decode;
 use function preg_match;
 
@@ -39,8 +37,8 @@ class ExpansionPropertyTest extends TestCase
     #[DataProvider('entries')]
     public function testExpandingAnExpandedDocumentChangesNothing(W3cEntry $entry): void
     {
-        $expanded = self::processor($entry)->expand(W3cManifest::read($entry->input));
-        $again = new Processor(new Options(processingMode: self::processingMode($entry), strict: false));
+        $expanded = W3cProcessor::build($entry, strict: false)->expand(W3cManifest::read($entry->input));
+        $again = new Processor(new Options(processingMode: W3cProcessor::processingMode($entry), strict: false));
 
         $this->assertSame($expanded->toJson(), $again->expand($expanded->toJson())->toJson());
         $this->assertSame($expanded->toJson(), $again->expand($expanded->jsonSerialize())->toJson());
@@ -52,15 +50,16 @@ class ExpansionPropertyTest extends TestCase
         $json = W3cManifest::read($entry->input);
         $asObjects = json_decode($json, false, 512, JSON_THROW_ON_ERROR);
         $asArrays = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-        $expected = self::processor($entry)->expand($json)->toJson();
+        $processor = W3cProcessor::build($entry, strict: false);
+        $expected = $processor->expand($json)->toJson();
 
         if (is_array($asObjects) || is_object($asObjects)) {
-            $this->assertSame($expected, self::processor($entry)->expand($asObjects)->toJson());
+            $this->assertSame($expected, $processor->expand($asObjects)->toJson());
         }
 
         // Decoding to arrays turns an empty object into an empty array, which is a different document.
         if (is_array($asArrays) && preg_match('/\{\s*\}/', $json) === 0) {
-            $this->assertSame($expected, self::processor($entry)->expand($asArrays)->toJson());
+            $this->assertSame($expected, $processor->expand($asArrays)->toJson());
         }
     }
 
@@ -74,26 +73,5 @@ class ExpansionPropertyTest extends TestCase
                 yield $id => $arguments;
             }
         }
-    }
-
-    private static function processor(W3cEntry $entry): Processor
-    {
-        $base = $entry->option['base'] ?? null;
-        $expandContext = $entry->option['expandContext'] ?? null;
-
-        return new Processor(new Options(
-            base: is_string($base) ? $base : $entry->inputUrl,
-            expandContext: is_string($expandContext) ? W3cManifest::BASE_IRI . $expandContext : null,
-            processingMode: self::processingMode($entry),
-            strict: false,
-            documentLoader: new FixtureDocumentLoader(),
-        ));
-    }
-
-    private static function processingMode(W3cEntry $entry): ProcessingMode
-    {
-        $processingMode = $entry->option['processingMode'] ?? null;
-
-        return is_string($processingMode) ? ProcessingMode::from($processingMode) : ProcessingMode::JsonLd11;
     }
 }
