@@ -132,7 +132,7 @@ jobs:
 
   test:
     name: "Unit tests"
-    needs: ["coverage", "mutation"]
+    needs: ["coverage"]
     runs-on: ${{ matrix.os }}
 
     strategy:
