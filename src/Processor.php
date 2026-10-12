@@ -33,6 +33,10 @@ use SocialWeb\JsonLd\Exception\MalformedJson;
 use SocialWeb\JsonLd\Exception\RestrictedFeature;
 use SocialWeb\JsonLd\Expansion\Expander;
 use SocialWeb\JsonLd\Expansion\RestrictionChecker;
+use SocialWeb\JsonLd\Rdf\BlankNodeIssuer;
+use SocialWeb\JsonLd\Rdf\NodeMapGenerator;
+use SocialWeb\JsonLd\Rdf\RdfConverter;
+use SocialWeb\Rdf\Dataset;
 use stdClass;
 
 use function array_is_list;
@@ -92,6 +96,67 @@ final class Processor
      */
     public function expand(string | array | object $document): ExpandedDocument
     {
+        return new ExpandedDocument($this->expandToNodes($document));
+    }
+
+    /**
+     * Converts a document to an RDF dataset
+     *
+     * The document is expanded, unless it is an `ExpandedDocument` already,
+     * and the expanded nodes are converted. Every blank node in the result has
+     * an identifier of this processor's making, and the dataset holds its quads
+     * in one order for a document whatever the order of the document's entries.
+     *
+     * @link https://www.w3.org/TR/json-ld11-api/#dom-jsonldprocessor-tordf JSON-LD 1.1 API, toRdf()
+     *
+     * @param string | array<mixed> | object $document A JSON-encoded string;
+     *     a decoded document, as a `stdClass` tree or as nested arrays, under
+     *     the same rule as for `expand()`; or an `ExpandedDocument`, which is
+     *     not expanded again
+     *
+     * @throws MalformedJson if the string is not valid JSON, or the document
+     *     holds a value that JSON cannot represent
+     * @throws InvalidArgument if the document holds something that is not a
+     *     JSON value, or an `ExpandedDocument` built by hand is not in
+     *     expanded form
+     * @throws LimitExceeded if the document exceeds a limit, or its contexts
+     *     would take more operations to process than the limit allows
+     * @throws JsonLdError if the document breaks a rule of the specification,
+     *     among them `conflicting indexes`, which conversion raises when two
+     *     parts of the document give one node different `@index` values
+     * @throws DataLoss in strict mode, if part of the document would be
+     *     dropped, by expansion or by conversion
+     * @throws RestrictedFeature if the expanded document uses a feature that
+     *     the restrictions forbid, including an `ExpandedDocument` that was
+     *     expanded under other options
+     */
+    public function toRdf(string | array | object $document): Dataset
+    {
+        if ($document instanceof ExpandedDocument) {
+            $nodes = $document->nodes();
+            RestrictionChecker::check($this->options->restrictions, $nodes);
+        } else {
+            $nodes = $this->expandToNodes($document);
+        }
+
+        $issuer = new BlankNodeIssuer();
+
+        return RdfConverter::convert(
+            NodeMapGenerator::generate($nodes, $issuer, $this->options->strict),
+            $issuer,
+            $this->options,
+        );
+    }
+
+    /**
+     * Expands a document and checks the restrictions, for both public methods
+     *
+     * @param string | array<mixed> | object $document
+     *
+     * @return list<mixed>
+     */
+    private function expandToNodes(string | array | object $document): array
+    {
         $this->contextProcessor->reset();
 
         $element = $this->reader->read($document);
@@ -129,6 +194,6 @@ final class Processor
 
         RestrictionChecker::check($this->options->restrictions, $nodes);
 
-        return new ExpandedDocument($nodes);
+        return $nodes;
     }
 }

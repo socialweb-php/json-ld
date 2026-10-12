@@ -24,6 +24,15 @@ class ExpandedDocumentTest extends TestCase
         );
     }
 
+    public function testHandsOutItsOwnNodesWithoutACopy(): void
+    {
+        $node = (object) ['@id' => 'https://example.com/a'];
+        $document = new ExpandedDocument([$node]);
+
+        $this->assertSame([$node], $document->nodes());
+        $this->assertNotSame($node, $document->jsonSerialize()[0]);
+    }
+
     public function testAnEmptyDocumentIsAnEmptyArray(): void
     {
         $document = new ExpandedDocument([]);

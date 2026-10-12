@@ -15,11 +15,15 @@ use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\Exception\MalformedJson;
 use SocialWeb\JsonLd\Exception\RestrictedFeature;
+use SocialWeb\JsonLd\ExpandedDocument;
 use SocialWeb\JsonLd\Limits;
 use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\ProcessingMode;
 use SocialWeb\JsonLd\Processor;
+use SocialWeb\JsonLd\RdfDirection;
 use SocialWeb\JsonLd\Restrictions;
+use SocialWeb\Rdf\Dataset;
+use SocialWeb\Rdf\NQuads\Serializer;
 
 use function implode;
 use function json_decode;
@@ -43,6 +47,14 @@ class ProcessorTest extends TestCase
     private const string EXPANDED = '[{"@id":"https://example.com/a","@type":["https://example.com/ns#Person"],'
         . '"https://example.com/ns#knows":[{"@id":"https://example.com/b"},{"@id":"https://example.com/c"}],'
         . '"https://example.com/ns#name":[{"@value":"A"}]}]';
+
+    private const string NQUADS = <<<'NQUADS'
+        <https://example.com/a> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://example.com/ns#Person> .
+        <https://example.com/a> <https://example.com/ns#knows> <https://example.com/b> .
+        <https://example.com/a> <https://example.com/ns#knows> <https://example.com/c> .
+        <https://example.com/a> <https://example.com/ns#name> "A" .
+
+        NQUADS;
 
     public function testExpandsAString(): void
     {
@@ -106,6 +118,132 @@ class ProcessorTest extends TestCase
         yield 'an empty graph' => ['[]', '{"@graph": []}'];
         yield 'a scalar' => ['[]', '"free"'];
         yield 'null' => ['[]', 'null'];
+    }
+
+    public function testConvertsAStringToRdf(): void
+    {
+        $this->assertSame(self::NQUADS, self::nquads((new Processor())->toRdf(self::DOCUMENT)));
+    }
+
+    public function testConvertsADecodedDocumentAndAnExpandedDocumentToRdf(): void
+    {
+        $processor = new Processor();
+        $document = json_decode(self::DOCUMENT, false, 512, JSON_THROW_ON_ERROR);
+        $this->assertIsObject($document);
+        $before = json_decode(self::DOCUMENT, false, 512, JSON_THROW_ON_ERROR);
+        $expanded = $processor->expand(self::DOCUMENT);
+        $expandedBefore = $expanded->toJson();
+
+        $this->assertSame(self::NQUADS, self::nquads($processor->toRdf($document)));
+        $this->assertSame(self::NQUADS, self::nquads($processor->toRdf($expanded)));
+        $this->assertSame(self::NQUADS, self::nquads($processor->toRdf($expanded->jsonSerialize())));
+        $this->assertEquals($before, $document);
+        $this->assertSame($expandedBefore, $expanded->toJson());
+    }
+
+    public function testEachConversionLabelsBlankNodesFromTheStart(): void
+    {
+        $processor = new Processor();
+        $document = '{"@context": {"p": "https://example.com/p"}, "p": {"p": "x"}}';
+        $expected = <<<'NQUADS'
+            _:b0 <https://example.com/p> _:b1 .
+            _:b1 <https://example.com/p> "x" .
+
+            NQUADS;
+
+        $this->assertSame($expected, self::nquads($processor->toRdf($document)));
+        $this->assertSame($expected, self::nquads($processor->toRdf($document)));
+    }
+
+    public function testConvertsWithTheDirectionOption(): void
+    {
+        $document = '{"@context": {"p": "https://example.com/p"}, "@id": "https://example.com/a",'
+            . ' "p": {"@value": "x", "@direction": "rtl"}}';
+
+        $this->assertSame(
+            '<https://example.com/a> <https://example.com/p> "x"^^<https://www.w3.org/ns/i18n#_rtl> .' . "\n",
+            self::nquads((new Processor(new Options(rdfDirection: RdfDirection::I18nDatatype)))->toRdf($document)),
+        );
+        $this->assertSame(
+            '<https://example.com/a> <https://example.com/p> "x" .' . "\n",
+            self::nquads((new Processor(new Options(strict: false)))->toRdf($document)),
+        );
+
+        try {
+            (new Processor())->toRdf($document);
+            $this->fail('Expected a DataLoss');
+        } catch (DataLoss $dataLoss) {
+            $this->assertSame(DataLossCondition::DroppedDirection, $dataLoss->condition);
+        }
+    }
+
+    public function testStrictModeCoversConversionToRdf(): void
+    {
+        // With no base, a relative reference stays relative through expansion
+        // and cannot be a subject in RDF.
+        $document = '{"@id": "a", "https://example.com/p": "x"}';
+
+        $this->assertSame(
+            '[{"@id":"a","https://example.com/p":[{"@value":"x"}]}]',
+            (new Processor())->expand($document)->toJson(),
+        );
+        $this->assertSame('', self::nquads((new Processor(new Options(strict: false)))->toRdf($document)));
+
+        try {
+            (new Processor())->toRdf($document);
+            $this->fail('Expected a DataLoss');
+        } catch (DataLoss $dataLoss) {
+            $this->assertSame(DataLossCondition::RelativeSubject, $dataLoss->condition);
+            $this->assertSame('a', $dataLoss->detail);
+        }
+    }
+
+    public function testConversionRaisesConflictingIndexes(): void
+    {
+        $document = '[{"@id": "https://example.com/a", "@index": "i"},'
+            . ' {"@id": "https://example.com/a", "@index": "j"}]';
+
+        try {
+            (new Processor())->toRdf($document);
+            $this->fail('Expected a JsonLdError');
+        } catch (JsonLdError $exception) {
+            $this->assertSame(ErrorCode::ConflictingIndexes, $exception->errorCode);
+        }
+    }
+
+    public function testAppliesTheRestrictionsToAnExpandedDocumentItIsGiven(): void
+    {
+        $expanded = (new Processor())
+            ->expand('{"@id": "https://example.com/g", "@graph": [{"https://example.com/p": 1}]}');
+        $restricted = new Processor(new Options(restrictions: new Restrictions(forbidNamedGraphs: true)));
+
+        $this->assertCount(1, (new Processor())->toRdf($expanded));
+
+        $this->expectExceptionObject(new RestrictedFeature('forbidNamedGraphs', 'https://example.com/g'));
+
+        $restricted->toRdf($expanded);
+    }
+
+    public function testRefusesAnExpandedDocumentBuiltByHandThatIsNotExpanded(): void
+    {
+        $this->expectException(InvalidArgument::class);
+
+        (new Processor())->toRdf(new ExpandedDocument([1]));
+    }
+
+    public function testConversionCountsContextOperationsFromZeroForEachCall(): void
+    {
+        $processor = self::processorWithin(39, true);
+        $expected = "_:b0 <ex:items> \"1\"^^<http://www.w3.org/2001/XMLSchema#integer> .\n"
+            . "_:b1 <ex:items> \"2\"^^<http://www.w3.org/2001/XMLSchema#integer> .\n";
+
+        $this->assertSame($expected, self::nquads($processor->toRdf(self::twoNodes())));
+        $this->assertSame($expected, self::nquads($processor->toRdf(self::twoNodes())));
+    }
+
+    private static function nquads(Dataset $dataset): string
+    {
+        return (new Serializer())->serialize($dataset);
     }
 
     public function testResolvesRelativeReferencesAgainstTheBase(): void

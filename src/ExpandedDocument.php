@@ -74,6 +74,19 @@ final readonly class ExpandedDocument implements JsonSerializable
     }
 
     /**
+     * Returns the nodes themselves, without the copy that jsonSerialize()
+     * makes, for conversion to RDF, which only reads them
+     *
+     * @internal
+     *
+     * @return list<mixed>
+     */
+    public function nodes(): array
+    {
+        return $this->nodes;
+    }
+
+    /**
      * Returns the expanded document as JSON text, without pretty printing
      */
     public function toJson(): string
