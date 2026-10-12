@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace SocialWeb\JsonLd;
 
 use function preg_match;
+use function substr_count;
 
 /**
  * The productions that decide whether a string is a well-formed IRI,
@@ -81,15 +82,23 @@ final class Grammar
 
     /**
      * Returns true if the value is an absolute IRI that socialweb/rdf's Iri
-     * would accept: valid UTF-8, with a scheme, and free of the characters
-     * the N-Quads IRIREF production forbids
+     * would accept, valid UTF-8, with a scheme, and free of the characters
+     * the N-Quads IRIREF production forbids, and that has at most one `#`
+     *
+     * RFC 3987 allows `#` once, at the start of the fragment, and the IRIREF
+     * production does not say so. A vocabulary that ends in `#` joined to a
+     * term that starts with `#` makes an IRI with two, which the W3C suite
+     * expects conversion to RDF to drop as not well-formed. This is the one
+     * value this method refuses that socialweb/rdf's Iri accepts.
      *
      * The forbidden-character pattern carries the `u` modifier, so it fails
      * to match on a value that is not valid UTF-8. That is the UTF-8 check.
      */
     public static function isWellFormedIri(string $value): bool
     {
-        return preg_match(self::SCHEME, $value) === 1 && preg_match(self::IRIREF_FORBIDDEN, $value) === 0;
+        return preg_match(self::SCHEME, $value) === 1
+            && preg_match(self::IRIREF_FORBIDDEN, $value) === 0
+            && substr_count($value, '#') <= 1;
     }
 
     /**

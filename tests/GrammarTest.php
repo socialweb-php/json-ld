@@ -15,12 +15,21 @@ class GrammarTest extends TestCase
 {
     /**
      * The RDF package's Iri constructor is the definition of a well-formed
-     * IRI; this package's copy of the rule must agree with it on every sample
+     * IRI; this package's copy of the rule must agree with it on every sample,
+     * except that this package also refuses an IRI with more than one `#`
      */
     #[DataProvider('iriSamples')]
     public function testIriWellFormednessAgreesWithTheRdfPackage(string $value): void
     {
         $this->assertSame(self::rdfAcceptsIri($value), Grammar::isWellFormedIri($value));
+    }
+
+    public function testRefusesAnIriWithMoreThanOneNumberSign(): void
+    {
+        $this->assertTrue(self::rdfAcceptsIri('http://example.com/vocab##term'));
+        $this->assertFalse(Grammar::isWellFormedIri('http://example.com/vocab##term'));
+        $this->assertFalse(Grammar::isWellFormedIri('http://example.com/a#b#c'));
+        $this->assertTrue(Grammar::isWellFormedIri('http://example.com/vocab#term'));
     }
 
     /**
