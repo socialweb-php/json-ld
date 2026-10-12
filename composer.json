@@ -1,11 +1,14 @@
 {
     "name": "socialweb/json-ld",
-    "description": "",
+    "description": "A JSON-LD 1.1 processor for expansion and conversion to RDF",
     "license": "LGPL-3.0-or-later",
     "type": "library",
     "keywords": [
         "json-ld",
-        "linked data"
+        "linked data",
+        "rdf",
+        "expansion",
+        "json-ld-1.1"
     ],
     "support": {
         "issues": "https://github.com/socialweb-php/json-ld/issues",
