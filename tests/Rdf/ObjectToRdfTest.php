@@ -294,7 +294,7 @@ class ObjectToRdfTest extends TestCase
         $triples = [];
 
         $this->expectException(InvalidArgument::class);
-        $this->expectExceptionMessage($message);
+        $this->expectExceptionMessageIsOrContains($message);
 
         self::objects()->convert(self::item($item), new DefaultGraph(), $triples);
     }
@@ -349,7 +349,7 @@ class ObjectToRdfTest extends TestCase
         $triples = [];
 
         $this->expectException(InvalidArgument::class);
-        $this->expectExceptionMessage('The @value of a value object must be valid UTF-8');
+        $this->expectExceptionMessageIsOrContains('The @value of a value object must be valid UTF-8');
 
         self::objects()->convert((object) ['@value' => "\xff"], new DefaultGraph(), $triples);
     }

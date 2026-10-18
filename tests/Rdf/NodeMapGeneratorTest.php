@@ -548,7 +548,7 @@ class NodeMapGeneratorTest extends TestCase
     public function testRefusesADocumentThatIsNotExpanded(string $document, string $message): void
     {
         $this->expectException(InvalidArgument::class);
-        $this->expectExceptionMessage($message);
+        $this->expectExceptionMessageIsOrContains($message);
 
         NodeMapGenerator::generate(self::nodes($document), new BlankNodeIssuer(), false);
     }

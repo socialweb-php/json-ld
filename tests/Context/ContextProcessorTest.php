@@ -502,7 +502,7 @@ class ContextProcessorTest extends TestCase
         $processor = new ContextProcessor(new Options(limits: new Limits(maxDepth: 2), documentLoader: $loader));
 
         $this->expectException(LimitExceeded::class);
-        $this->expectExceptionMessage('The maxDepth limit of 2 was exceeded');
+        $this->expectExceptionMessageIsOrContains('The maxDepth limit of 2 was exceeded');
 
         $processor->process(new ActiveContext(), 'https://example.org/chain', null);
     }

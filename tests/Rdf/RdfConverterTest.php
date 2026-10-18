@@ -291,7 +291,7 @@ class RdfConverterTest extends TestCase
         $map->node(NodeMap::DEFAULT_GRAPH, 'ex:a')->append('ex:p', 1);
 
         $this->expectException(InvalidArgument::class);
-        $this->expectExceptionMessage('An item of a node map must be a map');
+        $this->expectExceptionMessageIsOrContains('An item of a node map must be a map');
 
         RdfConverter::convert($map, new BlankNodeIssuer(), new Options());
     }
