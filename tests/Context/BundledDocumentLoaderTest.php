@@ -108,6 +108,55 @@ final class BundledDocumentLoaderTest extends TestCase
         $this->assertIsArray($loader->load('https://w3id.org/security/v2')->document);
     }
 
+    public function testWithDocumentKeepsEveryDocumentWhenAUrlIsANumericString(): void
+    {
+        $loader = (new BundledDocumentLoader())
+            ->withDocument('5', ['@context' => ['a' => 'https://example.com/a']])
+            ->withDocument('6', ['@context' => ['b' => 'https://example.com/b']]);
+
+        $this->assertSame(
+            '{"@context":{"a":"https://example.com/a"}}',
+            JsonCanonicalizer::canonicalize($loader->load('5')->document),
+        );
+        $this->assertSame(
+            '{"@context":{"b":"https://example.com/b"}}',
+            JsonCanonicalizer::canonicalize($loader->load('6')->document),
+        );
+    }
+
+    public function testWithDocumentReplacesTheDocumentOfANumericUrlAndKeepsOneEntry(): void
+    {
+        $loader = (new BundledDocumentLoader())
+            ->withDocument('5', ['@context' => ['a' => 'https://example.com/a']])
+            ->withDocument('5', ['@context' => ['b' => 'https://example.com/b']]);
+
+        $this->assertSame(
+            '{"@context":{"b":"https://example.com/b"}}',
+            JsonCanonicalizer::canonicalize($loader->load('5')->document),
+        );
+
+        $this->expectExceptionObject(new JsonLdError(JsonLdErrorCode::LoadingRemoteContextFailed, '"0"'));
+
+        $loader->load('0');
+    }
+
+    #[DataProvider('emptyDocuments')]
+    public function testWithDocumentStoresAnEmptyDocument(string $json): void
+    {
+        $loader = (new BundledDocumentLoader())->withDocument(self::URL, $json);
+
+        $this->assertSame($json, JsonCanonicalizer::canonicalize($loader->load(self::URL)->document));
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function emptyDocuments(): iterable
+    {
+        yield 'empty object' => ['{}'];
+        yield 'empty array' => ['[]'];
+    }
+
     public function testWithDocumentReplacesAPinnedContextForThatUrlOnly(): void
     {
         $loader = (new BundledDocumentLoader())->withDocument('https://w3id.org/security/v1', ['@context' => []]);

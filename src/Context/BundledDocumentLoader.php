@@ -120,7 +120,10 @@ final class BundledDocumentLoader implements DocumentLoader
             throw new JsonLdError(JsonLdErrorCode::InvalidRemoteContext, sprintf('"%s"', $url));
         }
 
-        return clone($this, ['documents' => [...$this->documents, $url => $read]]);
+        $documents = $this->documents;
+        $documents[$url] = $read;
+
+        return clone($this, ['documents' => $documents]);
     }
 
     /**
