@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace SocialWeb\Test\JsonLd\Context;
 
+use ArrayObject;
 use PHPUnit\Framework\Attributes\DataProvider;
 use SocialWeb\JsonLd\Context\BundledDocumentLoader;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
+use SocialWeb\JsonLd\ExpandedDocument;
 use SocialWeb\JsonLd\Rdf\JsonCanonicalizer;
 use SocialWeb\Test\JsonLd\TestCase;
 use stdClass;
@@ -69,10 +71,10 @@ final class BundledDocumentLoaderTest extends TestCase
         yield 'file name instead of URL' => ['activitystreams'];
     }
 
-    public function testWithReturnsANewLoaderAndLeavesTheOriginalAlone(): void
+    public function testWithDocumentReturnsANewLoaderAndLeavesTheOriginalAlone(): void
     {
         $original = new BundledDocumentLoader();
-        $extended = $original->with(self::URL, '{"@context": {"name": "https://example.com/name"}}');
+        $extended = $original->withDocument(self::URL, '{"@context": {"name": "https://example.com/name"}}');
 
         $this->assertNotSame($original, $extended);
 
@@ -89,11 +91,11 @@ final class BundledDocumentLoaderTest extends TestCase
         $original->load(self::URL);
     }
 
-    public function testWithKeepsThePinnedContextsAndEarlierAdditions(): void
+    public function testWithDocumentKeepsThePinnedContextsAndEarlierAdditions(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with(self::URL, ['@context' => ['a' => 'https://example.com/a']])
-            ->with('https://example.com/contexts/v2', ['@context' => ['b' => 'https://example.com/b']]);
+            ->withDocument(self::URL, ['@context' => ['a' => 'https://example.com/a']])
+            ->withDocument('https://example.com/contexts/v2', ['@context' => ['b' => 'https://example.com/b']]);
 
         $this->assertSame(
             '{"@context":{"a":"https://example.com/a"}}',
@@ -106,9 +108,9 @@ final class BundledDocumentLoaderTest extends TestCase
         $this->assertIsArray($loader->load('https://w3id.org/security/v2')->document);
     }
 
-    public function testWithReplacesAPinnedContextForThatUrlOnly(): void
+    public function testWithDocumentReplacesAPinnedContextForThatUrlOnly(): void
     {
-        $loader = (new BundledDocumentLoader())->with('https://w3id.org/security/v1', ['@context' => []]);
+        $loader = (new BundledDocumentLoader())->withDocument('https://w3id.org/security/v1', ['@context' => []]);
 
         $this->assertSame(
             '{"@context":[]}',
@@ -121,51 +123,108 @@ final class BundledDocumentLoaderTest extends TestCase
         );
     }
 
-    public function testWithReadsAnAssociativeArrayUnderTheArrayRule(): void
+    public function testWithDocumentReadsAnAssociativeArrayUnderTheArrayRule(): void
     {
-        $loader = (new BundledDocumentLoader())->with(self::URL, ['@context' => ['a' => ['@id' => 'ex:a']], 'x' => []]);
+        $loader = (new BundledDocumentLoader())->withDocument(
+            self::URL,
+            ['@context' => ['a' => ['@id' => 'ex:a']], 'x' => []],
+        );
         $document = $loader->load(self::URL)->document;
 
         $this->assertInstanceOf(stdClass::class, $document);
         $this->assertSame('{"@context":{"a":{"@id":"ex:a"}},"x":[]}', JsonCanonicalizer::canonicalize($document));
     }
 
-    public function testWithAcceptsAStdClassTreeAndDoesNotShareIt(): void
+    public function testWithDocumentAcceptsAStdClassTreeAndDoesNotShareIt(): void
     {
         $context = new stdClass();
         $context->{'@context'} = new stdClass();
 
-        $loader = (new BundledDocumentLoader())->with(self::URL, $context);
+        $loader = (new BundledDocumentLoader())->withDocument(self::URL, $context);
         $context->{'@context'}->added = 'later';
 
         $this->assertSame('{"@context":{}}', JsonCanonicalizer::canonicalize($loader->load(self::URL)->document));
     }
 
-    public function testWithAcceptsATopLevelJsonArray(): void
+    public function testWithDocumentAcceptsATopLevelJsonArray(): void
     {
-        $loader = (new BundledDocumentLoader())->with(self::URL, '[{"@context": {}}]');
+        $loader = (new BundledDocumentLoader())->withDocument(self::URL, '[{"@context": {}}]');
 
         $this->assertSame('[{"@context":{}}]', JsonCanonicalizer::canonicalize($loader->load(self::URL)->document));
     }
 
-    public function testWithRejectsMalformedJson(): void
+    public function testWithDocumentRejectsMalformedJson(): void
     {
         $this->expectExceptionObject(
             new JsonLdError(JsonLdErrorCode::LoadingDocumentFailed, 'the text is not valid JSON (Syntax error)'),
         );
 
-        (new BundledDocumentLoader())->with(self::URL, '{"@context": ');
+        (new BundledDocumentLoader())->withDocument(self::URL, '{"@context": ');
     }
 
     #[DataProvider('scalarDocuments')]
-    public function testWithRejectsADocumentThatIsNotAnObjectOrArray(string $json): void
+    public function testWithDocumentRejectsADocumentThatIsNotAnObjectOrArray(string $json): void
     {
-        $this->expectException(InvalidArgument::class);
-        $this->expectExceptionMessageIsOrContains(
-            'The document for "https://example.com/contexts/v1" must be a JSON object or a JSON array',
+        $this->expectExceptionObject(
+            new JsonLdError(JsonLdErrorCode::InvalidRemoteContext, '"https://example.com/contexts/v1"'),
         );
 
-        (new BundledDocumentLoader())->with(self::URL, $json);
+        (new BundledDocumentLoader())->withDocument(self::URL, $json);
+    }
+
+    public function testWithDocumentRejectsAValueWhosePhpTypeIsNotAJsonType(): void
+    {
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('A document may hold only JSON values; ArrayObject given');
+
+        (new BundledDocumentLoader())->withDocument(self::URL, ['@context' => new ArrayObject()]);
+    }
+
+    public function testWithDocumentReadsAJsonSerializableAsWhatItSerializesTo(): void
+    {
+        $loader = (new BundledDocumentLoader())->withDocument(self::URL, new ExpandedDocument([new stdClass()]));
+
+        $this->assertSame('[{}]', JsonCanonicalizer::canonicalize($loader->load(self::URL)->document));
+    }
+
+    public function testWithoutDocumentReturnsANewLoaderAndLeavesTheOriginalAlone(): void
+    {
+        $original = (new BundledDocumentLoader())
+            ->withDocument(self::URL, ['@context' => ['a' => 'https://example.com/a']])
+            ->withDocument('https://example.com/contexts/v2', ['@context' => ['b' => 'https://example.com/b']]);
+        $reduced = $original->withoutDocument(self::URL);
+
+        $this->assertNotSame($original, $reduced);
+        $this->assertSame(self::URL, $original->load(self::URL)->documentUrl);
+        $this->assertSame(
+            '{"@context":{"b":"https://example.com/b"}}',
+            JsonCanonicalizer::canonicalize($reduced->load('https://example.com/contexts/v2')->document),
+        );
+
+        $this->expectExceptionObject(
+            new JsonLdError(JsonLdErrorCode::LoadingRemoteContextFailed, '"https://example.com/contexts/v1"'),
+        );
+
+        $reduced->load(self::URL);
+    }
+
+    public function testWithoutDocumentLetsThePinnedContextAnswerAgain(): void
+    {
+        $pinned = (new BundledDocumentLoader())->load('https://w3id.org/security/v1')->document;
+        $loader = (new BundledDocumentLoader())
+            ->withDocument('https://w3id.org/security/v1', ['@context' => []])
+            ->withoutDocument('https://w3id.org/security/v1');
+
+        $this->assertSame($pinned, $loader->load('https://w3id.org/security/v1')->document);
+    }
+
+    public function testWithoutDocumentForAUrlThatWasNotAddedChangesNothing(): void
+    {
+        $loader = (new BundledDocumentLoader())->withDocument(self::URL, ['@context' => []]);
+        $same = $loader->withoutDocument('https://w3id.org/security/v1');
+
+        $this->assertSame(self::URL, $same->load(self::URL)->documentUrl);
+        $this->assertIsArray($same->load('https://w3id.org/security/v1')->document);
     }
 
     /**
@@ -179,10 +238,10 @@ final class BundledDocumentLoaderTest extends TestCase
         yield 'null' => ['null'];
     }
 
-    public function testWithDoesNotApplyTheDocumentLimits(): void
+    public function testWithDocumentDoesNotApplyTheDocumentLimits(): void
     {
         $json = str_repeat('[', 200) . str_repeat(']', 200);
-        $loader = (new BundledDocumentLoader())->with(self::URL, $json);
+        $loader = (new BundledDocumentLoader())->withDocument(self::URL, $json);
 
         $this->assertSame($json, JsonCanonicalizer::canonicalize($loader->load(self::URL)->document));
     }

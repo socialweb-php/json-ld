@@ -73,18 +73,23 @@ final class BundledDocumentLoader implements DocumentLoader
     ];
 
     /**
-     * Documents the caller added, by URL
-     *
-     * @var array<string, list<mixed> | stdClass>
-     */
-    private array $added = [];
-
-    /**
      * Pinned contexts already read from their files, by name
+     *
+     * `load()` fills this the first time each pinned context is asked for.
      *
      * @var array<string, array<mixed>>
      */
     private array $pinned = [];
+
+    /**
+     * Documents the caller added, by URL
+     *
+     * Only `withDocument()` and `withoutDocument()` set this, on the copy
+     * they return.
+     *
+     * @var array<string, list<mixed> | stdClass>
+     */
+    private array $documents = [];
 
     /**
      * Returns a new loader that also answers for the URL with the document,
@@ -100,32 +105,43 @@ final class BundledDocumentLoader implements DocumentLoader
      *     or a `JsonSerializable`, which is read as what its
      *     `jsonSerialize()` returns
      *
+     * @throws InvalidArgument if the document holds a value whose PHP type is
+     *     not a JSON type
      * @throws JsonLdError with the code `loading document failed` if the
      *     string is not valid JSON, or the document holds a value that JSON
-     *     text cannot express
-     * @throws InvalidArgument if the document holds a value whose PHP type is
-     *     not a JSON type, or is not a JSON object or array
+     *     text cannot express; or with the code `invalid remote context` if
+     *     the document is not a JSON object or array
      */
-    public function with(string $url, array | string | JsonSerializable | stdClass $document): self
+    public function withDocument(string $url, array | string | JsonSerializable | stdClass $document): self
     {
         $read = (new DocumentReader(new Settings(maxDepth: PHP_INT_MAX, maxValues: PHP_INT_MAX)))->read($document);
 
         if (!is_array($read) && !$read instanceof stdClass) {
-            throw new InvalidArgument(
-                sprintf('The document for "%s" must be a JSON object or a JSON array', $url),
-            );
+            throw new JsonLdError(JsonLdErrorCode::InvalidRemoteContext, sprintf('"%s"', $url));
         }
 
-        $loader = clone $this;
-        $loader->added[$url] = $read;
+        return clone($this, ['documents' => [...$this->documents, $url => $read]]);
+    }
 
-        return $loader;
+    /**
+     * Returns a new loader without the document that `withDocument()` added
+     * for the URL, or with the same documents when there is none
+     *
+     * A pinned context with that URL answers again. The pinned contexts
+     * themselves cannot be removed.
+     */
+    public function withoutDocument(string $url): self
+    {
+        $documents = $this->documents;
+        unset($documents[$url]);
+
+        return clone($this, ['documents' => $documents]);
     }
 
     public function load(string $url): LoadedDocument
     {
-        if (isset($this->added[$url])) {
-            return new LoadedDocument($url, $this->added[$url]);
+        if (isset($this->documents[$url])) {
+            return new LoadedDocument($url, $this->documents[$url]);
         }
 
         $name = self::PINNED[$url] ?? null;

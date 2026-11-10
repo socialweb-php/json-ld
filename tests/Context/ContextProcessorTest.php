@@ -190,7 +190,7 @@ final class ContextProcessorTest extends TestCase
     public function testLoadsARemoteContextAndResolvesItAgainstTheBaseUrl(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.com/dir/terms.jsonld', '{"@context": {"a": "ex:a"}}');
+            ->withDocument('https://example.com/dir/terms.jsonld', '{"@context": {"a": "ex:a"}}');
         $result = self::process('"terms.jsonld"', loader: $loader);
 
         $this->assertSame(['a'], array_keys($result->termDefinitions));
@@ -199,8 +199,8 @@ final class ContextProcessorTest extends TestCase
     public function testResolvesContextUrlsInsideARemoteContextAgainstItsOwnUrl(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.org/one/first', '{"@context": ["../two/second", {"a": "ex:a"}]}')
-            ->with('https://example.org/two/second', '{"@context": {"b": "ex:b"}}');
+            ->withDocument('https://example.org/one/first', '{"@context": ["../two/second", {"a": "ex:a"}]}')
+            ->withDocument('https://example.org/two/second', '{"@context": {"b": "ex:b"}}');
         $result = self::process('"https://example.org/one/first"', loader: $loader);
 
         $this->assertSame(['b', 'a'], array_keys($result->termDefinitions));
@@ -228,7 +228,7 @@ final class ContextProcessorTest extends TestCase
     public function testIgnoresBaseInsideARemoteContext(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.org/context', '{"@context": {"@base": "https://example.org/base/"}}');
+            ->withDocument('https://example.org/context', '{"@context": {"@base": "https://example.org/base/"}}');
 
         $this->assertSame(self::DOCUMENT, self::process('"https://example.org/context"', loader: $loader)->baseIri);
     }
@@ -279,7 +279,7 @@ final class ContextProcessorTest extends TestCase
     {
         $nested = str_repeat('{"a": {"@id": "ex:a", "@context": ', 10) . '{}' . str_repeat('}}', 10);
         $deep = '{"@context": ' . $nested . '}';
-        $loader = (new BundledDocumentLoader())->with('https://example.org/deep', $deep);
+        $loader = (new BundledDocumentLoader())->withDocument('https://example.org/deep', $deep);
         $processor = new ContextProcessor(
             new Settings(maxDepth: 4, maxValues: 4, documentLoader: $loader),
         );
@@ -367,7 +367,7 @@ final class ContextProcessorTest extends TestCase
     #[DataProvider('invalidRemoteContexts')]
     public function testRejectsARemoteDocumentWithoutAContext(string $document): void
     {
-        $loader = (new BundledDocumentLoader())->with('https://example.org/context', $document);
+        $loader = (new BundledDocumentLoader())->withDocument('https://example.org/context', $document);
 
         $this->assertError(JsonLdErrorCode::InvalidRemoteContext, '"https://example.org/context"', loader: $loader);
         $this->assertError(
@@ -388,7 +388,7 @@ final class ContextProcessorTest extends TestCase
 
     public function testARemoteContextMayBeNull(): void
     {
-        $loader = (new BundledDocumentLoader())->with('https://example.org/context', '{"@context": null}');
+        $loader = (new BundledDocumentLoader())->withDocument('https://example.org/context', '{"@context": null}');
         $result = self::process('"https://example.org/context"', self::process('{"a": "ex:a"}'), loader: $loader);
 
         $this->assertSame([], $result->termDefinitions);
@@ -397,9 +397,9 @@ final class ContextProcessorTest extends TestCase
     public function testStopsAChainOfRemoteContextsAtTheDepthLimit(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.org/1', '{"@context": ["https://example.org/2", {"one": "ex:1"}]}')
-            ->with('https://example.org/2', '{"@context": ["https://example.org/3", {"two": "ex:2"}]}')
-            ->with('https://example.org/3', '{"@context": {"three": "ex:3"}}');
+            ->withDocument('https://example.org/1', '{"@context": ["https://example.org/2", {"one": "ex:1"}]}')
+            ->withDocument('https://example.org/2', '{"@context": ["https://example.org/3", {"two": "ex:2"}]}')
+            ->withDocument('https://example.org/3', '{"@context": {"three": "ex:3"}}');
 
         $allowed = new ContextProcessor(new Settings(maxDepth: 3, documentLoader: $loader));
         $result = $allowed->process(new ActiveContext(), 'https://example.org/1', null);
@@ -420,7 +420,7 @@ final class ContextProcessorTest extends TestCase
     public function testAContextThatIncludesItselfOverflows(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.org/loop', '{"@context": ["https://example.org/loop"]}');
+            ->withDocument('https://example.org/loop', '{"@context": ["https://example.org/loop"]}');
 
         $this->assertError(JsonLdErrorCode::ContextOverflow, '"https://example.org/loop"', loader: $loader);
     }
@@ -428,8 +428,8 @@ final class ContextProcessorTest extends TestCase
     public function testSiblingRemoteContextsDoNotCountTowardTheDepth(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.org/1', '{"@context": {"one": "ex:1"}}')
-            ->with('https://example.org/2', '{"@context": {"two": "ex:2"}}');
+            ->withDocument('https://example.org/1', '{"@context": {"one": "ex:1"}}')
+            ->withDocument('https://example.org/2', '{"@context": {"two": "ex:2"}}');
         $processor = new ContextProcessor(new Settings(maxDepth: 1, documentLoader: $loader));
 
         $result = $processor->process(new ActiveContext(), ['https://example.org/1', 'https://example.org/2'], null);
@@ -498,7 +498,7 @@ final class ContextProcessorTest extends TestCase
 
     public function testTheDepthLimitAlsoBoundsAChainInALoadedContext(): void
     {
-        $loader = (new BundledDocumentLoader())->with(
+        $loader = (new BundledDocumentLoader())->withDocument(
             'https://example.org/chain',
             '{"@context": {"a": "b:a/", "b": "c:b/", "c": "https://example.com/"}}',
         );
@@ -529,7 +529,10 @@ final class ContextProcessorTest extends TestCase
 
     public function testANullAnEmptyMapAndAUrlEachCostOneContextOperation(): void
     {
-        $loader = (new BundledDocumentLoader())->with('https://example.org/context', '{"@context": {"a": "ex:a"}}');
+        $loader = (new BundledDocumentLoader())->withDocument(
+            'https://example.org/context',
+            '{"@context": {"a": "ex:a"}}',
+        );
         $context = ['https://example.org/context', new stdClass(), null];
 
         // Three operations the first time the URL is applied: one for the
@@ -653,7 +656,7 @@ final class ContextProcessorTest extends TestCase
         // One operation for the URL, one for the map behind it, and one for
         // each of its three terms.
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b", "c": "ex:c"}}');
+            ->withDocument('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b", "c": "ex:c"}}');
 
         $allowed = new ContextProcessor(
             new Settings(maxContextOperations: 5, documentLoader: $loader),
@@ -764,11 +767,11 @@ final class ContextProcessorTest extends TestCase
     public function testAppliesAScopedContextWithItsOwnBaseUrl(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with(
+            ->withDocument(
                 'https://example.org/contexts/outer',
                 '{"@context": {"items": {"@id": "ex:items", "@context": "inner"}}}',
             )
-            ->with('https://example.org/contexts/inner', '{"@context": {"a": "ex:a"}}');
+            ->withDocument('https://example.org/contexts/inner', '{"@context": {"a": "ex:a"}}');
         $processor = self::processor(loader: $loader);
         $active = $processor->process(new ActiveContext(), 'https://example.org/contexts/outer', null);
 
@@ -843,7 +846,7 @@ final class ContextProcessorTest extends TestCase
     public function testAppliesAContextNamedByUrlOnceForEachActiveContext(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b"}}');
+            ->withDocument('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b"}}');
         $processor = new ContextProcessor(
             new Settings(maxContextOperations: 15, documentLoader: $loader),
         );
@@ -878,8 +881,8 @@ final class ContextProcessorTest extends TestCase
     public function testKeepsAContextNamedByUrlUnderTheUrlItResolvesTo(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.org/one/context', '{"@context": {"a": "ex:one"}}')
-            ->with('https://example.org/two/context', '{"@context": {"a": "ex:two"}}');
+            ->withDocument('https://example.org/one/context', '{"@context": {"a": "ex:one"}}')
+            ->withDocument('https://example.org/two/context', '{"@context": {"a": "ex:two"}}');
         $processor = self::processor(loader: $loader);
         $active = new ActiveContext();
 
@@ -893,7 +896,10 @@ final class ContextProcessorTest extends TestCase
 
     public function testKeepsAContextNamedByUrlForEachValueOfOverrideProtected(): void
     {
-        $loader = (new BundledDocumentLoader())->with('https://example.org/context', '{"@context": {"a": "ex:other"}}');
+        $loader = (new BundledDocumentLoader())->withDocument(
+            'https://example.org/context',
+            '{"@context": {"a": "ex:other"}}',
+        );
         $processor = self::processor(loader: $loader);
         $active = $processor->process(
             new ActiveContext(),
@@ -916,7 +922,10 @@ final class ContextProcessorTest extends TestCase
 
     public function testAppliesAContextNamedByUrlWhetherOrNotItPropagates(): void
     {
-        $loader = (new BundledDocumentLoader())->with('https://example.org/context', '{"@context": {"a": "ex:a"}}');
+        $loader = (new BundledDocumentLoader())->withDocument(
+            'https://example.org/context',
+            '{"@context": {"a": "ex:a"}}',
+        );
         $processor = self::processor(loader: $loader);
         $active = $processor->process(
             new ActiveContext(),
@@ -943,8 +952,8 @@ final class ContextProcessorTest extends TestCase
     public function testKeepsNoContextThatALoadedContextNames(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.org/outer', '{"@context": ["inner", {"b": "ex:b"}]}')
-            ->with('https://example.org/inner', '{"@context": {"a": "ex:a"}}');
+            ->withDocument('https://example.org/outer', '{"@context": ["inner", {"b": "ex:b"}]}')
+            ->withDocument('https://example.org/inner', '{"@context": {"a": "ex:a"}}');
         $cache = new ProcessedContextCache();
         $processor = new ContextProcessor(new Settings(documentLoader: $loader), $cache);
 
@@ -957,7 +966,10 @@ final class ContextProcessorTest extends TestCase
 
     public function testKeepsNoContextWhileValidatingAScopedContext(): void
     {
-        $loader = (new BundledDocumentLoader())->with('https://example.org/context', '{"@context": {"a": "ex:a"}}');
+        $loader = (new BundledDocumentLoader())->withDocument(
+            'https://example.org/context',
+            '{"@context": {"a": "ex:a"}}',
+        );
         $cache = new ProcessedContextCache();
         $processor = new ContextProcessor(new Settings(documentLoader: $loader), $cache);
 
@@ -977,7 +989,7 @@ final class ContextProcessorTest extends TestCase
     public function testStoresAScopedContextNamedByUrlOnce(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b"}}');
+            ->withDocument('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b"}}');
         $cache = new ProcessedContextCache();
         $processor = new ContextProcessor(new Settings(documentLoader: $loader), $cache);
         $active = $processor->process(
@@ -1009,7 +1021,7 @@ final class ContextProcessorTest extends TestCase
     public function testAUrlInsideAScopedContextIsServedByTheCache(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b"}}');
+            ->withDocument('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b"}}');
         $processor = new ContextProcessor(
             new Settings(maxContextOperations: 11, documentLoader: $loader),
         );
@@ -1086,7 +1098,7 @@ final class ContextProcessorTest extends TestCase
 
     public function testAScopedContextMayReferToTheRemoteContextThatDefinesIt(): void
     {
-        $loader = (new BundledDocumentLoader())->with(
+        $loader = (new BundledDocumentLoader())->withDocument(
             'https://example.org/self',
             '{"@context": {"a": {"@id": "ex:a", "@context": "https://example.org/self"}}}',
         );
@@ -1099,7 +1111,7 @@ final class ContextProcessorTest extends TestCase
     public function testAScopedRemoteContextMayRedefineProtectedTerms(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.org/scoped', '{"@context": {"a": "ex:other"}}');
+            ->withDocument('https://example.org/scoped', '{"@context": {"a": "ex:other"}}');
         $result = self::process(
             '{"@protected": true, "a": "ex:a", "b": {"@id": "ex:b", "@context": "https://example.org/scoped"}}',
             loader: $loader,
@@ -1110,7 +1122,7 @@ final class ContextProcessorTest extends TestCase
 
     public function testImportMergesTheImportedContextUnderTheImportingOne(): void
     {
-        $loader = (new BundledDocumentLoader())->with(
+        $loader = (new BundledDocumentLoader())->withDocument(
             'https://example.com/dir/imported.jsonld',
             '{"@context": {"@vocab": "https://example.org/imported#", "a": "ex:imported", "b": "ex:b"}}',
         );
@@ -1125,7 +1137,7 @@ final class ContextProcessorTest extends TestCase
     public function testImportLetsTheImportingContextProtectImportedTerms(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.org/imported', '{"@context": {"a": "ex:a"}}');
+            ->withDocument('https://example.org/imported', '{"@context": {"a": "ex:a"}}');
         $result = self::process('{"@import": "https://example.org/imported", "@protected": true}', loader: $loader);
 
         $this->assertTrue($result->termDefinition('a')?->protected);
@@ -1156,9 +1168,9 @@ final class ContextProcessorTest extends TestCase
     public function testRejectsAnInvalidImport(string $context, JsonLdErrorCode $expected): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.org/array', '{"@context": [{"a": "ex:a"}]}')
-            ->with('https://example.org/string', '{"@context": "https://example.org/array"}')
-            ->with('https://example.org/importing', '{"@context": {"@import": "https://example.org/array"}}');
+            ->withDocument('https://example.org/array', '{"@context": [{"a": "ex:a"}]}')
+            ->withDocument('https://example.org/string', '{"@context": "https://example.org/array"}')
+            ->withDocument('https://example.org/importing', '{"@context": {"@import": "https://example.org/array"}}');
 
         $this->assertError($expected, $context, loader: $loader);
     }

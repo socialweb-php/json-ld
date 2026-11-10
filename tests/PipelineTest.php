@@ -35,11 +35,11 @@ final class PipelineTest extends TestCase
         string $hash,
     ): void {
         $loader = (new BundledDocumentLoader())
-            ->with(
+            ->withDocument(
                 'https://www.w3.org/ns/credentials/v2',
                 W3cManifest::read(self::FIXTURES . '/contexts/credentials-v2.jsonld'),
             )
-            ->with(
+            ->withDocument(
                 'https://www.w3.org/ns/credentials/examples/v2',
                 W3cManifest::read(self::FIXTURES . '/contexts/credentials-examples-v2.jsonld'),
             );

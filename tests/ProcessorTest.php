@@ -292,7 +292,7 @@ final class ProcessorTest extends TestCase
     public function testResolvesAContextUrlAgainstTheBase(): void
     {
         $loader = (new BundledDocumentLoader())
-            ->with('https://example.com/contexts/v1', '{"@context": {"name": "https://example.com/ns#name"}}');
+            ->withDocument('https://example.com/contexts/v1', '{"@context": {"name": "https://example.com/ns#name"}}');
         $processor = new Processor(base: 'https://example.com/dir/doc', documentLoader: $loader);
 
         $this->assertSame(
@@ -323,7 +323,7 @@ final class ProcessorTest extends TestCase
     #[DataProvider('expandContexts')]
     public function testAppliesTheExpandContextBeforeTheDocumentsOwn(array | string | stdClass $expandContext): void
     {
-        $loader = (new BundledDocumentLoader())->with(
+        $loader = (new BundledDocumentLoader())->withDocument(
             'https://example.com/contexts/v1',
             '{"@context": {"name": "https://example.com/ns#name", "label": "https://example.com/ns#label"}}',
         );
