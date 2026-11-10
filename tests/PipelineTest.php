@@ -28,7 +28,7 @@ use function hash;
  */
 class PipelineTest extends TestCase
 {
-    private const string FIXTURES = __DIR__ . '/fixtures/vc-di-eddsa';
+    private const string FIXTURES = __DIR__ . '/../resources/vc-di-eddsa';
 
     #[DataProvider('vectors')]
     public function testReproducesThePublishedCanonicalFormAndHash(

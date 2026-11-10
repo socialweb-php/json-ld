@@ -1,0 +1,68 @@
+{
+    "sets": [
+        {
+            "name": "contexts",
+            "retrieved": "2026-09-18",
+            "sha256": "c032d75eaf92e04dc9b724cd5fa95f2bd8931ef86a7c7146187b75f704be94df",
+            "source": {
+                "title": "The JSON-LD contexts that the package bundles",
+                "copyright": "The source and the copyright of each context are recorded in contexts/manifest.json"
+            },
+            "license": {
+                "name": "W3C Software and Document License, recorded for each context in contexts/manifest.json",
+                "url": "https://www.w3.org/copyright/software-license-2023/",
+                "file": "LICENSE"
+            }
+        },
+        {
+            "name": "jcs",
+            "url": "https://github.com/cyberphone/json-canonicalization",
+            "commit": "19d51d7fe467d4706a3ff08adf8a748f29fc21e0",
+            "retrieved": "2026-09-17",
+            "sha256": "1bac8f0e79493343206d0a0ecaf98d720d3e85685a3ea72ce585636012fdf5d3",
+            "source": {
+                "title": "JSON Canonicalization Scheme (JCS) reference implementation, test data",
+                "url": "https://github.com/cyberphone/json-canonicalization/tree/19d51d7fe467d4706a3ff08adf8a748f29fc21e0/testdata",
+                "copyright": "Copyright 2018 Anders Rundgren"
+            },
+            "license": {
+                "name": "Apache License, Version 2.0",
+                "url": "https://www.apache.org/licenses/LICENSE-2.0",
+                "file": "LICENSE"
+            }
+        },
+        {
+            "name": "json-ld-api",
+            "url": "https://github.com/w3c/json-ld-api",
+            "commit": "ffdb326121ea89b7b8280e76a5caea923834bcef",
+            "retrieved": "2026-09-19",
+            "sha256": "ca59635e45e4be5d8a22133271931166c4c4b0c6d1a60be89041b9db98caa9b1",
+            "source": {
+                "title": "JSON-LD 1.1 Processing Algorithms and API test suite",
+                "url": "https://github.com/w3c/json-ld-api/tree/ffdb326121ea89b7b8280e76a5caea923834bcef/tests",
+                "copyright": "Copyright World Wide Web Consortium"
+            },
+            "license": {
+                "name": "W3C Test Suite License and W3C 3-clause BSD License",
+                "url": "https://www.w3.org/copyright/test-suites-licenses/",
+                "file": "LICENSE.md"
+            }
+        },
+        {
+            "name": "vc-di-eddsa",
+            "url": "https://www.w3.org/TR/2025/REC-vc-di-eddsa-20250515/",
+            "retrieved": "2026-10-11",
+            "sha256": "28bf59bec7758b3ab9edac880707643c1fd7614d6006822c8ddef797cde84f65",
+            "source": {
+                "title": "Data Integrity EdDSA Cryptosuites v1.0, Appendix B.1, and the JSON-LD contexts of the Verifiable Credentials Data Model v2.0",
+                "url": "https://www.w3.org/TR/vc-di-eddsa/",
+                "copyright": "Copyright 2025 World Wide Web Consortium"
+            },
+            "license": {
+                "name": "W3C Software and Document License",
+                "url": "https://www.w3.org/copyright/software-license-2023/",
+                "file": "LICENSE"
+            }
+        }
+    ]
+}

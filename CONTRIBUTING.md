@@ -132,7 +132,7 @@ composer mutation
 
 ### Checking the copied test suites
 
-The test suites under `tests/fixtures/` are copied byte for byte from their sources, and `tests/fixtures/manifest.json` records a checksum for each one. `composer check-fixtures` computes the checksums again and compares them with the manifest, so a fixture that has changed since it was copied is found before the tests run. GitHub Actions runs the same check for pull requests.
+The test suites and the JSON-LD contexts under `resources/` are copied byte for byte from their sources, and `resources/manifest.json` records a checksum for each set. `composer check-fixtures` computes the checksums again and compares them with the manifest, so a file that has changed since it was copied is found before the tests run. GitHub Actions runs the same check for pull requests.
 
 ```bash
 composer check-fixtures

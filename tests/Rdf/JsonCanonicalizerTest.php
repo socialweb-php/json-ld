@@ -26,7 +26,7 @@ use const PHP_INT_MIN;
 
 class JsonCanonicalizerTest extends TestCase
 {
-    private const string FIXTURES = __DIR__ . '/../fixtures/jcs';
+    private const string FIXTURES = __DIR__ . '/../../resources/jcs';
 
     /**
      * The input and output pairs of the RFC 8785 reference test data

@@ -15,12 +15,8 @@ indent_size = 4
 [*.{yml,yaml}]
 indent_size = 2
 
-# Vendored test fixtures are kept byte-for-byte as published.
-[tests/fixtures/**]
-insert_final_newline = false
-trim_trailing_whitespace = false
-
-# Pinned contexts are kept byte-for-byte as retrieved.
-[resources/contexts/*.jsonld]
+# The copied test suites and the pinned contexts are kept byte for byte as
+# published.
+[resources/**]
 insert_final_newline = false
 trim_trailing_whitespace = false

@@ -1,19 +1,16 @@
 <?php
 
 /**
- * Checks the test fixtures under tests/fixtures/ against the SHA-256 checksums
- * in tests/fixtures/manifest.json.
+ * Checks the test suites and the JSON-LD contexts copied under resources/
+ * against the SHA-256 checksums in resources/manifest.json.
  *
- * Usage: php bin/check-fixtures.php [fixtures-directory]
+ * Usage: php bin/check-fixtures.php [resources-directory]
  *
- * For each set of fixtures, the script lists every file under the paths the
- * manifest names, sorts the paths byte by byte, computes the SHA-256 of each
- * file, and computes the SHA-256 of the resulting lines: the value, two
- * spaces, and the path with "./" in front. That is the method that
- * tests/fixtures/README.md describes, and it gives the same value as the shell
- * commands there. A path may end in a pattern such as "*.nq", which matches
- * every file of that name in the directory. The script also reports any file in
- * a set's directory that the manifest's paths do not cover.
+ * For each set the manifest names, the script lists every file in the set's
+ * directory, sorts the paths byte by byte, computes the SHA-256 of each file,
+ * and computes the SHA-256 of the resulting lines: the value, two spaces, and
+ * the path with "./" in front. That is the method that resources/README.md
+ * describes, and it gives the same value as the shell command there.
  *
  * It exits with 0 when every set matches and 1 when any does not.
  *
@@ -48,150 +45,115 @@ $fail = static function (string $message): never {
 };
 
 /**
- * Returns every file under a path, as paths from the base directory with "./"
- * in front
+ * Returns every file under a directory, as paths from it with "./" in front,
+ * sorted byte by byte
  *
  * @return list<string>
  */
-$filesUnder = static function (string $base, string $path) use ($fail): array {
+$filesUnder = static function (string $directory) use ($fail): array {
     $files = [];
-    $pending = [$path];
+    $pending = [''];
 
     while ($pending !== []) {
         $current = array_pop($pending);
-        $full = $base . '/' . $current;
-
-        if (is_file($full)) {
-            $files[] = './' . $current;
-
-            continue;
-        }
-
-        $entries = scandir($full);
+        $entries = scandir($directory . $current);
 
         if ($entries === false) {
-            $fail(sprintf('Cannot read the directory %s', $full));
+            $fail(sprintf('Cannot read the directory %s', $directory . $current));
         }
 
         foreach ($entries as $entry) {
-            if ($entry !== '.' && $entry !== '..') {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+
+            if (is_dir($directory . $current . '/' . $entry)) {
                 $pending[] = $current . '/' . $entry;
+            } else {
+                $files[] = '.' . $current . '/' . $entry;
             }
         }
     }
 
-    return $files;
-};
-
-/**
- * Returns every file that a pattern such as "*.nq" matches, as paths from the
- * base directory with "./" in front
- *
- * @return list<string>
- */
-$filesMatching = static function (string $base, string $pattern): array {
-    $files = [];
-
-    foreach (glob($base . '/' . $pattern) ?: [] as $match) {
-        if (is_file($match)) {
-            $files[] = './' . substr($match, strlen($base) + 1);
-        }
-    }
+    sort($files, SORT_STRING);
 
     return $files;
 };
 
-/**
- * Returns every file in a directory, as paths from it with "./" in front
- *
- * @return list<string>
- */
-$filesIn = static function (string $directory) use ($fail, $filesUnder): array {
-    $entries = scandir($directory);
-
-    if ($entries === false) {
-        $fail(sprintf('Cannot read the directory %s', $directory));
-    }
-
-    $files = [];
-
-    foreach ($entries as $entry) {
-        if ($entry !== '.' && $entry !== '..') {
-            $files = [...$files, ...$filesUnder($directory, $entry)];
-        }
-    }
-
-    return $files;
-};
-
-$fixturesDirectory = rtrim($argv[1] ?? __DIR__ . '/../tests/fixtures', '/');
-$manifestFile = $fixturesDirectory . '/manifest.json';
+$resourcesDirectory = rtrim($argv[1] ?? __DIR__ . '/../resources', '/');
+$manifestFile = $resourcesDirectory . '/manifest.json';
 $json = @file_get_contents($manifestFile);
 
 if ($json === false) {
     $fail(sprintf('Cannot read %s', $manifestFile));
 }
 
-/**
- * @var array{
- *     fixtures: list<array{
- *         name: string,
- *         directory: string,
- *         paths: list<array{from: string, to: string}>,
- *         sha256: string,
- *     }>,
- * } $manifest
- */
+/** @var mixed $manifest */
 $manifest = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+
+if (!is_array($manifest) || !isset($manifest['sets']) || !is_array($manifest['sets'])) {
+    $fail(sprintf('%s: the "sets" member is missing or is not a list', $manifestFile));
+}
+
+if (!array_is_list($manifest['sets'])) {
+    $fail(sprintf('%s: the "sets" member is not a list', $manifestFile));
+}
+
+if ($manifest['sets'] === []) {
+    $fail(sprintf('%s: the "sets" list is empty, so there is nothing to check', $manifestFile));
+}
+
 $failed = false;
 
-foreach ($manifest['fixtures'] as $fixture) {
-    $base = $fixturesDirectory . '/' . $fixture['directory'];
-    $files = [];
-
-    foreach ($fixture['paths'] as $path) {
-        $found = str_contains($path['to'], '*')
-            ? $filesMatching($base, $path['to'])
-            : (file_exists($base . '/' . $path['to']) ? $filesUnder($base, $path['to']) : []);
-
-        if ($found === []) {
-            $fail(sprintf('%s: %s is in the manifest and not in %s', $fixture['name'], $path['to'], $base));
-        }
-
-        $files = [...$files, ...$found];
+foreach ($manifest['sets'] as $index => $set) {
+    if (
+        !is_array($set)
+        || !isset($set['name'], $set['sha256'])
+        || !is_string($set['name'])
+        || !is_string($set['sha256'])
+    ) {
+        $fail(sprintf(
+            '%s: entry %d of the "sets" list needs a string "name" and a string "sha256"',
+            $manifestFile,
+            $index,
+        ));
     }
 
-    sort($files, SORT_STRING);
+    $base = $resourcesDirectory . '/' . $set['name'];
 
+    if (!is_dir($base)) {
+        $fail(sprintf('%s: there is no directory %s in %s', $set['name'], $set['name'], $resourcesDirectory));
+    }
+
+    $files = $filesUnder($base);
     $lines = '';
 
     foreach ($files as $file) {
-        $lines .= hash_file('sha256', $base . '/' . substr($file, 2)) . '  ' . $file . "\n";
+        $hash = @hash_file('sha256', $base . substr($file, 1));
+
+        if ($hash === false) {
+            $fail(sprintf('%s: cannot read %s', $set['name'], $base . substr($file, 1)));
+        }
+
+        $lines .= $hash . '  ' . $file . "\n";
     }
 
     $checksum = hash('sha256', $lines);
-    $notCovered = array_diff($filesIn($base), $files);
 
-    if ($checksum === $fixture['sha256'] && $notCovered === []) {
-        printf("%s: OK (%d files, %s)\n", $fixture['name'], count($files), $checksum);
+    if ($checksum === $set['sha256']) {
+        printf("%s: OK (%d files, %s)\n", $set['name'], count($files), $checksum);
 
         continue;
     }
 
     $failed = true;
 
-    if ($checksum !== $fixture['sha256']) {
-        printf(
-            "%s: the checksum does not match\n  expected %s\n  computed %s\n",
-            $fixture['name'],
-            $fixture['sha256'],
-            $checksum,
-        );
-    }
-
-    foreach ($notCovered as $file) {
-        printf("%s: %s is not covered by the manifest\n", $fixture['name'], $file);
-    }
+    printf(
+        "%s: the checksum does not match\n  expected %s\n  computed %s\n",
+        $set['name'],
+        $set['sha256'],
+        $checksum,
+    );
 }
 
 exit($failed ? 1 : 0);

@@ -16,8 +16,8 @@ use function sprintf;
 use const JSON_THROW_ON_ERROR;
 
 /**
- * Reads the W3C JSON-LD API test manifests vendored under
- * tests/fixtures/json-ld-api
+ * Reads the W3C JSON-LD API test manifests copied under
+ * resources/json-ld-api
  *
  * The manifests are JSON-LD, but their structure is fixed, so they are read
  * as plain JSON. Entries that test JSON-LD 1.0 behavior that JSON-LD 1.1
@@ -26,7 +26,7 @@ use const JSON_THROW_ON_ERROR;
  */
 final class W3cManifest
 {
-    public const string FIXTURES = __DIR__ . '/../fixtures/json-ld-api';
+    public const string FIXTURES = __DIR__ . '/../../resources/json-ld-api';
 
     /**
      * The URL the suite is published at, which every manifest gives as its
