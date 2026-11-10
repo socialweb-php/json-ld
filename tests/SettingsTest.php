@@ -73,10 +73,17 @@ final class SettingsTest extends TestCase
 
     public function testTurnsOnEachRestrictionByItself(): void
     {
-        $this->assertFalse((new Settings(forbidNamedGraphs: true))->forbidIncludedBlocks);
-        $this->assertFalse((new Settings(forbidIncludedBlocks: true))->forbidReverseProperties);
-        $this->assertFalse((new Settings(forbidReverseProperties: true))->requireSingleTopLevelNode);
-        $this->assertFalse((new Settings(requireSingleTopLevelNode: true))->forbidNamedGraphs);
+        $flags = static fn (Settings $settings): array => [
+            $settings->forbidNamedGraphs,
+            $settings->forbidIncludedBlocks,
+            $settings->forbidReverseProperties,
+            $settings->requireSingleTopLevelNode,
+        ];
+
+        $this->assertSame([true, false, false, false], $flags(new Settings(forbidNamedGraphs: true)));
+        $this->assertSame([false, true, false, false], $flags(new Settings(forbidIncludedBlocks: true)));
+        $this->assertSame([false, false, true, false], $flags(new Settings(forbidReverseProperties: true)));
+        $this->assertSame([false, false, false, true], $flags(new Settings(requireSingleTopLevelNode: true)));
     }
 
     public function testAcceptsAContextUrlAsTheExpandContext(): void

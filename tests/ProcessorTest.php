@@ -463,6 +463,70 @@ final class ProcessorTest extends TestCase
                 ->toRdf('{"@id": "a", "name": {"@value": "A", "@direction": "rtl"}, "dropped": 1}')
                 ->toNQuads(),
         );
+
+        // Each document exceeds one limit only, so a limit given in another
+        // position would be exceeded by none of them or by another document.
+        $limits = [
+            'maxDepth' => [[1, PHP_INT_MAX, PHP_INT_MAX], '[[1]]'],
+            'maxValues' => [[PHP_INT_MAX, 1, PHP_INT_MAX], '[1, 2]'],
+            'maxContextOperations' => [
+                [PHP_INT_MAX, PHP_INT_MAX, 1],
+                '{"@context": {"a": "ex:a", "b": "ex:b"}, "a": 1}',
+            ],
+        ];
+
+        foreach ($limits as $parameter => [$values, $document]) {
+            $limited = new Processor(
+                null,
+                null,
+                ProcessingMode::JsonLd11,
+                null,
+                true,
+                new BundledDocumentLoader(),
+                ...$values,
+            );
+
+            try {
+                $limited->expand($document);
+                $this->fail(sprintf('Expected the %s limit to be exceeded', $parameter));
+            } catch (LimitExceeded $exception) {
+                $this->assertSame($parameter, $exception->parameter);
+            }
+        }
+
+        // The document uses every feature the restrictions refuse, so each
+        // restriction turned on by itself names itself.
+        $document = '[{"@id": "ex:a", "@graph": [{"@id": "ex:b", "ex:p": 1}], '
+            . '"@included": [{"@id": "ex:c", "ex:p": 1}], "@reverse": {"ex:p": [{"@id": "ex:d"}]}}, '
+            . '{"@id": "ex:e", "ex:p": 1}]';
+        $restrictions = [
+            'forbidNamedGraphs' => [true, false, false, false],
+            'forbidIncludedBlocks' => [false, true, false, false],
+            'forbidReverseProperties' => [false, false, true, false],
+            'requireSingleTopLevelNode' => [false, false, false, true],
+        ];
+
+        foreach ($restrictions as $restriction => $flags) {
+            $restricted = new Processor(
+                null,
+                null,
+                ProcessingMode::JsonLd11,
+                null,
+                true,
+                new BundledDocumentLoader(),
+                128,
+                100_000,
+                1_000_000,
+                ...$flags,
+            );
+
+            try {
+                $restricted->expand($document);
+                $this->fail(sprintf('Expected the %s restriction to refuse the document', $restriction));
+            } catch (RestrictedFeature $exception) {
+                $this->assertSame($restriction, $exception->restriction);
+            }
+        }
     }
 
     #[DataProvider('restrictions')]
