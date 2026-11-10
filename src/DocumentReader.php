@@ -36,6 +36,7 @@ use stdClass;
 
 use function array_is_list;
 use function array_pop;
+use function array_reverse;
 use function get_debug_type;
 use function get_object_vars;
 use function is_array;
@@ -65,10 +66,12 @@ use const JSON_THROW_ON_ERROR;
  * by the processor.
  *
  * A value of a PHP type that is not a JSON type, such as an object of another
- * class, a closure, or a resource, is the caller's mistake and is refused as
- * `InvalidArgument` before anything is read. A value of a JSON type whose
- * content JSON text cannot express is a malformed document and is refused as
- * `JsonLdError` with the code `loading document failed`.
+ * class, a closure, or a resource, is the caller's mistake. When it lies within
+ * the limits on depth and on the number of values, it is refused as
+ * `InvalidArgument` before anything is read; beyond them, the document is
+ * refused as `LimitExceeded`. A value of a JSON type whose content JSON text
+ * cannot express is a malformed document and is refused as `JsonLdError` with
+ * the code `loading document failed`.
  *
  * @internal
  */
@@ -101,12 +104,12 @@ final class DocumentReader
      *
      * @return list<mixed> | stdClass | string | int | float | bool | null
      *
-     * @throws InvalidArgument if a value at any depth within the depth limit
-     *     has a PHP type that is not a JSON type: an object of a class other
-     *     than `stdClass`, a `stdClass` subclass among them, a closure, or a
-     *     resource. This includes a `JsonSerializable` inside the document,
-     *     or one that another's `jsonSerialize()` returns. It is raised
-     *     before anything is read.
+     * @throws InvalidArgument if a value within the limits on depth and on
+     *     the number of values has a PHP type that is not a JSON type: an
+     *     object of a class other than `stdClass`, a `stdClass` subclass among
+     *     them, a closure, or a resource. This includes a `JsonSerializable`
+     *     inside the document, or one that another's `jsonSerialize()`
+     *     returns. It is raised before anything is read.
      * @throws JsonLdError with the code `loading document failed` if the
      *     string is not valid JSON, or if a number is not finite, or if a
      *     string or a property name is not valid UTF-8, or if a property name
@@ -138,11 +141,14 @@ final class DocumentReader
      * as one and not as a fault of the document
      *
      * The JSON types are `null`, booleans, integers, floats, strings, PHP
-     * arrays, and objects whose class is `stdClass` itself. Nesting deeper
-     * than `maxDepth` is not walked; `walk()` refuses it. An object is walked
-     * again only when it is met at a shallower depth than before, since that
-     * walk reaches everything a deeper one would, so an object that holds
-     * itself is walked once.
+     * arrays, and objects whose class is `stdClass` itself. Values are visited
+     * in the order `walk()` reads them, a container before its entries and
+     * the entries first to last, and are counted as `walk()` counts them. The
+     * check stops after `maxValues` values and does not look inside nesting
+     * deeper than `maxDepth`; `walk()` refuses a document that goes beyond
+     * either limit. An object is walked again only when it is met at a
+     * shallower depth than before, since that walk reaches everything a
+     * deeper one would, so an object that holds itself is walked once.
      *
      * @throws InvalidArgument naming the type of the first value found whose
      *     PHP type is not a JSON type
@@ -150,10 +156,15 @@ final class DocumentReader
     private function checkTypes(mixed $document): void
     {
         $pending = [[$document, 1]];
+        $visited = 0;
         /** @var SplObjectStorage<stdClass, int> $walked */
         $walked = new SplObjectStorage();
 
         while (($next = array_pop($pending)) !== null) {
+            if (++$visited > $this->settings->maxValues) {
+                return;
+            }
+
             [$current, $depth] = $next;
 
             if (is_array($current) || ($current instanceof stdClass && $current::class === stdClass::class)) {
@@ -169,8 +180,10 @@ final class DocumentReader
                     $walked[$current] = $depth;
                 }
 
+                // Pushed in reverse, the entries are taken off the stack first
+                // to last, in the order walk() reads them.
                 /** @var mixed $entry */
-                foreach (is_array($current) ? $current : get_object_vars($current) as $entry) {
+                foreach (array_reverse(is_array($current) ? $current : get_object_vars($current)) as $entry) {
                     $pending[] = [$entry, $depth + 1];
                 }
             } elseif ($current !== null && !is_scalar($current)) {

@@ -222,7 +222,7 @@ final class DocumentReaderTest extends TestCase
 
     public function testReportsAValueThatIsNotAJsonTypeBeforeAnythingElse(): void
     {
-        $reader = new DocumentReader(new Settings(maxValues: 1));
+        $reader = new DocumentReader(new Settings());
 
         try {
             $reader->read(['a' => NAN, 'b' => "\xff", 'c' => new DateTimeImmutable()]);
@@ -263,25 +263,113 @@ final class DocumentReaderTest extends TestCase
 
     public function testLooksAgainInsideAnObjectMetAtAShallowerDepth(): void
     {
-        // The shared object is met at depth 3 first, where the array it holds
-        // is too deep to be walked, and then at depth 2, where it is not.
+        // Entries are walked first to last. The shared object is met under "b"
+        // first, at depth 3, where the array it holds is too deep to be
+        // walked, and then under "a", at depth 2, where it is not.
         $shared = (object) ['x' => [new DateTimeImmutable()]];
 
         $this->expectException(InvalidArgument::class);
 
-        (new DocumentReader(new Settings(maxDepth: 3)))->read(['a' => $shared, 'b' => ['c' => $shared]]);
+        (new DocumentReader(new Settings(maxDepth: 3)))->read(['b' => ['c' => $shared], 'a' => $shared]);
     }
 
     public function testKeepsLookingAfterAnObjectItHasAlreadyWalked(): void
     {
-        // The list is walked from its end: the shared object, then the same
+        // Entries are walked first to last: the shared object, then the same
         // object one level deeper, which is not walked again, and then the
         // entry that holds a value JSON has no type for.
         $shared = (object) ['x' => 1];
 
         $this->expectException(InvalidArgument::class);
 
-        (new DocumentReader(new Settings()))->read([['x' => new DateTimeImmutable()], ['c' => $shared], $shared]);
+        (new DocumentReader(new Settings()))->read([$shared, ['c' => $shared], ['x' => new DateTimeImmutable()]]);
+    }
+
+    public function testWalksAnObjectReachedByManyPathsOnlyOnce(): void
+    {
+        // Each object holds the one below it twice, so the innermost one is
+        // reached by 2^40 paths. Only the record of objects already walked
+        // lets the check reach the last entry of the document without
+        // following them all.
+        $object = new stdClass();
+
+        for ($i = 0; $i < 40; $i++) {
+            $object = (object) ['a' => $object, 'b' => $object];
+        }
+
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('A document may hold only JSON values; DateTimeImmutable given');
+
+        (new DocumentReader(new Settings(maxValues: PHP_INT_MAX)))->read([$object, new DateTimeImmutable()]);
+    }
+
+    public function testStopsLookingForTypesAtMaxValues(): void
+    {
+        // An array is a value, not a reference, so nothing records that this
+        // one has been walked. It holds 2^42 - 1 values in all.
+        $document = [1, 1];
+
+        for ($i = 0; $i < 40; $i++) {
+            $document = [$document, $document];
+        }
+
+        try {
+            (new DocumentReader(new Settings()))->read($document);
+            $this->fail('Expected LimitExceeded');
+        } catch (LimitExceeded $exception) {
+            $this->assertSame('maxValues', $exception->parameter);
+            $this->assertSame(100_000, $exception->limit);
+        }
+    }
+
+    /**
+     * @param array<mixed> $document
+     */
+    #[DataProvider('valuesBeyondMaxValues')]
+    public function testDoesNotLookForTypesBeyondMaxValues(array $document, int $maxValues): void
+    {
+        $this->expectException(LimitExceeded::class);
+        $this->expectExceptionMessageIsOrContains('The maxValues limit of ' . $maxValues . ' was exceeded');
+
+        (new DocumentReader(new Settings(maxValues: $maxValues)))->read($document);
+    }
+
+    /**
+     * @return iterable<string, array{array<mixed>, int}>
+     */
+    public static function valuesBeyondMaxValues(): iterable
+    {
+        // The list and the two numbers are the three values within the limit.
+        yield 'after the last entry within the limit' => [[1, 2, new DateTimeImmutable()], 3];
+
+        // The outer list, the inner list, and its two numbers are the four.
+        yield 'after the entries of an earlier container' => [[[1, 2], new DateTimeImmutable()], 4];
+    }
+
+    /**
+     * @param array<mixed> $document
+     */
+    #[DataProvider('valuesAtMaxValues')]
+    public function testLooksForTypesUpToTheLastValueWithinMaxValues(array $document, int $maxValues): void
+    {
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('A document may hold only JSON values; DateTimeImmutable given');
+
+        (new DocumentReader(new Settings(maxValues: $maxValues)))->read($document);
+    }
+
+    /**
+     * @return iterable<string, array{array<mixed>, int}>
+     */
+    public static function valuesAtMaxValues(): iterable
+    {
+        // The list, the first number, and the object are the three values
+        // within the limit; the entries after the object are not.
+        yield 'an entry before later ones' => [[1, new DateTimeImmutable(), 2, 3], 3];
+
+        // The outer list, the inner list, its number, and the object are the
+        // four; the entry after the inner list is not.
+        yield 'an entry of a container before later ones' => [[[1, new DateTimeImmutable()], 2], 4];
     }
 
     public function testReadsAJsonSerializableAsWhatItSerializesTo(): void

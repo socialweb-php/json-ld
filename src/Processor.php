@@ -181,8 +181,9 @@ final class Processor
      *     list, including an empty array, is a JSON array, and any other PHP
      *     array is a JSON object.
      *
-     * @throws InvalidArgument if the document holds a value whose PHP type is
-     *     not a JSON type, such as an object of a class other than `stdClass`
+     * @throws InvalidArgument if the document holds, within the limits on
+     *     depth and on the number of values, a value whose PHP type is not a
+     *     JSON type, such as an object of a class other than `stdClass`
      * @throws LimitExceeded if the document exceeds a limit, or its contexts
      *     would take more operations to process than the limit allows
      * @throws JsonLdError if the document breaks a rule of the specification,
@@ -216,9 +217,10 @@ final class Processor
      *     A document as `expand()` takes it, or an `ExpandedDocument`, which
      *     is not expanded again
      *
-     * @throws InvalidArgument if the document holds a value whose PHP type is
-     *     not a JSON type, or an `ExpandedDocument` built by hand is not in
-     *     expanded form
+     * @throws InvalidArgument if the document holds, within the limits on
+     *     depth and on the number of values, a value whose PHP type is not a
+     *     JSON type, or an `ExpandedDocument` built by hand is not in expanded
+     *     form
      * @throws LimitExceeded if a document that is not an `ExpandedDocument`
      *     exceeds a limit, or its contexts would take more operations to
      *     process than the limit allows
