@@ -35,8 +35,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ### Added
 
-### Added
-
 - `Processor`, a JSON-LD 1.1 processor: `expand()` returns the expanded form as an `ExpandedDocument`, and `toRdf()` converts a document, or an `ExpandedDocument`, to a `SocialWeb\Rdf\Dataset` from the socialweb/rdf package. Both accept a JSON string, a `stdClass` tree, or nested arrays.
 - `Options`, with `base`, `expandContext`, `processingMode`, `rdfDirection`, `strict`, `limits`, `restrictions`, and `documentLoader`, and the enums `ProcessingMode` and `RdfDirection`.
 - Strict mode, on by default, which raises `DataLoss` wherever the JSON-LD algorithms would silently drop data, during expansion or conversion to RDF. The exception carries the drop point as a `DataLossCondition` case and the data that would have been dropped.

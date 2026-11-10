@@ -28,8 +28,8 @@ namespace SocialWeb\JsonLd\Exception;
 use InvalidArgumentException;
 
 /**
- * Thrown when an option, a limit, a restriction, or a document argument is
- * constructed from an invalid value
+ * Thrown when a setting of a `Processor` or a document argument has an invalid
+ * value
  */
 final class InvalidArgument extends InvalidArgumentException implements JsonLdException
 {

@@ -209,9 +209,9 @@ final class Processor
      * in one order for a document whatever the order of the document's entries.
      *
      * A document that is not an `ExpandedDocument` is read and expanded under
-     * the limits of the options, as `expand()` does. An `ExpandedDocument` was
-     * read and expanded under the limits of the processor that made it, and
-     * `toRdf()` checks only the restrictions on it.
+     * the limits of this processor, as `expand()` does. An `ExpandedDocument`
+     * was read and expanded under the limits of the processor that made it,
+     * and `toRdf()` checks only the restrictions on it.
      *
      * @param array<mixed> | string | JsonSerializable | stdClass | ExpandedDocument $document
      *     A document as `expand()` takes it, or an `ExpandedDocument`, which
@@ -233,7 +233,7 @@ final class Processor
      *     dropped, by expansion or by conversion
      * @throws RestrictedFeature if the expanded document uses a feature that
      *     the restrictions forbid, including an `ExpandedDocument` that was
-     *     expanded under other options
+     *     expanded under other settings
      */
     public function toRdf(array | string | JsonSerializable | stdClass | ExpandedDocument $document): Dataset
     {
