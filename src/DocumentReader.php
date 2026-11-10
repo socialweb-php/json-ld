@@ -102,6 +102,9 @@ final class DocumentReader
      * @param array<mixed> | string | JsonSerializable | stdClass $document A
      *     JSON-encoded string, a decoded document, a document built by hand,
      *     or an object that serializes to one of them
+     * @param string $subject What the message of an `InvalidArgument` names
+     *     as holding the value: "A document", or the name of the parameter
+     *     the caller received the value in
      *
      * @return list<mixed> | stdClass | string | int | float | bool | null
      *
@@ -120,6 +123,7 @@ final class DocumentReader
      */
     public function read(
         array | string | JsonSerializable | stdClass $document,
+        string $subject = 'A document',
     ): array | stdClass | string | int | float | bool | null {
         if ($document instanceof JsonSerializable) {
             /** @var mixed $document */
@@ -129,7 +133,7 @@ final class DocumentReader
         if (is_string($document)) {
             $document = $this->decode($document);
         } else {
-            $this->checkTypes($document);
+            $this->checkTypes($document, $subject);
         }
 
         $this->values = 0;
@@ -156,10 +160,10 @@ final class DocumentReader
      * beyond them may or may not be; `walk()` refuses a document that goes
      * beyond either limit.
      *
-     * @throws InvalidArgument naming the type of the first value found whose
-     *     PHP type is not a JSON type
+     * @throws InvalidArgument naming the subject and the type of the first
+     *     value found whose PHP type is not a JSON type
      */
-    private function checkTypes(mixed $document): void
+    private function checkTypes(mixed $document, string $subject): void
     {
         $pending = [[$document, 1]];
         $visited = 0;
@@ -194,7 +198,7 @@ final class DocumentReader
                 }
             } elseif ($current !== null && !is_scalar($current)) {
                 throw new InvalidArgument(
-                    sprintf('A document may hold only JSON values; %s given', get_debug_type($current)),
+                    sprintf('%s may hold only JSON values; %s given', $subject, get_debug_type($current)),
                 );
             }
         }

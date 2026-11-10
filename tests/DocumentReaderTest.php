@@ -210,6 +210,14 @@ final class DocumentReaderTest extends TestCase
         ];
     }
 
+    public function testNamesTheSubjectItIsGivenWhenAValueIsNotAJsonType(): void
+    {
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('expandContext may hold only JSON values; DateTimeImmutable given');
+
+        (new DocumentReader(new Settings()))->read(['a' => new DateTimeImmutable()], 'expandContext');
+    }
+
     public function testRejectsAResource(): void
     {
         $resource = fopen('php://memory', 'r');

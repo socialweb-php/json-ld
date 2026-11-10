@@ -183,7 +183,7 @@ final class Processor
         $this->reader = new DocumentReader($this->settings);
 
         if ($expandContext !== null && !is_string($expandContext)) {
-            $expandContext = $this->reader->read($expandContext);
+            $expandContext = $this->reader->read($expandContext, 'expandContext');
 
             if ($expandContext instanceof stdClass && property_exists($expandContext, '@context')) {
                 $expandContext = $expandContext->{'@context'};

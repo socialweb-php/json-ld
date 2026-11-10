@@ -675,7 +675,7 @@ final class ProcessorTest extends TestCase
         string $type,
     ): void {
         $this->expectException(InvalidArgument::class);
-        $this->expectExceptionMessageIsOrContains(sprintf('A document may hold only JSON values; %s given', $type));
+        $this->expectExceptionMessageIsOrContains(sprintf('expandContext may hold only JSON values; %s given', $type));
 
         new Processor(expandContext: $expandContext);
     }
