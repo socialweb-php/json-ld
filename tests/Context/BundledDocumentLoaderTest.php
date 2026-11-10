@@ -9,7 +9,6 @@ use SocialWeb\JsonLd\Context\BundledDocumentLoader;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
-use SocialWeb\JsonLd\Exception\MalformedJson;
 use SocialWeb\JsonLd\Rdf\JsonCanonicalizer;
 use SocialWeb\Test\JsonLd\TestCase;
 use stdClass;
@@ -151,7 +150,9 @@ final class BundledDocumentLoaderTest extends TestCase
 
     public function testWithRejectsMalformedJson(): void
     {
-        $this->expectException(MalformedJson::class);
+        $this->expectExceptionObject(
+            new JsonLdError(JsonLdErrorCode::LoadingDocumentFailed, 'the text is not valid JSON (Syntax error)'),
+        );
 
         (new BundledDocumentLoader())->with(self::URL, '{"@context": ');
     }

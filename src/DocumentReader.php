@@ -26,18 +26,22 @@ declare(strict_types=1);
 namespace SocialWeb\JsonLd;
 
 use JsonException;
+use JsonSerializable;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
+use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
-use SocialWeb\JsonLd\Exception\MalformedJson;
+use SplObjectStorage;
 use stdClass;
 
 use function array_is_list;
+use function array_pop;
 use function get_debug_type;
 use function get_object_vars;
 use function is_array;
 use function is_finite;
 use function is_float;
-use function is_int;
+use function is_scalar;
 use function is_string;
 use function json_decode;
 use function preg_match;
@@ -55,9 +59,16 @@ use const JSON_THROW_ON_ERROR;
  * scalars. This form distinguishes an empty object from an empty array, which
  * the JSON-LD algorithms need. Associative arrays are accepted under one rule:
  * a PHP array that is a list, including an empty array, is treated as a JSON
- * array, and any other PHP array is a JSON object. The reader always builds a
- * new tree, so the caller's document is never shared with or changed by
- * the processor.
+ * array, and any other PHP array is a JSON object. An object is a JSON object
+ * only when its class is `stdClass` itself, not a subclass. The reader always
+ * builds a new tree, so the caller's document is never shared with or changed
+ * by the processor.
+ *
+ * A value of a PHP type that is not a JSON type, such as an object of another
+ * class, a closure, or a resource, is the caller's mistake and is refused as
+ * `InvalidArgument` before anything is read. A value of a JSON type whose
+ * content JSON text cannot express is a malformed document and is refused as
+ * `JsonLdError` with the code `loading document failed`.
  *
  * @internal
  */
@@ -78,30 +89,96 @@ final class DocumentReader
      * Returns the document in the internal form
      *
      * A string is decoded as JSON. An array or `stdClass` tree is taken as an
-     * already-decoded document. Reading counts every value and measures the
-     * nesting depth, rejecting a non-finite number or a string that is not
+     * already-decoded document. A `JsonSerializable` is read as what its
+     * `jsonSerialize()` returns: a string as JSON text, and anything else as
+     * an already-decoded document. Reading counts every value and measures
+     * the nesting depth, rejecting a non-finite number or a string that is not
      * valid UTF-8, which JSON cannot represent.
      *
-     * @param string | array<mixed> | object $document A JSON-encoded string, a
-     *     decoded document, or a document built by hand
+     * @param array<mixed> | string | JsonSerializable | stdClass $document A
+     *     JSON-encoded string, a decoded document, a document built by hand,
+     *     or an object that serializes to one of them
      *
-     * @return list<mixed> | object | string | int | float | bool | null
+     * @return list<mixed> | stdClass | string | int | float | bool | null
      *
-     * @throws MalformedJson if the string is not a valid JSON-encoded string,
-     *     or if a value cannot be represented in JSON, or if a property name
-     *     starts with a NUL byte or is not valid UTF-8
+     * @throws InvalidArgument if a value at any depth within the depth limit
+     *     has a PHP type that is not a JSON type: an object of a class other
+     *     than `stdClass`, a `stdClass` subclass among them, a closure, or a
+     *     resource. This includes a `JsonSerializable` inside the document,
+     *     or one that another's `jsonSerialize()` returns. It is raised
+     *     before anything is read.
+     * @throws JsonLdError with the code `loading document failed` if the
+     *     string is not valid JSON, or if a number is not finite, or if a
+     *     string or a property name is not valid UTF-8, or if a property name
+     *     starts with a NUL byte
      * @throws LimitExceeded if the document exceeds a limit
-     * @throws InvalidArgument if the object is not a `stdClass`
      */
-    public function read(string | array | object $document): array | object | string | int | float | bool | null
-    {
+    public function read(
+        array | string | JsonSerializable | stdClass $document,
+    ): array | stdClass | string | int | float | bool | null {
+        if ($document instanceof JsonSerializable) {
+            /** @var mixed $document */
+            $document = $document->jsonSerialize();
+        }
+
         if (is_string($document)) {
             $document = $this->decode($document);
+        } else {
+            $this->checkTypes($document);
         }
 
         $this->values = 0;
 
         return $this->walk($document, 0);
+    }
+
+    /**
+     * Checks that every value in a decoded document has a PHP type JSON can
+     * hold, before any of it is read, so that a caller's mistake is reported
+     * as one and not as a fault of the document
+     *
+     * The JSON types are `null`, booleans, integers, floats, strings, PHP
+     * arrays, and objects whose class is `stdClass` itself. Nesting deeper
+     * than `maxDepth` is not walked; `walk()` refuses it. An object is walked
+     * again only when it is met at a shallower depth than before, since that
+     * walk reaches everything a deeper one would, so an object that holds
+     * itself is walked once.
+     *
+     * @throws InvalidArgument naming the type of the first value found whose
+     *     PHP type is not a JSON type
+     */
+    private function checkTypes(mixed $document): void
+    {
+        $pending = [[$document, 1]];
+        /** @var SplObjectStorage<stdClass, int> $walked */
+        $walked = new SplObjectStorage();
+
+        while (($next = array_pop($pending)) !== null) {
+            [$current, $depth] = $next;
+
+            if (is_array($current) || ($current instanceof stdClass && $current::class === stdClass::class)) {
+                if ($depth > $this->limits->maxDepth) {
+                    continue;
+                }
+
+                if ($current instanceof stdClass) {
+                    if (isset($walked[$current]) && $walked[$current] <= $depth) {
+                        continue;
+                    }
+
+                    $walked[$current] = $depth;
+                }
+
+                /** @var mixed $entry */
+                foreach (is_array($current) ? $current : get_object_vars($current) as $entry) {
+                    $pending[] = [$entry, $depth + 1];
+                }
+            } elseif ($current !== null && !is_scalar($current)) {
+                throw new InvalidArgument(
+                    sprintf('A document may hold only JSON values; %s given', get_debug_type($current)),
+                );
+            }
+        }
     }
 
     private function decode(string $json): mixed
@@ -120,16 +197,22 @@ final class DocumentReader
                 throw new LimitExceeded('maxDepth', $this->limits->maxDepth, $exception);
             }
 
-            throw new MalformedJson($exception->getCode(), $exception->getMessage(), $exception);
+            throw new JsonLdError(
+                JsonLdErrorCode::LoadingDocumentFailed,
+                sprintf('the text is not valid JSON (%s)', $exception->getMessage()),
+                $exception,
+            );
         }
     }
 
     /**
+     * @param mixed $value A value of a JSON type, which `json_decode()`
+     *     returns and `checkTypes()` has checked for
      * @param int $depth The number of containers enclosing the value
      *
-     * @return list<mixed> | object | string | int | float | bool | null
+     * @return list<mixed> | stdClass | string | int | float | bool | null
      */
-    private function walk(mixed $value, int $depth): array | object | string | int | float | bool | null
+    private function walk(mixed $value, int $depth): array | stdClass | string | int | float | bool | null
     {
         if (++$this->values > $this->limits->maxValues) {
             throw new LimitExceeded('maxValues', $this->limits->maxValues);
@@ -147,27 +230,16 @@ final class DocumentReader
             return $this->walkObject($value, $depth + 1);
         }
 
-        if (is_string($value)) {
-            if (preg_match('//u', $value) !== 1) {
-                throw new MalformedJson(0, 'a string is not valid UTF-8');
-            }
-
-            return $value;
+        if (is_string($value) && preg_match('//u', $value) !== 1) {
+            throw new JsonLdError(JsonLdErrorCode::LoadingDocumentFailed, 'a string is not valid UTF-8');
         }
 
-        if (is_float($value)) {
-            if (!is_finite($value)) {
-                throw new MalformedJson(0, 'a number is not finite');
-            }
-
-            return $value;
+        if (is_float($value) && !is_finite($value)) {
+            throw new JsonLdError(JsonLdErrorCode::LoadingDocumentFailed, 'a number is not finite');
         }
 
-        if ($value === null || $value === true || $value === false || is_int($value)) {
-            return $value;
-        }
-
-        throw new InvalidArgument(sprintf('A document may hold only JSON values; %s given', get_debug_type($value)));
+        /** @var bool | float | int | string | null $value */
+        return $value;
     }
 
     /**
@@ -180,11 +252,17 @@ final class DocumentReader
 
         foreach ($entries as $key => $entry) {
             if (is_string($key) && str_starts_with($key, "\0")) {
-                throw new MalformedJson(0, 'a property name starts with a NUL byte');
+                throw new JsonLdError(
+                    JsonLdErrorCode::LoadingDocumentFailed,
+                    'a property name starts with a NUL byte',
+                );
             }
 
             if (is_string($key) && preg_match('//u', $key) !== 1) {
-                throw new MalformedJson(0, 'a property name is not valid UTF-8');
+                throw new JsonLdError(
+                    JsonLdErrorCode::LoadingDocumentFailed,
+                    'a property name is not valid UTF-8',
+                );
             }
 
             $object->{$key} = $this->walk($entry, $depth);

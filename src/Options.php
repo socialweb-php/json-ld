@@ -25,9 +25,11 @@ declare(strict_types=1);
 
 namespace SocialWeb\JsonLd;
 
+use JsonSerializable;
 use SocialWeb\JsonLd\Context\BundledDocumentLoader;
 use SocialWeb\JsonLd\Context\DocumentLoader;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
+use stdClass;
 
 use function sprintf;
 
@@ -44,8 +46,9 @@ final readonly class Options
     /**
      * @param string | null $base The base IRI for resolving relative
      *     references; `null`, the default, leaves them unresolved
-     * @param string | array<mixed> | object | null $expandContext A context
-     *     applied before the document's own; a string is a context URL
+     * @param array<mixed> | string | JsonSerializable | stdClass | null $expandContext
+     *     A context applied before the document's own. A string is a context
+     *     URL, not JSON text; any other value is read as a document is.
      * @param ProcessingMode $processingMode `JsonLd10` mode turns JSON-LD 1.1
      *     features into processing errors
      * @param RdfDirection | null $rdfDirection How base direction reaches RDF;
@@ -64,7 +67,7 @@ final readonly class Options
      */
     public function __construct(
         public ?string $base = null,
-        public string | array | object | null $expandContext = null,
+        public array | string | JsonSerializable | stdClass | null $expandContext = null,
         public ProcessingMode $processingMode = ProcessingMode::JsonLd11,
         public ?RdfDirection $rdfDirection = null,
         public bool $strict = true,

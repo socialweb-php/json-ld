@@ -5,18 +5,24 @@ declare(strict_types=1);
 namespace SocialWeb\Test\JsonLd;
 
 use DateTimeImmutable;
+use JsonException;
+use JsonSerializable;
 use PHPUnit\Framework\Attributes\DataProvider;
 use SocialWeb\JsonLd\DocumentReader;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
+use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
-use SocialWeb\JsonLd\Exception\MalformedJson;
+use SocialWeb\JsonLd\ExpandedDocument;
 use SocialWeb\JsonLd\Limits;
 use stdClass;
 
+use function fopen;
 use function json_decode;
 use function json_encode;
 use function str_repeat;
 
+use const INF;
 use const JSON_ERROR_INVALID_PROPERTY_NAME;
 use const JSON_ERROR_SYNTAX;
 use const JSON_ERROR_UTF8;
@@ -94,105 +100,216 @@ final class DocumentReaderTest extends TestCase
     }
 
     #[DataProvider('malformedStrings')]
-    public function testRejectsAStringThatIsNotJson(string $json, int $expectedError): void
+    public function testRejectsAStringThatIsNotJson(string $json, string $decoderMessage, int $decoderCode): void
     {
         try {
             (new DocumentReader(new Limits()))->read($json);
-            $this->fail('Expected MalformedJson');
-        } catch (MalformedJson $exception) {
-            $this->assertSame($expectedError, $exception->jsonError);
-            $this->assertStringStartsWith('Malformed JSON: ', $exception->getMessage());
+            $this->fail('Expected JsonLdError');
+        } catch (JsonLdError $exception) {
+            $this->assertSame(JsonLdErrorCode::LoadingDocumentFailed, $exception->reason);
+            $this->assertSame(
+                'Loading document failed: the text is not valid JSON (' . $decoderMessage . ')',
+                $exception->getMessage(),
+            );
+            $this->assertInstanceOf(JsonException::class, $exception->getPrevious());
+            $this->assertSame($decoderCode, $exception->getPrevious()->getCode());
         }
     }
 
     /**
-     * @return iterable<string, array{string, int}>
+     * @return iterable<string, array{string, string, int}>
      */
     public static function malformedStrings(): iterable
     {
-        yield 'empty' => ['', JSON_ERROR_SYNTAX];
-        yield 'truncated' => ['{"a": ', JSON_ERROR_SYNTAX];
-        yield 'trailing comma' => ['[1,]', JSON_ERROR_SYNTAX];
-        yield 'invalid UTF-8' => ["\"\xff\"", JSON_ERROR_UTF8];
-        yield 'NUL byte in a property name' => ['{"\\u0000x": 1}', JSON_ERROR_INVALID_PROPERTY_NAME];
+        yield 'empty' => ['', 'Syntax error', JSON_ERROR_SYNTAX];
+        yield 'truncated' => ['{"a": ', 'Syntax error', JSON_ERROR_SYNTAX];
+        yield 'trailing comma' => ['[1,]', 'Syntax error', JSON_ERROR_SYNTAX];
+        yield 'invalid UTF-8' => [
+            "\"\xff\"",
+            'Malformed UTF-8 characters, possibly incorrectly encoded',
+            JSON_ERROR_UTF8,
+        ];
+        yield 'NUL byte in a property name' => [
+            '{"\\u0000x": 1}',
+            'The decoded property name is invalid',
+            JSON_ERROR_INVALID_PROPERTY_NAME,
+        ];
     }
 
-    public function testRejectsANonFiniteNumberInAString(): void
-    {
+    /**
+     * @param array<mixed> | string | stdClass $document
+     */
+    #[DataProvider('valuesJsonTextCannotExpress')]
+    public function testRejectsAValueThatJsonTextCannotExpress(
+        array | string | stdClass $document,
+        string $detail,
+    ): void {
         try {
-            (new DocumentReader(new Limits()))->read('[1E400]');
-            $this->fail('Expected MalformedJson');
-        } catch (MalformedJson $exception) {
-            $this->assertSame(0, $exception->jsonError);
-            $this->assertSame('Malformed JSON: a number is not finite', $exception->getMessage());
+            (new DocumentReader(new Limits()))->read($document);
+            $this->fail('Expected JsonLdError');
+        } catch (JsonLdError $exception) {
+            $this->assertSame(JsonLdErrorCode::LoadingDocumentFailed, $exception->reason);
+            $this->assertSame('Loading document failed: ' . $detail, $exception->getMessage());
+            $this->assertNull($exception->getPrevious());
         }
     }
 
-    public function testRejectsANonFiniteNumberInADecodedDocument(): void
+    /**
+     * @return iterable<string, array{array<mixed> | string | stdClass, string}>
+     */
+    public static function valuesJsonTextCannotExpress(): iterable
     {
-        $this->expectException(MalformedJson::class);
-        $this->expectExceptionMessageIsOrContains('a number is not finite');
-
-        (new DocumentReader(new Limits()))->read(['x' => NAN]);
+        yield 'a number too large for a float, in JSON text' => ['[1E400]', 'a number is not finite'];
+        yield 'NAN in an array' => [['x' => NAN], 'a number is not finite'];
+        yield 'INF in an object' => [(object) ['x' => INF], 'a number is not finite'];
+        yield 'a string that is not UTF-8' => [['x' => "\xff"], 'a string is not valid UTF-8'];
+        yield 'a property name starting with a NUL byte, in an array' => [
+            ["\0x" => 1],
+            'a property name starts with a NUL byte',
+        ];
+        yield 'a property name starting with a NUL byte, in an object' => [
+            (object) ["\0x" => 1],
+            'a property name starts with a NUL byte',
+        ];
+        yield 'a property name that is not UTF-8' => [["\xff" => 1], 'a property name is not valid UTF-8'];
     }
 
-    public function testRejectsAStringThatIsNotUtf8InADecodedDocument(): void
-    {
-        try {
-            (new DocumentReader(new Limits()))->read(['x' => "\xff"]);
-            $this->fail('Expected MalformedJson');
-        } catch (MalformedJson $exception) {
-            $this->assertSame(0, $exception->jsonError);
-            $this->assertSame('Malformed JSON: a string is not valid UTF-8', $exception->getMessage());
-        }
-    }
-
-    public function testRejectsAPropertyNameStartingWithANulByteInADecodedDocument(): void
-    {
-        try {
-            (new DocumentReader(new Limits()))->read(["\0x" => 1]);
-            $this->fail('Expected MalformedJson');
-        } catch (MalformedJson $exception) {
-            $this->assertSame(0, $exception->jsonError);
-            $this->assertSame('Malformed JSON: a property name starts with a NUL byte', $exception->getMessage());
-        }
-    }
-
-    public function testRejectsAPropertyNameStartingWithANulByteInAnObjectTree(): void
-    {
-        try {
-            (new DocumentReader(new Limits()))->read((object) ["\0x" => 1]);
-            $this->fail('Expected MalformedJson');
-        } catch (MalformedJson $exception) {
-            $this->assertSame(0, $exception->jsonError);
-            $this->assertSame('Malformed JSON: a property name starts with a NUL byte', $exception->getMessage());
-        }
-    }
-
-    public function testRejectsAPropertyNameThatIsNotUtf8InADecodedDocument(): void
-    {
-        try {
-            (new DocumentReader(new Limits()))->read(["\xff" => 1]);
-            $this->fail('Expected MalformedJson');
-        } catch (MalformedJson $exception) {
-            $this->assertSame(0, $exception->jsonError);
-            $this->assertSame('Malformed JSON: a property name is not valid UTF-8', $exception->getMessage());
-        }
-    }
-
-    public function testRejectsAnObjectThatIsNotStdClass(): void
+    /**
+     * @param array<mixed> | stdClass $document
+     */
+    #[DataProvider('valuesThatAreNotJsonTypes')]
+    public function testRejectsAValueWhosePhpTypeIsNotAJsonType(array | stdClass $document, string $type): void
     {
         $this->expectException(InvalidArgument::class);
-        $this->expectExceptionMessageIsOrContains('A document may hold only JSON values; DateTimeImmutable given');
+        $this->expectExceptionMessageIsOrContains('A document may hold only JSON values; ' . $type . ' given');
 
-        (new DocumentReader(new Limits()))->read(['x' => new DateTimeImmutable()]);
+        (new DocumentReader(new Limits()))->read($document);
     }
 
-    public function testRejectsATopLevelObjectThatIsNotStdClass(): void
+    /**
+     * @return iterable<string, array{array<mixed> | stdClass, string}>
+     */
+    public static function valuesThatAreNotJsonTypes(): iterable
+    {
+        yield 'an object of another class' => [['x' => new DateTimeImmutable()], 'DateTimeImmutable'];
+        yield 'an object of another class, in an object' => [
+            (object) ['x' => [new DateTimeImmutable()]],
+            'DateTimeImmutable',
+        ];
+        yield 'a stdClass subclass at the top' => [new class extends stdClass {
+        }, 'stdClass@anonymous',
+        ];
+        yield 'a stdClass subclass inside' => [[new class extends stdClass {
+        },
+        ], 'stdClass@anonymous',
+        ];
+        yield 'a closure' => [['x' => static fn (): int => 1], 'Closure'];
+        yield 'a JsonSerializable inside the document' => [
+            ['x' => new ExpandedDocument([])],
+            ExpandedDocument::class,
+        ];
+    }
+
+    public function testRejectsAResource(): void
+    {
+        $resource = fopen('php://memory', 'r');
+
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('A document may hold only JSON values; resource (stream) given');
+
+        (new DocumentReader(new Limits()))->read([$resource]);
+    }
+
+    public function testReportsAValueThatIsNotAJsonTypeBeforeAnythingElse(): void
+    {
+        $reader = new DocumentReader(new Limits(maxValues: 1));
+
+        try {
+            $reader->read(['a' => NAN, 'b' => "\xff", 'c' => new DateTimeImmutable()]);
+            $this->fail('Expected InvalidArgument');
+        } catch (InvalidArgument $exception) {
+            $this->assertSame(
+                'A document may hold only JSON values; DateTimeImmutable given',
+                $exception->getMessage(),
+            );
+        }
+    }
+
+    public function testDoesNotLookForTypesDeeperThanMaxDepth(): void
+    {
+        $this->expectException(LimitExceeded::class);
+        $this->expectExceptionMessageIsOrContains('The maxDepth limit of 1 was exceeded');
+
+        (new DocumentReader(new Limits(maxDepth: 1)))->read([[new DateTimeImmutable()]]);
+    }
+
+    public function testLooksForTypesInTheDeepestContainerMaxDepthAllows(): void
     {
         $this->expectException(InvalidArgument::class);
 
-        (new DocumentReader(new Limits()))->read(new DateTimeImmutable());
+        (new DocumentReader(new Limits(maxDepth: 2)))->read([[new DateTimeImmutable()]]);
+    }
+
+    public function testAnObjectThatHoldsItselfIsRefusedAtTheDepthLimit(): void
+    {
+        $document = new stdClass();
+        $document->self = $document;
+
+        $this->expectException(LimitExceeded::class);
+        $this->expectExceptionMessageIsOrContains('The maxDepth limit of 3 was exceeded');
+
+        (new DocumentReader(new Limits(maxDepth: 3)))->read($document);
+    }
+
+    public function testLooksAgainInsideAnObjectMetAtAShallowerDepth(): void
+    {
+        // The shared object is met at depth 3 first, where the array it holds
+        // is too deep to be walked, and then at depth 2, where it is not.
+        $shared = (object) ['x' => [new DateTimeImmutable()]];
+
+        $this->expectException(InvalidArgument::class);
+
+        (new DocumentReader(new Limits(maxDepth: 3)))->read(['a' => $shared, 'b' => ['c' => $shared]]);
+    }
+
+    public function testKeepsLookingAfterAnObjectItHasAlreadyWalked(): void
+    {
+        // The list is walked from its end: the shared object, then the same
+        // object one level deeper, which is not walked again, and then the
+        // entry that holds a value JSON has no type for.
+        $shared = (object) ['x' => 1];
+
+        $this->expectException(InvalidArgument::class);
+
+        (new DocumentReader(new Limits()))->read([['x' => new DateTimeImmutable()], ['c' => $shared], $shared]);
+    }
+
+    public function testReadsAJsonSerializableAsWhatItSerializesTo(): void
+    {
+        $reader = new DocumentReader(new Limits());
+
+        $this->assertEquals((object) ['a' => [1]], $reader->read(self::serializable(['a' => [1]])));
+        $this->assertEquals((object) ['a' => 1], $reader->read(self::serializable((object) ['a' => 1])));
+        $this->assertEquals((object) ['a' => 1], $reader->read(self::serializable('{"a": 1}')));
+        $this->assertSame(42, $reader->read(self::serializable(42)));
+        $this->assertNull($reader->read(self::serializable(null)));
+        $this->assertEquals([new stdClass()], $reader->read(new ExpandedDocument([new stdClass()])));
+    }
+
+    public function testRejectsAJsonSerializableThatSerializesToAnother(): void
+    {
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('A document may hold only JSON values; JsonSerializable@anonymous');
+
+        (new DocumentReader(new Limits()))->read(self::serializable(self::serializable([])));
+    }
+
+    public function testRejectsAJsonSerializableThatSerializesToMalformedJson(): void
+    {
+        $this->expectException(JsonLdError::class);
+        $this->expectExceptionMessageIsOrContains('Loading document failed: the text is not valid JSON (Syntax error)');
+
+        (new DocumentReader(new Limits()))->read(self::serializable('{'));
     }
 
     public function testATopLevelObjectIsDepthOne(): void
@@ -305,5 +422,19 @@ final class DocumentReaderTest extends TestCase
         $reader = new DocumentReader(new Limits(maxDepth: PHP_INT_MAX, maxValues: PHP_INT_MAX));
 
         $this->assertSame([[[[1]]]], $reader->read('[[[[1]]]]'));
+    }
+
+    private static function serializable(mixed $value): JsonSerializable
+    {
+        return new class ($value) implements JsonSerializable {
+            public function __construct(private readonly mixed $value)
+            {
+            }
+
+            public function jsonSerialize(): mixed
+            {
+                return $this->value;
+            }
+        };
     }
 }

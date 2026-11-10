@@ -25,6 +25,9 @@ declare(strict_types=1);
 
 namespace SocialWeb\JsonLd\Context;
 
+use JsonSerializable;
+use stdClass;
+
 /**
  * A context document as a loader returns it
  */
@@ -33,12 +36,16 @@ final readonly class LoadedDocument
     /**
      * @param string $documentUrl The URL the document counts as loaded from,
      *     which is the base for relative references inside it
-     * @param array<mixed> | object $document The decoded document: a
-     *     `stdClass` tree as `json_decode()` produces by default, or an
-     *     associative array, in which a list is a JSON array and any other
-     *     array is a JSON object
+     * @param array<mixed> | string | JsonSerializable | stdClass $document The
+     *     document: a JSON-encoded string; a `stdClass` tree as
+     *     `json_decode()` produces by default; an associative array, in which
+     *     a list is a JSON array and any other array is a JSON object; or a
+     *     `JsonSerializable`, which is read as what its `jsonSerialize()`
+     *     returns
      */
-    public function __construct(public string $documentUrl, public array | object $document)
-    {
+    public function __construct(
+        public string $documentUrl,
+        public array | string | JsonSerializable | stdClass $document,
+    ) {
     }
 }

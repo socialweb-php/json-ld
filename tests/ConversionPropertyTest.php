@@ -9,9 +9,9 @@ use SocialWeb\Rdf\Dataset;
 use SocialWeb\Test\JsonLd\W3c\W3cEntry;
 use SocialWeb\Test\JsonLd\W3c\W3cManifest;
 use SocialWeb\Test\JsonLd\W3c\W3cProcessor;
+use stdClass;
 
 use function is_array;
-use function is_object;
 use function json_decode;
 use function preg_match;
 
@@ -48,7 +48,7 @@ final class ConversionPropertyTest extends TestCase
         $processor = W3cProcessor::build($entry, strict: false);
         $expected = self::nquads($processor->toRdf($json));
 
-        if (is_array($asObjects) || is_object($asObjects)) {
+        if (is_array($asObjects) || $asObjects instanceof stdClass) {
             $this->assertSame($expected, self::nquads($processor->toRdf($asObjects)));
         }
 

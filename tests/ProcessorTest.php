@@ -13,7 +13,6 @@ use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
-use SocialWeb\JsonLd\Exception\MalformedJson;
 use SocialWeb\JsonLd\Exception\RestrictedFeature;
 use SocialWeb\JsonLd\ExpandedDocument;
 use SocialWeb\JsonLd\Limits;
@@ -23,6 +22,7 @@ use SocialWeb\JsonLd\Processor;
 use SocialWeb\JsonLd\RdfDirection;
 use SocialWeb\JsonLd\Restrictions;
 use SocialWeb\Rdf\Dataset;
+use stdClass;
 
 use function implode;
 use function json_decode;
@@ -318,10 +318,10 @@ final class ProcessorTest extends TestCase
     }
 
     /**
-     * @param string | array<mixed> | object $expandContext
+     * @param array<mixed> | string | stdClass $expandContext
      */
     #[DataProvider('expandContexts')]
-    public function testAppliesTheExpandContextBeforeTheDocumentsOwn(string | array | object $expandContext): void
+    public function testAppliesTheExpandContextBeforeTheDocumentsOwn(array | string | stdClass $expandContext): void
     {
         $loader = (new BundledDocumentLoader())->with(
             'https://example.com/contexts/v1',
@@ -395,7 +395,9 @@ final class ProcessorTest extends TestCase
 
     public function testRejectsMalformedJson(): void
     {
-        $this->expectException(MalformedJson::class);
+        $this->expectExceptionObject(
+            new JsonLdError(JsonLdErrorCode::LoadingDocumentFailed, 'the text is not valid JSON (Syntax error)'),
+        );
 
         (new Processor())->expand('{"ex:p": ');
     }

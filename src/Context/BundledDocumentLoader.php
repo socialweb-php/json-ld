@@ -25,15 +25,15 @@ declare(strict_types=1);
 
 namespace SocialWeb\JsonLd\Context;
 
+use JsonSerializable;
 use SocialWeb\JsonLd\DocumentReader;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
-use SocialWeb\JsonLd\Exception\MalformedJson;
 use SocialWeb\JsonLd\Limits;
+use stdClass;
 
 use function is_array;
-use function is_object;
 use function sprintf;
 
 use const PHP_INT_MAX;
@@ -75,7 +75,7 @@ final class BundledDocumentLoader implements DocumentLoader
     /**
      * Documents the caller added, by URL
      *
-     * @var array<string, array<mixed> | object>
+     * @var array<string, list<mixed> | stdClass>
      */
     private array $added = [];
 
@@ -94,18 +94,23 @@ final class BundledDocumentLoader implements DocumentLoader
      * context vouches for it.
      *
      * @param string $url The URL exactly as documents will reference it
-     * @param string | array<mixed> | object $document A JSON-encoded string, a
-     *     `stdClass` tree, or an associative array, in which a list is a JSON
-     *     array and any other array is a JSON object
+     * @param array<mixed> | string | JsonSerializable | stdClass $document A
+     *     JSON-encoded string; a `stdClass` tree; an associative array, in
+     *     which a list is a JSON array and any other array is a JSON object;
+     *     or a `JsonSerializable`, which is read as what its
+     *     `jsonSerialize()` returns
      *
-     * @throws MalformedJson if the string is not a valid JSON-encoded string
-     * @throws InvalidArgument if the document is not a JSON object or array
+     * @throws JsonLdError with the code `loading document failed` if the
+     *     string is not valid JSON, or the document holds a value that JSON
+     *     text cannot express
+     * @throws InvalidArgument if the document holds a value whose PHP type is
+     *     not a JSON type, or is not a JSON object or array
      */
-    public function with(string $url, string | array | object $document): self
+    public function with(string $url, array | string | JsonSerializable | stdClass $document): self
     {
         $read = (new DocumentReader(new Limits(PHP_INT_MAX, PHP_INT_MAX)))->read($document);
 
-        if (!is_array($read) && !is_object($read)) {
+        if (!is_array($read) && !$read instanceof stdClass) {
             throw new InvalidArgument(
                 sprintf('The document for "%s" must be a JSON object or a JSON array', $url),
             );

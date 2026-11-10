@@ -10,10 +10,10 @@ use SocialWeb\JsonLd\Processor;
 use SocialWeb\Test\JsonLd\W3c\W3cEntry;
 use SocialWeb\Test\JsonLd\W3c\W3cManifest;
 use SocialWeb\Test\JsonLd\W3c\W3cProcessor;
+use stdClass;
 
 use function in_array;
 use function is_array;
-use function is_object;
 use function json_decode;
 use function preg_match;
 
@@ -53,7 +53,7 @@ final class ExpansionPropertyTest extends TestCase
         $processor = W3cProcessor::build($entry, strict: false);
         $expected = $processor->expand($json)->toJson();
 
-        if (is_array($asObjects) || is_object($asObjects)) {
+        if (is_array($asObjects) || $asObjects instanceof stdClass) {
             $this->assertSame($expected, $processor->expand($asObjects)->toJson());
         }
 

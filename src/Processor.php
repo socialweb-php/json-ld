@@ -25,13 +25,13 @@ declare(strict_types=1);
 
 namespace SocialWeb\JsonLd;
 
+use JsonSerializable;
 use SocialWeb\JsonLd\Context\ActiveContext;
 use SocialWeb\JsonLd\Context\ContextProcessor;
 use SocialWeb\JsonLd\Exception\DataLoss;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
-use SocialWeb\JsonLd\Exception\MalformedJson;
 use SocialWeb\JsonLd\Exception\RestrictedFeature;
 use SocialWeb\JsonLd\Expansion\Expander;
 use SocialWeb\JsonLd\Expansion\RestrictionChecker;
@@ -79,24 +79,27 @@ final class Processor
      *
      * @link https://www.w3.org/TR/json-ld11-api/#dom-jsonldprocessor-expand JSON-LD 1.1 API, expand()
      *
-     * @param string | array<mixed> | object $document A JSON-encoded string;
-     *     or a decoded document, as a `stdClass` tree or as nested arrays. In
-     *     nested arrays, a PHP array that is a list, including an empty array,
-     *     is a JSON array, and any other PHP array is a JSON object.
+     * @param array<mixed> | string | JsonSerializable | stdClass $document A
+     *     JSON-encoded string; a decoded document, as a `stdClass` tree or as
+     *     nested arrays; or a `JsonSerializable`, which is read as what its
+     *     `jsonSerialize()` returns. In nested arrays, a PHP array that is a
+     *     list, including an empty array, is a JSON array, and any other PHP
+     *     array is a JSON object.
      *
-     * @throws MalformedJson if the string is not valid JSON, or the document
-     *     holds a value that JSON cannot represent
-     * @throws InvalidArgument if the document holds something that is not a
-     *     JSON value
+     * @throws InvalidArgument if the document holds a value whose PHP type is
+     *     not a JSON type, such as an object of a class other than `stdClass`
      * @throws LimitExceeded if the document exceeds a limit, or its contexts
      *     would take more operations to process than the limit allows
-     * @throws JsonLdError if the document breaks a rule of the specification
+     * @throws JsonLdError if the document breaks a rule of the specification,
+     *     or, with the code `loading document failed`, if the string is not
+     *     valid JSON or the document holds a value that JSON text cannot
+     *     express, such as a number that is not finite
      * @throws DataLoss in strict mode, if part of the document would be
      *     dropped
      * @throws RestrictedFeature if the expanded document uses a feature that
      *     the restrictions forbid
      */
-    public function expand(string | array | object $document): ExpandedDocument
+    public function expand(array | string | JsonSerializable | stdClass $document): ExpandedDocument
     {
         return new ExpandedDocument($this->expandToNodes($document));
     }
@@ -116,29 +119,28 @@ final class Processor
      *
      * @link https://www.w3.org/TR/json-ld11-api/#dom-jsonldprocessor-tordf JSON-LD 1.1 API, toRdf()
      *
-     * @param string | array<mixed> | object $document A JSON-encoded string;
-     *     a decoded document, as a `stdClass` tree or as nested arrays, under
-     *     the same rule as for `expand()`; or an `ExpandedDocument`, which is
-     *     not expanded again
+     * @param array<mixed> | string | JsonSerializable | stdClass | ExpandedDocument $document
+     *     A document as `expand()` takes it, or an `ExpandedDocument`, which
+     *     is not expanded again
      *
-     * @throws MalformedJson if the string is not valid JSON, or the document
-     *     holds a value that JSON cannot represent
-     * @throws InvalidArgument if the document holds something that is not a
-     *     JSON value, or an `ExpandedDocument` built by hand is not in
+     * @throws InvalidArgument if the document holds a value whose PHP type is
+     *     not a JSON type, or an `ExpandedDocument` built by hand is not in
      *     expanded form
      * @throws LimitExceeded if a document that is not an `ExpandedDocument`
      *     exceeds a limit, or its contexts would take more operations to
      *     process than the limit allows
      * @throws JsonLdError if the document breaks a rule of the specification,
      *     among them `conflicting indexes`, which conversion raises when two
-     *     parts of the document give one node different `@index` values
+     *     parts of the document give one node different `@index` values; or,
+     *     with the code `loading document failed`, if the string is not valid
+     *     JSON or the document holds a value that JSON text cannot express
      * @throws DataLoss in strict mode, if part of the document would be
      *     dropped, by expansion or by conversion
      * @throws RestrictedFeature if the expanded document uses a feature that
      *     the restrictions forbid, including an `ExpandedDocument` that was
      *     expanded under other options
      */
-    public function toRdf(string | array | object $document): Dataset
+    public function toRdf(array | string | JsonSerializable | stdClass | ExpandedDocument $document): Dataset
     {
         if ($document instanceof ExpandedDocument) {
             $nodes = $document->nodes();
@@ -159,11 +161,11 @@ final class Processor
     /**
      * Expands a document and checks the restrictions, for both public methods
      *
-     * @param string | array<mixed> | object $document
+     * @param array<mixed> | string | JsonSerializable | stdClass $document
      *
      * @return list<mixed>
      */
-    private function expandToNodes(string | array | object $document): array
+    private function expandToNodes(array | string | JsonSerializable | stdClass $document): array
     {
         $this->contextProcessor->reset();
 
