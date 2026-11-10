@@ -16,7 +16,6 @@ use SocialWeb\JsonLd\Rdf\NodeMapGenerator;
 use SocialWeb\JsonLd\Rdf\RdfConverter;
 use SocialWeb\JsonLd\RdfDirection;
 use SocialWeb\Rdf\Dataset;
-use SocialWeb\Rdf\NQuads\Serializer;
 use SocialWeb\Test\JsonLd\TestCase;
 
 use function array_is_list;
@@ -312,6 +311,6 @@ final class RdfConverterTest extends TestCase
 
     private static function nquads(Dataset $dataset): string
     {
-        return (new Serializer())->serialize($dataset);
+        return $dataset->toNQuads();
     }
 }

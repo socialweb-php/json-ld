@@ -6,7 +6,6 @@ namespace SocialWeb\Test\JsonLd;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use SocialWeb\Rdf\Dataset;
-use SocialWeb\Rdf\NQuads\Serializer;
 use SocialWeb\Test\JsonLd\W3c\W3cEntry;
 use SocialWeb\Test\JsonLd\W3c\W3cManifest;
 use SocialWeb\Test\JsonLd\W3c\W3cProcessor;
@@ -70,6 +69,6 @@ final class ConversionPropertyTest extends TestCase
 
     private static function nquads(Dataset $dataset): string
     {
-        return (new Serializer())->serialize($dataset);
+        return $dataset->toNQuads();
     }
 }

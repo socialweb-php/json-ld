@@ -23,7 +23,6 @@ use SocialWeb\JsonLd\Processor;
 use SocialWeb\JsonLd\RdfDirection;
 use SocialWeb\JsonLd\Restrictions;
 use SocialWeb\Rdf\Dataset;
-use SocialWeb\Rdf\NQuads\Serializer;
 
 use function implode;
 use function json_decode;
@@ -265,7 +264,7 @@ final class ProcessorTest extends TestCase
 
     private static function nquads(Dataset $dataset): string
     {
-        return (new Serializer())->serialize($dataset);
+        return $dataset->toNQuads();
     }
 
     public function testResolvesRelativeReferencesAgainstTheBase(): void

@@ -16,7 +16,7 @@
     },
     "require": {
         "php": "^8.5",
-        "socialweb/rdf": "^0.1"
+        "socialweb/rdf": "^0.2"
     },
     "require-dev": {
         "captainhook/plugin-composer": "^5.3",

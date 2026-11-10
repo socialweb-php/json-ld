@@ -13,7 +13,6 @@ use SocialWeb\JsonLd\RdfDirection;
 use SocialWeb\Rdf\BlankNode;
 use SocialWeb\Rdf\DefaultGraph;
 use SocialWeb\Rdf\Iri;
-use SocialWeb\Rdf\NQuads\Serializer;
 use SocialWeb\Rdf\Quad;
 use SocialWeb\Test\JsonLd\TestCase;
 
@@ -172,8 +171,6 @@ final class ListToRdfTest extends TestCase
      */
     private static function nquads(array $triples): string
     {
-        $serializer = new Serializer();
-
-        return implode('', array_map($serializer->serializeQuad(...), $triples));
+        return implode('', array_map(static fn (Quad $quad): string => $quad->toNQuads(), $triples));
     }
 }

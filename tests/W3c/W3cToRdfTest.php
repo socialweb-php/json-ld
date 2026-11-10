@@ -11,8 +11,6 @@ use SocialWeb\JsonLd\Exception\DataLoss;
 use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\Rdf\Canonicalization\Canonicalizer;
 use SocialWeb\Rdf\Dataset;
-use SocialWeb\Rdf\NQuads\Parser;
-use SocialWeb\Rdf\NQuads\Serializer;
 use SocialWeb\Test\JsonLd\TestCase;
 
 use function array_key_exists;
@@ -196,9 +194,8 @@ final class W3cToRdfTest extends TestCase
     {
         $input = W3cManifest::read($entry->input);
 
-        $serializer = new Serializer();
-        $lenient = $serializer->serialize(W3cProcessor::build($entry, strict: false)->toRdf($input));
-        $strict = $serializer->serialize(W3cProcessor::build($entry, strict: true)->toRdf($input));
+        $lenient = W3cProcessor::build($entry, strict: false)->toRdf($input)->toNQuads();
+        $strict = W3cProcessor::build($entry, strict: true)->toRdf($input)->toNQuads();
 
         $this->assertNotSame('', $lenient);
         $this->assertSame($lenient, $strict);
@@ -253,7 +250,7 @@ final class W3cToRdfTest extends TestCase
 
     private static function expected(string $path): string
     {
-        return self::canonical((new Parser())->parse(W3cManifest::read($path)));
+        return self::canonical(Dataset::fromNQuads(W3cManifest::read($path)));
     }
 
     private static function canonical(Dataset $dataset): string
