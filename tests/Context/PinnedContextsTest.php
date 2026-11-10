@@ -57,19 +57,28 @@ class PinnedContextsTest extends TestCase
         $this->assertSame($names, $generated);
     }
 
-    public function testTheManifestAndTheNoticeCreditEverySource(): void
+    public function testTheLicenseBesideTheGeneratedFilesIsTheOneBesideTheContexts(): void
+    {
+        $license = (string) file_get_contents(self::RESOURCES . '/LICENSE');
+
+        $this->assertStringStartsWith('Software and Document license - 2023 version', $license);
+        $this->assertSame($license, (string) file_get_contents(self::BUNDLED . '/LICENSE'));
+    }
+
+    public function testTheManifestAndTheGeneratedFilesCreditEverySource(): void
     {
         $manifest = json_decode(
             (string) file_get_contents(self::RESOURCES . '/manifest.json'),
             true,
             flags: JSON_THROW_ON_ERROR,
         );
-        $notice = (string) file_get_contents(__DIR__ . '/../../NOTICE');
         $contexts = is_array($manifest) && is_array($manifest['contexts'] ?? null) ? $manifest['contexts'] : [];
 
         $this->assertCount(9, $contexts);
 
         foreach ($contexts as $context) {
+            $generated = (string) file_get_contents(self::BUNDLED . '/' . self::text($context, 'name') . '.php');
+
             $this->assertNotSame('', self::text($context, 'servedFrom'));
             $this->assertNotSame('', self::text($context, 'source', 'title'));
             $this->assertStringStartsWith('Copyright © ', self::text($context, 'source', 'copyright'));
@@ -79,8 +88,10 @@ class PinnedContextsTest extends TestCase
                 self::text($context, 'license', 'url'),
             );
 
-            $this->assertStringContainsString(self::text($context, 'source', 'url'), $notice);
-            $this->assertStringContainsString(self::text($context, 'license', 'url'), $notice);
+            $this->assertStringContainsString(self::text($context, 'source', 'title'), $generated);
+            $this->assertStringContainsString(self::text($context, 'source', 'url'), $generated);
+            $this->assertStringContainsString(self::text($context, 'license', 'name'), $generated);
+            $this->assertStringContainsString(self::text($context, 'license', 'url'), $generated);
         }
     }
 

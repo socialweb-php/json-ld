@@ -97,8 +97,9 @@ class ContextGeneratorTest extends TestCase
                  * https://example.com/spec.
                  * Copyright 2026 the Contributors to the Sample Vocabulary 1.0 Specification,
                  * published by the Example Group.
-                 * Example License, https://example.com/license.
-                 * See the NOTICE file for the terms.
+                 * The material is provided under the Example License,
+                 * https://example.com/license.
+                 * The LICENSE file beside this file holds the text of that license.
                 PHP,
             (string) file_get_contents($this->output . '/sample.php'),
         );
