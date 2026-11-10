@@ -37,7 +37,7 @@ use function sprintf;
 final class RestrictedFeature extends RuntimeException implements JsonLdException
 {
     /**
-     * @param string $restriction The name of the Restrictions option that
+     * @param string $restriction The name of the `Processor` setting that
      *     triggered this exception
      * @param string $detail The identifier of the node where the feature was
      *     found, or the top-level node count

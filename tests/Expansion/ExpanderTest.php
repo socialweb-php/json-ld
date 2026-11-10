@@ -13,10 +13,9 @@ use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\Expansion\Expander;
-use SocialWeb\JsonLd\Limits;
-use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\ProcessingMode;
 use SocialWeb\JsonLd\Rdf\JsonCanonicalizer;
+use SocialWeb\JsonLd\Settings;
 use SocialWeb\Test\JsonLd\TestCase;
 
 use function json_decode;
@@ -1282,8 +1281,8 @@ final class ExpanderTest extends TestCase
 
     private static function expandWithin(int $contextOperations, string $document): mixed
     {
-        $options = new Options(limits: new Limits(maxContextOperations: $contextOperations));
-        $expander = new Expander($options, new ContextProcessor($options));
+        $settings = new Settings(maxContextOperations: $contextOperations);
+        $expander = new Expander($settings, new ContextProcessor($settings));
 
         return $expander->expand(
             ActiveContext::initial(self::BASE),
@@ -1311,8 +1310,8 @@ final class ExpanderTest extends TestCase
         ProcessingMode $mode = ProcessingMode::JsonLd11,
         ?string $base = self::BASE,
     ): mixed {
-        $options = new Options(processingMode: $mode, strict: $strict);
-        $expander = new Expander($options, new ContextProcessor($options));
+        $settings = new Settings(processingMode: $mode, strict: $strict);
+        $expander = new Expander($settings, new ContextProcessor($settings));
 
         return $expander->expand(
             ActiveContext::initial($base),

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace SocialWeb\Test\JsonLd\W3c;
 
-use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\ProcessingMode;
 use SocialWeb\JsonLd\Processor;
 use SocialWeb\JsonLd\RdfDirection;
@@ -27,14 +26,14 @@ final class W3cProcessor
         $expandContext = $entry->option['expandContext'] ?? null;
         $rdfDirection = $entry->option['rdfDirection'] ?? null;
 
-        return new Processor(new Options(
+        return new Processor(
             base: is_string($base) ? $base : $entry->inputUrl,
             expandContext: is_string($expandContext) ? W3cManifest::BASE_IRI . $expandContext : null,
             processingMode: self::processingMode($entry),
             rdfDirection: is_string($rdfDirection) ? RdfDirection::from($rdfDirection) : null,
             strict: $strict,
             documentLoader: new FixtureDocumentLoader(),
-        ));
+        );
     }
 
     public static function processingMode(W3cEntry $entry): ProcessingMode

@@ -18,10 +18,9 @@ use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
-use SocialWeb\JsonLd\Limits;
-use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\ProcessingMode;
 use SocialWeb\JsonLd\Rdf\JsonCanonicalizer;
+use SocialWeb\JsonLd\Settings;
 use SocialWeb\Test\JsonLd\TestCase;
 use stdClass;
 
@@ -247,7 +246,7 @@ final class ContextProcessorTest extends TestCase
             }
         };
 
-        $processor = new ContextProcessor(new Options(documentLoader: $loader));
+        $processor = new ContextProcessor(new Settings(documentLoader: $loader));
         $processor->process(new ActiveContext(), ['https://example.org/c', 'https://example.org/c'], null);
         $processor->process(new ActiveContext(), 'https://example.org/c', null);
         $processor->process(new ActiveContext(), json_decode('{"@import": "https://example.org/c"}'), null);
@@ -282,7 +281,7 @@ final class ContextProcessorTest extends TestCase
         $deep = '{"@context": ' . $nested . '}';
         $loader = (new BundledDocumentLoader())->with('https://example.org/deep', $deep);
         $processor = new ContextProcessor(
-            new Options(limits: new Limits(maxDepth: 4, maxValues: 4), documentLoader: $loader),
+            new Settings(maxDepth: 4, maxValues: 4, documentLoader: $loader),
         );
 
         $result = $processor->process(new ActiveContext(), 'https://example.org/deep', null);
@@ -402,12 +401,12 @@ final class ContextProcessorTest extends TestCase
             ->with('https://example.org/2', '{"@context": ["https://example.org/3", {"two": "ex:2"}]}')
             ->with('https://example.org/3', '{"@context": {"three": "ex:3"}}');
 
-        $allowed = new ContextProcessor(new Options(limits: new Limits(maxDepth: 3), documentLoader: $loader));
+        $allowed = new ContextProcessor(new Settings(maxDepth: 3, documentLoader: $loader));
         $result = $allowed->process(new ActiveContext(), 'https://example.org/1', null);
 
         $this->assertSame(['three', 'two', 'one'], array_keys($result->termDefinitions));
 
-        $refused = new ContextProcessor(new Options(limits: new Limits(maxDepth: 2), documentLoader: $loader));
+        $refused = new ContextProcessor(new Settings(maxDepth: 2, documentLoader: $loader));
 
         try {
             $refused->process(new ActiveContext(), 'https://example.org/1', null);
@@ -431,7 +430,7 @@ final class ContextProcessorTest extends TestCase
         $loader = (new BundledDocumentLoader())
             ->with('https://example.org/1', '{"@context": {"one": "ex:1"}}')
             ->with('https://example.org/2', '{"@context": {"two": "ex:2"}}');
-        $processor = new ContextProcessor(new Options(limits: new Limits(maxDepth: 1), documentLoader: $loader));
+        $processor = new ContextProcessor(new Settings(maxDepth: 1, documentLoader: $loader));
 
         $result = $processor->process(new ActiveContext(), ['https://example.org/1', 'https://example.org/2'], null);
 
@@ -458,12 +457,12 @@ final class ContextProcessorTest extends TestCase
     {
         $context = json_decode('{"a": "b:a/", "b": "c:b/", "c": "https://example.com/"}', flags: JSON_THROW_ON_ERROR);
 
-        $allowed = new ContextProcessor(new Options(limits: new Limits(maxDepth: 3)));
+        $allowed = new ContextProcessor(new Settings(maxDepth: 3));
         $result = $allowed->process(new ActiveContext(), $context, null);
 
         $this->assertSame('https://example.com/b/a/', $result->termDefinition('a')?->iriMapping);
 
-        $refused = new ContextProcessor(new Options(limits: new Limits(maxDepth: 2)));
+        $refused = new ContextProcessor(new Settings(maxDepth: 2));
 
         try {
             $refused->process(new ActiveContext(), $context, null);
@@ -476,7 +475,7 @@ final class ContextProcessorTest extends TestCase
 
     public function testTermsSideBySideDoNotCountTowardTheDepth(): void
     {
-        $processor = new ContextProcessor(new Options(limits: new Limits(maxDepth: 2)));
+        $processor = new ContextProcessor(new Settings(maxDepth: 2));
         $context = json_decode(
             '{"a": "b:x", "b": "https://example.com/b/", "c": "b:c/", "d": "c:z"}',
             flags: JSON_THROW_ON_ERROR,
@@ -489,7 +488,7 @@ final class ContextProcessorTest extends TestCase
 
     public function testATermThatIsAlreadyDefinedDoesNotCountTowardTheDepth(): void
     {
-        $processor = new ContextProcessor(new Options(limits: new Limits(maxDepth: 1)));
+        $processor = new ContextProcessor(new Settings(maxDepth: 1));
         $context = json_decode('{"a": "https://example.com/a#", "b": "a:x"}', flags: JSON_THROW_ON_ERROR);
 
         $result = $processor->process(new ActiveContext(), $context, null);
@@ -503,7 +502,7 @@ final class ContextProcessorTest extends TestCase
             'https://example.org/chain',
             '{"@context": {"a": "b:a/", "b": "c:b/", "c": "https://example.com/"}}',
         );
-        $processor = new ContextProcessor(new Options(limits: new Limits(maxDepth: 2), documentLoader: $loader));
+        $processor = new ContextProcessor(new Settings(maxDepth: 2, documentLoader: $loader));
 
         $this->expectException(LimitExceeded::class);
         $this->expectExceptionMessageIsOrContains('The maxDepth limit of 2 was exceeded');
@@ -516,12 +515,12 @@ final class ContextProcessorTest extends TestCase
         // One operation for the map, and one for each of its three terms.
         $context = json_decode('{"a": "ex:a", "b": "ex:b", "c": "ex:c"}', flags: JSON_THROW_ON_ERROR);
 
-        $allowed = new ContextProcessor(new Options(limits: new Limits(maxContextOperations: 4)));
+        $allowed = new ContextProcessor(new Settings(maxContextOperations: 4));
         $result = $allowed->process(new ActiveContext(), $context, null);
 
         $this->assertSame(['a', 'b', 'c'], array_keys($result->termDefinitions));
 
-        $refused = new ContextProcessor(new Options(limits: new Limits(maxContextOperations: 3)));
+        $refused = new ContextProcessor(new Settings(maxContextOperations: 3));
 
         $this->expectExceptionObject(new LimitExceeded('maxContextOperations', 3));
 
@@ -538,7 +537,7 @@ final class ContextProcessorTest extends TestCase
         // the URL, which the cache serves, one for the empty map, and one for
         // the null.
         $allowed = new ContextProcessor(
-            new Options(limits: new Limits(maxContextOperations: 6), documentLoader: $loader),
+            new Settings(maxContextOperations: 6, documentLoader: $loader),
         );
         $active = new ActiveContext();
         $allowed->process($active, 'https://example.org/context', null);
@@ -547,7 +546,7 @@ final class ContextProcessorTest extends TestCase
         $this->assertSame([], $result->termDefinitions);
 
         $refused = new ContextProcessor(
-            new Options(limits: new Limits(maxContextOperations: 5), documentLoader: $loader),
+            new Settings(maxContextOperations: 5, documentLoader: $loader),
         );
         $active = new ActiveContext();
         $refused->process($active, 'https://example.org/context', null);
@@ -564,12 +563,12 @@ final class ContextProcessorTest extends TestCase
         // One operation for the map, and one for each of the two terms.
         $context = json_decode('{"a": "b:x", "b": "https://example.com/b/"}', flags: JSON_THROW_ON_ERROR);
 
-        $allowed = new ContextProcessor(new Options(limits: new Limits(maxContextOperations: 3)));
+        $allowed = new ContextProcessor(new Settings(maxContextOperations: 3));
         $result = $allowed->process(new ActiveContext(), $context, null);
 
         $this->assertSame(['b', 'a'], array_keys($result->termDefinitions));
 
-        $refused = new ContextProcessor(new Options(limits: new Limits(maxContextOperations: 2)));
+        $refused = new ContextProcessor(new Settings(maxContextOperations: 2));
 
         $this->expectExceptionObject(new LimitExceeded('maxContextOperations', 2));
 
@@ -583,12 +582,12 @@ final class ContextProcessorTest extends TestCase
         // the term that is kept.
         $context = json_decode('{' . $ignored . ', "kept": "ex:kept"}', flags: JSON_THROW_ON_ERROR);
 
-        $allowed = new ContextProcessor(new Options(strict: false, limits: new Limits(maxContextOperations: 3)));
+        $allowed = new ContextProcessor(new Settings(strict: false, maxContextOperations: 3));
         $result = $allowed->process(new ActiveContext(), $context, null);
 
         $this->assertSame(['kept'], array_keys($result->termDefinitions));
 
-        $refused = new ContextProcessor(new Options(strict: false, limits: new Limits(maxContextOperations: 2)));
+        $refused = new ContextProcessor(new Settings(strict: false, maxContextOperations: 2));
 
         $this->expectExceptionObject(new LimitExceeded('maxContextOperations', 2));
 
@@ -608,7 +607,7 @@ final class ContextProcessorTest extends TestCase
     public function testATermDefinedAsNullCostsOneContextOperation(): void
     {
         // One operation for the map, one for "a", and one for "b".
-        $processor = new ContextProcessor(new Options(limits: new Limits(maxContextOperations: 2)));
+        $processor = new ContextProcessor(new Settings(maxContextOperations: 2));
         $context = json_decode('{"a": null, "b": "ex:b"}', flags: JSON_THROW_ON_ERROR);
 
         $this->expectExceptionObject(new LimitExceeded('maxContextOperations', 2));
@@ -626,12 +625,12 @@ final class ContextProcessorTest extends TestCase
             flags: JSON_THROW_ON_ERROR,
         );
 
-        $allowed = new ContextProcessor(new Options(limits: new Limits(maxContextOperations: 5)));
+        $allowed = new ContextProcessor(new Settings(maxContextOperations: 5));
         $result = $allowed->process(new ActiveContext(), $context, null);
 
         $this->assertSame(['a'], array_keys($result->termDefinitions));
 
-        $refused = new ContextProcessor(new Options(limits: new Limits(maxContextOperations: 4)));
+        $refused = new ContextProcessor(new Settings(maxContextOperations: 4));
 
         try {
             $refused->process(new ActiveContext(), $context, null);
@@ -642,7 +641,7 @@ final class ContextProcessorTest extends TestCase
 
         // The limit is reached inside the scoped context. The error is the
         // limit's own, and not `invalid scoped context`.
-        $refusedInside = new ContextProcessor(new Options(limits: new Limits(maxContextOperations: 2)));
+        $refusedInside = new ContextProcessor(new Settings(maxContextOperations: 2));
 
         $this->expectExceptionObject(new LimitExceeded('maxContextOperations', 2));
 
@@ -657,14 +656,14 @@ final class ContextProcessorTest extends TestCase
             ->with('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b", "c": "ex:c"}}');
 
         $allowed = new ContextProcessor(
-            new Options(limits: new Limits(maxContextOperations: 5), documentLoader: $loader),
+            new Settings(maxContextOperations: 5, documentLoader: $loader),
         );
         $result = $allowed->process(new ActiveContext(), 'https://example.org/context', null);
 
         $this->assertSame(['a', 'b', 'c'], array_keys($result->termDefinitions));
 
         $refused = new ContextProcessor(
-            new Options(limits: new Limits(maxContextOperations: 4), documentLoader: $loader),
+            new Settings(maxContextOperations: 4, documentLoader: $loader),
         );
 
         $this->expectExceptionObject(new LimitExceeded('maxContextOperations', 4));
@@ -676,7 +675,7 @@ final class ContextProcessorTest extends TestCase
     {
         // Three operations for each call: one for the map and two for its
         // terms.
-        $processor = new ContextProcessor(new Options(limits: new Limits(maxContextOperations: 5)));
+        $processor = new ContextProcessor(new Settings(maxContextOperations: 5));
         $context = json_decode('{"a": "ex:a", "b": "ex:b"}', flags: JSON_THROW_ON_ERROR);
 
         $processor->process(new ActiveContext(), $context, null);
@@ -701,7 +700,7 @@ final class ContextProcessorTest extends TestCase
         // Five operations to define "items", and three when its scoped
         // context is first applied: one for the map and two for its terms. The
         // second application is served from the cache and costs none.
-        $processor = new ContextProcessor(new Options(limits: new Limits(maxContextOperations: 8)));
+        $processor = new ContextProcessor(new Settings(maxContextOperations: 8));
         $active = self::withScopedContext($processor);
         $definition = self::definitionOf($active, 'items');
 
@@ -716,7 +715,7 @@ final class ContextProcessorTest extends TestCase
     {
         // Five operations to define "items", and three for each of the two
         // active contexts the scoped context is applied to.
-        $processor = new ContextProcessor(new Options(limits: new Limits(maxContextOperations: 11)));
+        $processor = new ContextProcessor(new Settings(maxContextOperations: 11));
         $active = self::withScopedContext($processor);
         $definition = self::definitionOf($active, 'items');
 
@@ -810,7 +809,7 @@ final class ContextProcessorTest extends TestCase
     {
         // The result of the scoped context has three term definitions.
         $cache = new ProcessedContextCache(5);
-        $processor = new ContextProcessor(new Options(), $cache);
+        $processor = new ContextProcessor(new Settings(), $cache);
         $active = self::withScopedContext($processor);
         $definition = self::definitionOf($active, 'items');
         $other = $active->withDefaultLanguage('en');
@@ -827,7 +826,7 @@ final class ContextProcessorTest extends TestCase
     public function testTheResetEmptiesTheCache(): void
     {
         $cache = new ProcessedContextCache();
-        $processor = new ContextProcessor(new Options(), $cache);
+        $processor = new ContextProcessor(new Settings(), $cache);
         $active = self::withScopedContext($processor);
         $definition = self::definitionOf($active, 'items');
 
@@ -846,7 +845,7 @@ final class ContextProcessorTest extends TestCase
         $loader = (new BundledDocumentLoader())
             ->with('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b"}}');
         $processor = new ContextProcessor(
-            new Options(limits: new Limits(maxContextOperations: 15), documentLoader: $loader),
+            new Settings(maxContextOperations: 15, documentLoader: $loader),
         );
         $active = new ActiveContext();
         $context = ['https://example.org/context', json_decode('{"c": "ex:c"}', flags: JSON_THROW_ON_ERROR)];
@@ -947,7 +946,7 @@ final class ContextProcessorTest extends TestCase
             ->with('https://example.org/outer', '{"@context": ["inner", {"b": "ex:b"}]}')
             ->with('https://example.org/inner', '{"@context": {"a": "ex:a"}}');
         $cache = new ProcessedContextCache();
-        $processor = new ContextProcessor(new Options(documentLoader: $loader), $cache);
+        $processor = new ContextProcessor(new Settings(documentLoader: $loader), $cache);
 
         $result = $processor->process(new ActiveContext(), 'https://example.org/outer', null);
 
@@ -960,7 +959,7 @@ final class ContextProcessorTest extends TestCase
     {
         $loader = (new BundledDocumentLoader())->with('https://example.org/context', '{"@context": {"a": "ex:a"}}');
         $cache = new ProcessedContextCache();
-        $processor = new ContextProcessor(new Options(documentLoader: $loader), $cache);
+        $processor = new ContextProcessor(new Settings(documentLoader: $loader), $cache);
 
         $result = $processor->process(
             new ActiveContext(),
@@ -980,7 +979,7 @@ final class ContextProcessorTest extends TestCase
         $loader = (new BundledDocumentLoader())
             ->with('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b"}}');
         $cache = new ProcessedContextCache();
-        $processor = new ContextProcessor(new Options(documentLoader: $loader), $cache);
+        $processor = new ContextProcessor(new Settings(documentLoader: $loader), $cache);
         $active = $processor->process(
             new ActiveContext(),
             json_decode(
@@ -1012,7 +1011,7 @@ final class ContextProcessorTest extends TestCase
         $loader = (new BundledDocumentLoader())
             ->with('https://example.org/context', '{"@context": {"a": "ex:a", "b": "ex:b"}}');
         $processor = new ContextProcessor(
-            new Options(limits: new Limits(maxContextOperations: 11), documentLoader: $loader),
+            new Settings(maxContextOperations: 11, documentLoader: $loader),
         );
 
         // Six operations: one for the map, one for "items", and four while
@@ -1036,7 +1035,7 @@ final class ContextProcessorTest extends TestCase
         $this->assertSame($byTheDocument, $processor->processScoped($active, $definition));
 
         $refused = new ContextProcessor(
-            new Options(limits: new Limits(maxContextOperations: 10), documentLoader: $loader),
+            new Settings(maxContextOperations: 10, documentLoader: $loader),
         );
         $active = $refused->process(
             new ActiveContext(),
@@ -2254,7 +2253,11 @@ final class ContextProcessorTest extends TestCase
         ?DocumentLoader $loader = null,
     ): ContextProcessor {
         return new ContextProcessor(
-            new Options(processingMode: $mode, strict: $strict, documentLoader: $loader ?? new BundledDocumentLoader()),
+            new Settings(
+                processingMode: $mode,
+                strict: $strict,
+                documentLoader: $loader ?? new BundledDocumentLoader(),
+            ),
         );
     }
 

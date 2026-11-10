@@ -9,9 +9,8 @@ use SocialWeb\JsonLd\Context\ActiveContext;
 use SocialWeb\JsonLd\Context\BundledDocumentLoader;
 use SocialWeb\JsonLd\Context\ContextProcessor;
 use SocialWeb\JsonLd\DocumentReader;
-use SocialWeb\JsonLd\Limits;
-use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\Rdf\JsonCanonicalizer;
+use SocialWeb\JsonLd\Settings;
 use SocialWeb\Test\JsonLd\TestCase;
 
 use function array_map;
@@ -124,7 +123,7 @@ final class PinnedContextsTest extends TestCase
         $this->assertIsArray($generated);
         $this->assertSame(
             JsonCanonicalizer::canonicalize($expected),
-            JsonCanonicalizer::canonicalize((new DocumentReader(new Limits()))->read($generated)),
+            JsonCanonicalizer::canonicalize((new DocumentReader(new Settings()))->read($generated)),
         );
     }
 
@@ -161,7 +160,7 @@ final class PinnedContextsTest extends TestCase
         array $aliases,
         string $sha256,
     ): void {
-        $processor = new ContextProcessor(new Options());
+        $processor = new ContextProcessor(new Settings());
         $result = $processor->process(ActiveContext::initial(null), $url, null);
 
         $this->assertGreaterThan(0, count($result->termDefinitions));

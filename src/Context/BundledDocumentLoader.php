@@ -30,7 +30,7 @@ use SocialWeb\JsonLd\DocumentReader;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
-use SocialWeb\JsonLd\Limits;
+use SocialWeb\JsonLd\Settings;
 use stdClass;
 
 use function is_array;
@@ -108,7 +108,7 @@ final class BundledDocumentLoader implements DocumentLoader
      */
     public function with(string $url, array | string | JsonSerializable | stdClass $document): self
     {
-        $read = (new DocumentReader(new Limits(PHP_INT_MAX, PHP_INT_MAX)))->read($document);
+        $read = (new DocumentReader(new Settings(maxDepth: PHP_INT_MAX, maxValues: PHP_INT_MAX)))->read($document);
 
         if (!is_array($read) && !$read instanceof stdClass) {
             throw new InvalidArgument(

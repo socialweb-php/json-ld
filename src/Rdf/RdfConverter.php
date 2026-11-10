@@ -30,7 +30,7 @@ use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Grammar;
 use SocialWeb\JsonLd\Keywords;
-use SocialWeb\JsonLd\Options;
+use SocialWeb\JsonLd\Settings;
 use SocialWeb\Rdf\Dataset;
 use SocialWeb\Rdf\DefaultGraph;
 use SocialWeb\Rdf\GraphName;
@@ -67,10 +67,10 @@ final class RdfConverter
     private readonly Dataset $dataset;
     private readonly Iri $type;
 
-    private function __construct(BlankNodeIssuer $issuer, Options $options)
+    private function __construct(BlankNodeIssuer $issuer, Settings $settings)
     {
-        $this->strict = $options->strict;
-        $this->objects = new ObjectToRdf($issuer, $options->strict, $options->rdfDirection);
+        $this->strict = $settings->strict;
+        $this->objects = new ObjectToRdf($issuer, $settings->strict, $settings->rdfDirection);
         $this->dataset = new Dataset();
         $this->type = new Iri(Vocabulary::RDF_TYPE);
     }
@@ -88,9 +88,9 @@ final class RdfConverter
      * @throws InvalidArgument if the node map holds something that is not of
      *     expanded form, which only a document built by hand can bring
      */
-    public static function convert(NodeMap $nodeMap, BlankNodeIssuer $issuer, Options $options): Dataset
+    public static function convert(NodeMap $nodeMap, BlankNodeIssuer $issuer, Settings $settings): Dataset
     {
-        $converter = new self($issuer, $options);
+        $converter = new self($issuer, $settings);
 
         // Step 1.
         foreach ($nodeMap->graphNames() as $graphName) {

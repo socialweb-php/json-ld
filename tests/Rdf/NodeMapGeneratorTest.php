@@ -11,7 +11,6 @@ use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
-use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\Processor;
 use SocialWeb\JsonLd\Rdf\BlankNodeIssuer;
 use SocialWeb\JsonLd\Rdf\JsonCanonicalizer;
@@ -62,7 +61,7 @@ final class NodeMapGeneratorTest extends TestCase
 
     public function testGeneratesTheNodeMapOfAnExpandedDocument(): void
     {
-        $expanded = (new Processor(new Options(base: 'https://example.com/')))->expand(self::PEOPLE);
+        $expanded = (new Processor(base: 'https://example.com/'))->expand(self::PEOPLE);
 
         $this->assertNodeMap(
             self::PEOPLE_NODE_MAP,

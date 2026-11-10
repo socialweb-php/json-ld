@@ -8,7 +8,6 @@ use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\ParamProviders;
 use PhpBench\Attributes\Revs;
 use SocialWeb\JsonLd\ExpandedDocument;
-use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\Processor;
 
 use function json_encode;
@@ -29,7 +28,7 @@ final class ConversionBench
 
     public function __construct()
     {
-        $this->processor = new Processor(new Options(strict: false));
+        $this->processor = new Processor(strict: false);
     }
 
     /**

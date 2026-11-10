@@ -26,7 +26,7 @@ declare(strict_types=1);
 namespace SocialWeb\JsonLd\Expansion;
 
 use SocialWeb\JsonLd\Exception\RestrictedFeature;
-use SocialWeb\JsonLd\Restrictions;
+use SocialWeb\JsonLd\Settings;
 use stdClass;
 
 use function array_key_exists;
@@ -51,9 +51,9 @@ final class RestrictionChecker
      * @throws RestrictedFeature if the document uses a feature that the
      *     restrictions forbid
      */
-    public static function check(Restrictions $restrictions, array $nodes): void
+    public static function check(Settings $settings, array $nodes): void
     {
-        if ($restrictions->requireSingleTopLevelNode && count($nodes) !== 1) {
+        if ($settings->requireSingleTopLevelNode && count($nodes) !== 1) {
             throw new RestrictedFeature('requireSingleTopLevelNode', (string) count($nodes));
         }
 
@@ -63,15 +63,15 @@ final class RestrictionChecker
         // here.
         $forbidden = [];
 
-        if ($restrictions->forbidNamedGraphs) {
+        if ($settings->forbidNamedGraphs) {
             $forbidden['@graph'] = 'forbidNamedGraphs';
         }
 
-        if ($restrictions->forbidIncludedBlocks) {
+        if ($settings->forbidIncludedBlocks) {
             $forbidden['@included'] = 'forbidIncludedBlocks';
         }
 
-        if ($restrictions->forbidReverseProperties) {
+        if ($settings->forbidReverseProperties) {
             $forbidden['@reverse'] = 'forbidReverseProperties';
         }
 

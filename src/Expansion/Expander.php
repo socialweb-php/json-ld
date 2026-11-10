@@ -36,9 +36,9 @@ use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\Grammar;
 use SocialWeb\JsonLd\Keywords;
-use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\ProcessingMode;
 use SocialWeb\JsonLd\Rdf\JsonCanonicalizer;
+use SocialWeb\JsonLd\Settings;
 use stdClass;
 
 use function array_diff;
@@ -90,7 +90,7 @@ final class Expander
     private const array VALUE_OBJECT_KEYWORDS = ['@direction', '@index', '@language', '@type', '@value'];
 
     public function __construct(
-        private readonly Options $options,
+        private readonly Settings $settings,
         private readonly ContextProcessor $contextProcessor,
     ) {
     }
@@ -502,7 +502,7 @@ final class Expander
         bool $isJsonLiteral,
         ?string $baseUrl,
     ): void {
-        $isJsonLd10 = $this->options->processingMode === ProcessingMode::JsonLd10;
+        $isJsonLd10 = $this->settings->processingMode === ProcessingMode::JsonLd10;
 
         // Step 13.4.2.
         if (
@@ -1132,7 +1132,7 @@ final class Expander
      */
     private function drop(DataLossReason $reason, mixed $dropped): void
     {
-        if ($this->options->strict) {
+        if ($this->settings->strict) {
             throw new DataLoss($reason, is_string($dropped) ? $dropped : JsonCanonicalizer::canonicalize($dropped));
         }
     }

@@ -8,7 +8,6 @@ use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\ParamProviders;
 use PhpBench\Attributes\Revs;
 use RuntimeException;
-use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\Processor;
 use SocialWeb\Test\JsonLd\W3c\FixtureDocumentLoader;
 use SocialWeb\Test\JsonLd\W3c\W3cManifest;
@@ -200,11 +199,11 @@ final class BaselineBench
                 continue;
             }
 
-            $this->processor = new Processor(new Options(
+            $this->processor = new Processor(
                 base: $entry->inputUrl,
                 strict: false,
                 documentLoader: new FixtureDocumentLoader(),
-            ));
+            );
             $this->document = W3cManifest::read($entry->input);
 
             return;

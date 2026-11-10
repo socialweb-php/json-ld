@@ -35,9 +35,8 @@ use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\Grammar;
 use SocialWeb\JsonLd\IriResolver;
 use SocialWeb\JsonLd\Keywords;
-use SocialWeb\JsonLd\Limits;
-use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\ProcessingMode;
+use SocialWeb\JsonLd\Settings;
 use Throwable;
 use stdClass;
 
@@ -78,7 +77,7 @@ use const SORT_STRING;
  *
  * The processor counts the operations of context processing, one for each
  * item of a context and one for each term it takes up, and refuses to go past
- * `Limits::maxContextOperations`. It keeps the results of scoped contexts and
+ * `maxContextOperations`. It keeps the results of scoped contexts and
  * of contexts named by URL in a `ProcessedContextCache`. The count and the
  * cache go on from one call of `process()` to the next until `reset()` is
  * called.
@@ -143,7 +142,7 @@ final class ContextProcessor
     private int $contextOperations = 0;
 
     public function __construct(
-        private readonly Options $options,
+        private readonly Settings $settings,
         private readonly ProcessedContextCache $cache = new ProcessedContextCache(),
     ) {
     }
@@ -302,8 +301,8 @@ final class ContextProcessor
         // Step 5. Each item is one operation, and is refused if the limit is
         // reached.
         foreach ($localContext as $context) {
-            if ($this->contextOperations >= $this->options->limits->maxContextOperations) {
-                throw new LimitExceeded('maxContextOperations', $this->options->limits->maxContextOperations);
+            if ($this->contextOperations >= $this->settings->maxContextOperations) {
+                throw new LimitExceeded('maxContextOperations', $this->settings->maxContextOperations);
             }
 
             $this->contextOperations++;
@@ -398,7 +397,7 @@ final class ContextProcessor
         }
 
         // Step 5.2.3.
-        if (count($remoteContexts) >= $this->options->limits->maxDepth) {
+        if (count($remoteContexts) >= $this->settings->maxDepth) {
             throw new JsonLdError(JsonLdErrorCode::ContextOverflow, sprintf('"%s"', $context));
         }
 
@@ -444,7 +443,7 @@ final class ContextProcessor
         bool $overrideProtected,
         bool $validateScopedContext,
     ): ActiveContext {
-        $isJsonLd10 = $this->options->processingMode === ProcessingMode::JsonLd10;
+        $isJsonLd10 = $this->settings->processingMode === ProcessingMode::JsonLd10;
 
         // Step 5.5.
         if (array_key_exists('@version', $context)) {
@@ -615,7 +614,7 @@ final class ContextProcessor
 
         $isIri = Grammar::isAbsoluteIri($value) || str_starts_with($value, '_:');
 
-        if (!$isIri && $this->options->processingMode === ProcessingMode::JsonLd10) {
+        if (!$isIri && $this->settings->processingMode === ProcessingMode::JsonLd10) {
             throw new JsonLdError(JsonLdErrorCode::InvalidVocabMapping, sprintf('"%s"', $value));
         }
 
@@ -659,7 +658,7 @@ final class ContextProcessor
         bool $validateScopedContext,
         int $depth = 1,
     ): void {
-        $isJsonLd10 = $this->options->processingMode === ProcessingMode::JsonLd10;
+        $isJsonLd10 = $this->settings->processingMode === ProcessingMode::JsonLd10;
 
         // Step 1.
         if (array_key_exists($term, $defined)) {
@@ -671,14 +670,14 @@ final class ContextProcessor
         }
 
         // The term is one operation, and is refused if the limit is reached.
-        if ($this->contextOperations >= $this->options->limits->maxContextOperations) {
-            throw new LimitExceeded('maxContextOperations', $this->options->limits->maxContextOperations);
+        if ($this->contextOperations >= $this->settings->maxContextOperations) {
+            throw new LimitExceeded('maxContextOperations', $this->settings->maxContextOperations);
         }
 
         $this->contextOperations++;
 
-        if ($depth > $this->options->limits->maxDepth) {
-            throw new LimitExceeded('maxDepth', $this->options->limits->maxDepth);
+        if ($depth > $this->settings->maxDepth) {
+            throw new LimitExceeded('maxDepth', $this->settings->maxDepth);
         }
 
         // Step 2.
@@ -1061,7 +1060,7 @@ final class ContextProcessor
      */
     private function ignoreReservedTerm(string $term): void
     {
-        if ($this->options->strict) {
+        if ($this->settings->strict) {
             throw new DataLoss(DataLossReason::ReservedTerm, $term);
         }
     }
@@ -1236,8 +1235,8 @@ final class ContextProcessor
     {
         if (!array_key_exists($url, $this->dereferenced)) {
             try {
-                $loaded = $this->options->documentLoader->load($url);
-                $reader = new DocumentReader(new Limits(PHP_INT_MAX, PHP_INT_MAX));
+                $loaded = $this->settings->documentLoader->load($url);
+                $reader = new DocumentReader(new Settings(maxDepth: PHP_INT_MAX, maxValues: PHP_INT_MAX));
                 $this->dereferenced[$url] = [$loaded->documentUrl, $reader->read($loaded->document)];
             } catch (Throwable $throwable) {
                 if (

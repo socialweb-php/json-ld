@@ -27,7 +27,9 @@ namespace SocialWeb\JsonLd;
 
 use JsonSerializable;
 use SocialWeb\JsonLd\Context\ActiveContext;
+use SocialWeb\JsonLd\Context\BundledDocumentLoader;
 use SocialWeb\JsonLd\Context\ContextProcessor;
+use SocialWeb\JsonLd\Context\DocumentLoader;
 use SocialWeb\JsonLd\Exception\DataLoss;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
@@ -52,9 +54,16 @@ use function property_exists;
  * A JSON-LD 1.1 processor
  *
  * The processor never uses the network: a context that a document references
- * by URL comes from the document loader in the options. It is strict by
+ * by URL comes from the document loader it was given. It is strict by
  * default, so data that the JSON-LD algorithms would silently drop is an
- * error unless the options say otherwise.
+ * error unless `strict` is turned off.
+ *
+ * The settings are the JSON-LD 1.1 API options that apply to expansion and to
+ * conversion to RDF, plus this library's own strict flag, limits, and
+ * restrictions. Options that apply only to compaction, framing, conversion
+ * from RDF, or HTML are not offered.
+ *
+ * @link https://www.w3.org/TR/json-ld11-api/#the-jsonldprocessor-interface JSON-LD 1.1 API, The JsonLdProcessor Interface
  */
 final class Processor
 {
@@ -62,11 +71,99 @@ final class Processor
     private readonly ContextProcessor $contextProcessor;
     private readonly Expander $expander;
 
-    public function __construct(private readonly Options $options = new Options())
-    {
-        $this->reader = new DocumentReader($options->limits);
-        $this->contextProcessor = new ContextProcessor($options);
-        $this->expander = new Expander($options, $this->contextProcessor);
+    private readonly Settings $settings;
+
+    /**
+     * The three limits bound the work done for one document. To disable one,
+     * pass `PHP_INT_MAX`.
+     *
+     * The four restrictions each refuse one feature of an expanded document.
+     * An RDF dataset does not record the JSON tree it came from, and JSON-LD
+     * offers several ways to write the same dataset. A caller that binds
+     * something to the dataset, such as a hash, but then interprets the tree,
+     * needs the tree to be the only one that produces that dataset. The check
+     * runs on the expanded document, where aliases have already been
+     * resolved.
+     *
+     * @param string | null $base The base IRI for resolving relative
+     *     references; `null`, the default, leaves them unresolved
+     * @param array<mixed> | string | JsonSerializable | stdClass | null $expandContext
+     *     A context applied before the document's own. A string is a context
+     *     URL, not JSON text; any other value is read as a document is.
+     * @param ProcessingMode $processingMode `JsonLd10` mode turns JSON-LD 1.1
+     *     features into processing errors
+     * @param RdfDirection | null $rdfDirection How base direction reaches RDF;
+     *     `null`, the default, ignores it
+     * @param bool $strict If `true`, data the algorithms would drop is treated
+     *     as an error
+     * @param DocumentLoader $documentLoader Supplies the contexts that
+     *     documents reference by URL; the default knows the pinned contexts
+     *     and never uses the network
+     * @param int $maxDepth The greatest number of nested arrays and objects in
+     *     a document; a top-level object is depth 1. The same number bounds a
+     *     chain of contexts that include one another and a chain of terms
+     *     that depend on one another.
+     * @param int $maxValues The greatest number of JSON values of any kind in
+     *     a document, scalars included. It also bounds the cost of copying
+     *     term definitions: a context that defines a term copies the term
+     *     definitions of the active context once, and a document's own
+     *     contexts may define as many terms as `maxValues` allows.
+     * @param int $maxContextOperations The greatest number of context
+     *     operations that one call may make, in every context it processes:
+     *     the document's own contexts, scoped contexts, and contexts from the
+     *     document loader. An operation is one item of a context, whether a
+     *     map, a `null`, or a URL, or one term that the processor takes up. A
+     *     scoped context is processed again for each active context it
+     *     applies to, and a document may give every node a context of its
+     *     own, so a small document can ask for many more operations than it
+     *     has values. These cost nothing: a term that is already defined when
+     *     the processor reaches it, a scoped context that the cache of
+     *     processed contexts serves, and the keyword entries of a context
+     *     definition, such as `@vocab`.
+     * @param bool $forbidNamedGraphs Refuse any `@graph` entry in an expanded
+     *     node object; equivalent to requiring every quad to be in the
+     *     default graph
+     * @param bool $forbidIncludedBlocks Refuse any `@included` entry
+     * @param bool $forbidReverseProperties Refuse any `@reverse` entry
+     * @param bool $requireSingleTopLevelNode Refuse an expanded document whose
+     *     top level is not exactly one node object
+     *
+     * @throws InvalidArgument if the base is given and is not a well-formed
+     *     absolute IRI, or if a limit is less than 1
+     */
+    public function __construct(
+        ?string $base = null,
+        array | string | JsonSerializable | stdClass | null $expandContext = null,
+        ProcessingMode $processingMode = ProcessingMode::JsonLd11,
+        ?RdfDirection $rdfDirection = null,
+        bool $strict = true,
+        DocumentLoader $documentLoader = new BundledDocumentLoader(),
+        int $maxDepth = 128,
+        int $maxValues = 100_000,
+        int $maxContextOperations = 1_000_000,
+        bool $forbidNamedGraphs = false,
+        bool $forbidIncludedBlocks = false,
+        bool $forbidReverseProperties = false,
+        bool $requireSingleTopLevelNode = false,
+    ) {
+        $this->settings = new Settings(
+            $base,
+            $expandContext,
+            $processingMode,
+            $rdfDirection,
+            $strict,
+            $documentLoader,
+            $maxDepth,
+            $maxValues,
+            $maxContextOperations,
+            $forbidNamedGraphs,
+            $forbidIncludedBlocks,
+            $forbidReverseProperties,
+            $requireSingleTopLevelNode,
+        );
+        $this->reader = new DocumentReader($this->settings);
+        $this->contextProcessor = new ContextProcessor($this->settings);
+        $this->expander = new Expander($this->settings, $this->contextProcessor);
     }
 
     /**
@@ -144,7 +241,7 @@ final class Processor
     {
         if ($document instanceof ExpandedDocument) {
             $nodes = $document->nodes();
-            RestrictionChecker::check($this->options->restrictions, $nodes);
+            RestrictionChecker::check($this->settings, $nodes);
         } else {
             $nodes = $this->expandToNodes($document);
         }
@@ -152,9 +249,9 @@ final class Processor
         $issuer = new BlankNodeIssuer();
 
         return RdfConverter::convert(
-            NodeMapGenerator::generate($nodes, $issuer, $this->options->strict),
+            NodeMapGenerator::generate($nodes, $issuer, $this->settings->strict),
             $issuer,
-            $this->options,
+            $this->settings,
         );
     }
 
@@ -170,8 +267,8 @@ final class Processor
         $this->contextProcessor->reset();
 
         $element = $this->reader->read($document);
-        $activeContext = ActiveContext::initial($this->options->base);
-        $expandContext = $this->options->expandContext;
+        $activeContext = ActiveContext::initial($this->settings->base);
+        $expandContext = $this->settings->expandContext;
 
         if ($expandContext !== null) {
             if (!is_string($expandContext)) {
@@ -182,10 +279,10 @@ final class Processor
                 $expandContext = $expandContext->{'@context'};
             }
 
-            $activeContext = $this->contextProcessor->process($activeContext, $expandContext, $this->options->base);
+            $activeContext = $this->contextProcessor->process($activeContext, $expandContext, $this->settings->base);
         }
 
-        $expanded = $this->expander->expand($activeContext, null, $element, $this->options->base);
+        $expanded = $this->expander->expand($activeContext, null, $element, $this->settings->base);
 
         // If the result is a map whose only entry is `@graph`, the value of
         // that entry takes its place. Such a map only groups the nodes of the
@@ -202,7 +299,7 @@ final class Processor
             $nodes = $expanded;
         }
 
-        RestrictionChecker::check($this->options->restrictions, $nodes);
+        RestrictionChecker::check($this->settings, $nodes);
 
         return $nodes;
     }

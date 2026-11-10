@@ -99,7 +99,7 @@ final readonly class ExpandedDocument implements JsonSerializable
         // The depth is set to the largest that json_encode() accepts. Its
         // default of 512 is too small. Expansion adds levels of its own, and a
         // graph container adds several for each level of the input, so a
-        // document within Limits::maxDepth can be deeper than 512, once it is
+        // document within `maxDepth` can be deeper than 512, once it is
         // expanded.
         return json_encode(
             $this->nodes,
@@ -112,7 +112,7 @@ final readonly class ExpandedDocument implements JsonSerializable
      * Copies a value and everything inside it
      *
      * The recursion is as deep as the document. A Processor has already
-     * bounded that depth with Limits::maxDepth, so there is no guard here.
+     * bounded that depth with `maxDepth`, so there is no guard here.
      */
     private static function copy(mixed $value): mixed
     {

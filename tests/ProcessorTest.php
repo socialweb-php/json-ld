@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace SocialWeb\Test\JsonLd;
 
 use ArrayObject;
+use JsonSerializable;
 use PHPUnit\Framework\Attributes\DataProvider;
+use ReflectionMethod;
 use SocialWeb\JsonLd\Context\BundledDocumentLoader;
 use SocialWeb\JsonLd\Exception\DataLoss;
 use SocialWeb\JsonLd\Exception\DataLossReason;
@@ -15,12 +17,10 @@ use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\Exception\RestrictedFeature;
 use SocialWeb\JsonLd\ExpandedDocument;
-use SocialWeb\JsonLd\Limits;
-use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\ProcessingMode;
 use SocialWeb\JsonLd\Processor;
 use SocialWeb\JsonLd\RdfDirection;
-use SocialWeb\JsonLd\Restrictions;
+use SocialWeb\JsonLd\Settings;
 use SocialWeb\Rdf\Dataset;
 use stdClass;
 
@@ -87,7 +87,7 @@ final class ProcessorTest extends TestCase
     #[DataProvider('topLevels')]
     public function testTheResultIsAlwaysAListOfNodes(string $expected, string $document): void
     {
-        $this->assertSame($expected, (new Processor(new Options(strict: false)))->expand($document)->toJson());
+        $this->assertSame($expected, (new Processor(strict: false))->expand($document)->toJson());
     }
 
     /**
@@ -167,11 +167,11 @@ final class ProcessorTest extends TestCase
 
         $this->assertSame(
             '<https://example.com/a> <https://example.com/p> "x"^^<https://www.w3.org/ns/i18n#_rtl> .' . "\n",
-            self::nquads((new Processor(new Options(rdfDirection: RdfDirection::I18nDatatype)))->toRdf($document)),
+            self::nquads((new Processor(rdfDirection: RdfDirection::I18nDatatype))->toRdf($document)),
         );
         $this->assertSame(
             '<https://example.com/a> <https://example.com/p> "x" .' . "\n",
-            self::nquads((new Processor(new Options(strict: false)))->toRdf($document)),
+            self::nquads((new Processor(strict: false))->toRdf($document)),
         );
 
         try {
@@ -192,7 +192,7 @@ final class ProcessorTest extends TestCase
             '[{"@id":"a","https://example.com/p":[{"@value":"x"}]}]',
             (new Processor())->expand($document)->toJson(),
         );
-        $this->assertSame('', self::nquads((new Processor(new Options(strict: false)))->toRdf($document)));
+        $this->assertSame('', self::nquads((new Processor(strict: false))->toRdf($document)));
 
         try {
             (new Processor())->toRdf($document);
@@ -208,7 +208,7 @@ final class ProcessorTest extends TestCase
         $document = '{"@id": "https://example.com/a", "https://example.com/p":'
             . ' {"@value": "x", "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString"}}';
 
-        $this->assertSame('', self::nquads((new Processor(new Options(strict: false)))->toRdf($document)));
+        $this->assertSame('', self::nquads((new Processor(strict: false))->toRdf($document)));
 
         try {
             (new Processor())->toRdf($document);
@@ -236,7 +236,7 @@ final class ProcessorTest extends TestCase
     {
         $expanded = (new Processor())
             ->expand('{"@id": "https://example.com/g", "@graph": [{"https://example.com/p": 1}]}');
-        $restricted = new Processor(new Options(restrictions: new Restrictions(forbidNamedGraphs: true)));
+        $restricted = new Processor(forbidNamedGraphs: true);
 
         $this->assertCount(1, (new Processor())->toRdf($expanded));
 
@@ -273,7 +273,7 @@ final class ProcessorTest extends TestCase
 
         $this->assertSame(
             '[{"@id":"https://example.com/dir/a","ex:p":[{"@id":"https://example.com/b"}]}]',
-            (new Processor(new Options(base: 'https://example.com/dir/doc')))->expand($document)->toJson(),
+            (new Processor(base: 'https://example.com/dir/doc'))->expand($document)->toJson(),
         );
         $this->assertSame('[{"@id":"a","ex:p":[{"@id":"../b"}]}]', (new Processor())->expand($document)->toJson());
     }
@@ -293,7 +293,7 @@ final class ProcessorTest extends TestCase
     {
         $loader = (new BundledDocumentLoader())
             ->with('https://example.com/contexts/v1', '{"@context": {"name": "https://example.com/ns#name"}}');
-        $processor = new Processor(new Options(base: 'https://example.com/dir/doc', documentLoader: $loader));
+        $processor = new Processor(base: 'https://example.com/dir/doc', documentLoader: $loader);
 
         $this->assertSame(
             '[{"https://example.com/ns#name":[{"@value":"A"}]}]',
@@ -327,7 +327,7 @@ final class ProcessorTest extends TestCase
             'https://example.com/contexts/v1',
             '{"@context": {"name": "https://example.com/ns#name", "label": "https://example.com/ns#label"}}',
         );
-        $processor = new Processor(new Options(expandContext: $expandContext, documentLoader: $loader));
+        $processor = new Processor(expandContext: $expandContext, documentLoader: $loader);
 
         $this->assertSame(
             '[{"https://example.com/ns#label":[{"@value":"B"}],"https://example.com/other#name":[{"@value":"A"}]}]',
@@ -354,7 +354,7 @@ final class ProcessorTest extends TestCase
 
     public function testAnExpandContextOfNullInsideADocumentResetsNothingThatWasNotThere(): void
     {
-        $processor = new Processor(new Options(expandContext: ['@context' => null]));
+        $processor = new Processor(expandContext: ['@context' => null]);
 
         $this->assertSame('[{"ex:p":[{"@value":1}]}]', $processor->expand('{"ex:p": 1}')->toJson());
     }
@@ -371,13 +371,13 @@ final class ProcessorTest extends TestCase
 
         $this->assertSame(
             '[{"ex:p":[{"@value":1}]}]',
-            (new Processor(new Options(strict: false)))->expand('{"ex:p": 1, "undefined": 2}')->toJson(),
+            (new Processor(strict: false))->expand('{"ex:p": 1, "undefined": 2}')->toJson(),
         );
     }
 
     public function testStrictModeAlsoCoversTheExpandContext(): void
     {
-        $processor = new Processor(new Options(expandContext: ['@ignoreMe' => 'https://example.com/ns#ignored']));
+        $processor = new Processor(expandContext: ['@ignoreMe' => 'https://example.com/ns#ignored']);
 
         $this->expectExceptionObject(new DataLoss(DataLossReason::ReservedTerm, '@ignoreMe'));
 
@@ -386,11 +386,155 @@ final class ProcessorTest extends TestCase
 
     public function testHonorsTheProcessingMode(): void
     {
-        $processor = new Processor(new Options(processingMode: ProcessingMode::JsonLd10));
+        $processor = new Processor(processingMode: ProcessingMode::JsonLd10);
 
         $this->expectExceptionObject(new JsonLdError(JsonLdErrorCode::ProcessingModeConflict));
 
         $processor->expand('{"@context": {"@version": 1.1}, "ex:p": 1}');
+    }
+
+    public function testRejectsABaseThatIsNotAWellFormedAbsoluteIri(): void
+    {
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('The base must be a well-formed absolute IRI; "base/" given');
+
+        new Processor(base: 'base/');
+    }
+
+    #[DataProvider('limitsBelowOne')]
+    public function testRejectsALimitBelowOne(
+        int $maxDepth,
+        int $maxValues,
+        int $maxContextOperations,
+        string $message,
+    ): void {
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains($message);
+
+        new Processor(maxDepth: $maxDepth, maxValues: $maxValues, maxContextOperations: $maxContextOperations);
+    }
+
+    /**
+     * @return iterable<string, array{int, int, int, string}>
+     */
+    public static function limitsBelowOne(): iterable
+    {
+        yield 'maxDepth' => [0, 1, 1, 'maxDepth must be at least 1; 0 given'];
+        yield 'maxValues' => [1, 0, 1, 'maxValues must be at least 1; 0 given'];
+        yield 'maxContextOperations' => [1, 1, -2, 'maxContextOperations must be at least 1; -2 given'];
+    }
+
+    public function testItsDefaultsAreTheDefaultsOfTheSettings(): void
+    {
+        $settings = (new ReflectionMethod(Settings::class, '__construct'))->getParameters();
+        $parameters = (new ReflectionMethod(Processor::class, '__construct'))->getParameters();
+
+        $this->assertCount(13, $parameters);
+        $this->assertSameSize($settings, $parameters);
+
+        foreach ($parameters as $position => $parameter) {
+            $this->assertSame($settings[$position]->getName(), $parameter->getName());
+            $this->assertEquals($settings[$position]->getDefaultValue(), $parameter->getDefaultValue());
+        }
+    }
+
+    public function testTakesItsSettingsInADocumentedOrder(): void
+    {
+        $processor = new Processor(
+            'https://example.com/base/',
+            ['name' => 'https://example.com/ns#name'],
+            ProcessingMode::JsonLd11,
+            RdfDirection::I18nDatatype,
+            false,
+            new BundledDocumentLoader(),
+            3,
+            20,
+            10,
+            false,
+            false,
+            false,
+            true,
+        );
+
+        $this->assertSame(
+            '<https://example.com/base/a> <https://example.com/ns#name> '
+                . '"A"^^<https://www.w3.org/ns/i18n#_rtl> .' . "\n",
+            $processor
+                ->toRdf('{"@id": "a", "name": {"@value": "A", "@direction": "rtl"}, "dropped": 1}')
+                ->toNQuads(),
+        );
+    }
+
+    #[DataProvider('restrictions')]
+    public function testEachRestrictionRefusesItsOwnFeature(Processor $processor, string $document, string $name): void
+    {
+        $this->assertNotSame([], (new Processor())->expand($document)->jsonSerialize());
+
+        try {
+            $processor->expand($document);
+            $this->fail('Expected a RestrictedFeature');
+        } catch (RestrictedFeature $exception) {
+            $this->assertSame($name, $exception->restriction);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{Processor, string, string}>
+     */
+    public static function restrictions(): iterable
+    {
+        yield 'forbidNamedGraphs' => [
+            new Processor(forbidNamedGraphs: true),
+            '{"@id": "ex:g", "@graph": [{"@id": "ex:a", "ex:p": 1}], "ex:q": 1}',
+            'forbidNamedGraphs',
+        ];
+        yield 'forbidIncludedBlocks' => [
+            new Processor(forbidIncludedBlocks: true),
+            '{"@id": "ex:a", "@included": [{"@id": "ex:b", "ex:p": 1}]}',
+            'forbidIncludedBlocks',
+        ];
+        yield 'forbidReverseProperties' => [
+            new Processor(forbidReverseProperties: true),
+            '{"@id": "ex:a", "@reverse": {"ex:p": [{"@id": "ex:b"}]}}',
+            'forbidReverseProperties',
+        ];
+        yield 'requireSingleTopLevelNode' => [
+            new Processor(requireSingleTopLevelNode: true),
+            '[{"@id": "ex:a", "ex:p": 1}, {"@id": "ex:b", "ex:p": 1}]',
+            'requireSingleTopLevelNode',
+        ];
+    }
+
+    public function testExpandsAJsonSerializable(): void
+    {
+        $processor = new Processor();
+        $expanded = $processor->expand(self::DOCUMENT);
+
+        $this->assertSame(self::EXPANDED, $processor->expand($expanded)->toJson());
+    }
+
+    public function testAStringExpandContextIsAContextUrlAndNotJsonText(): void
+    {
+        $this->expectExceptionObject(
+            new JsonLdError(JsonLdErrorCode::LoadingDocumentFailed, '"{"name": "https://example.com/ns#name"}"'),
+        );
+
+        (new Processor(expandContext: '{"name": "https://example.com/ns#name"}'))->expand('{"name": "A"}');
+    }
+
+    public function testAnExpandContextMayBeAJsonSerializable(): void
+    {
+        $context = new class implements JsonSerializable {
+            public function jsonSerialize(): string
+            {
+                return '{"@context": {"name": "https://example.com/ns#name"}}';
+            }
+        };
+
+        $this->assertSame(
+            '[{"https://example.com/ns#name":[{"@value":"A"}]}]',
+            (new Processor(expandContext: $context))->expand('{"name": "A"}')->toJson(),
+        );
     }
 
     public function testRejectsMalformedJson(): void
@@ -411,7 +555,7 @@ final class ProcessorTest extends TestCase
 
     public function testEnforcesTheLimitsOnTheDocument(): void
     {
-        $processor = new Processor(new Options(limits: new Limits(maxDepth: 2, maxValues: 4)));
+        $processor = new Processor(maxDepth: 2, maxValues: 4);
 
         $this->assertSame('[{"ex:p":[{"@value":1}]}]', $processor->expand('{"ex:p": [1]}')->toJson());
 
@@ -432,10 +576,10 @@ final class ProcessorTest extends TestCase
 
     public function testEnforcesTheLimitsOnTheExpandContext(): void
     {
-        $processor = new Processor(new Options(
+        $processor = new Processor(
             expandContext: ['a' => 'ex:a', 'b' => 'ex:b', 'c' => 'ex:c'],
-            limits: new Limits(maxValues: 3),
-        ));
+            maxValues: 3,
+        );
 
         $this->expectExceptionObject(new LimitExceeded('maxValues', 3));
 
@@ -444,10 +588,10 @@ final class ProcessorTest extends TestCase
 
     public function testTheLimitsCountTheDocumentAndTheExpandContextApart(): void
     {
-        $processor = new Processor(new Options(
+        $processor = new Processor(
             expandContext: ['a' => 'ex:a', 'b' => 'ex:b'],
-            limits: new Limits(maxValues: 3),
-        ));
+            maxValues: 3,
+        );
 
         $this->assertSame(
             '[{"ex:a":[{"@value":1}],"ex:b":[{"@value":2}]}]',
@@ -548,7 +692,7 @@ final class ProcessorTest extends TestCase
 
     public function testTheLimitOnContextOperationsMayBeDisabled(): void
     {
-        $processor = new Processor(new Options(limits: new Limits(maxContextOperations: PHP_INT_MAX)));
+        $processor = new Processor(maxContextOperations: PHP_INT_MAX);
 
         $this->assertSame(
             '[{"ex:items":[{"@value":1},{"@value":2}]}]',
@@ -560,19 +704,16 @@ final class ProcessorTest extends TestCase
     {
         // Three operations for the expand context, and two for the document's
         // own context.
-        $options = new Options(
-            expandContext: ['a' => 'ex:a', 'b' => 'ex:b'],
-            limits: new Limits(maxContextOperations: 5),
-        );
+        $processor = new Processor(expandContext: ['a' => 'ex:a', 'b' => 'ex:b'], maxContextOperations: 5);
 
         $this->assertSame(
             '[{"ex:c":[{"@value":1}]}]',
-            (new Processor($options))->expand('{"@context": {"c": "ex:c"}, "c": 1}')->toJson(),
+            $processor->expand('{"@context": {"c": "ex:c"}, "c": 1}')->toJson(),
         );
 
         $this->expectExceptionObject(new LimitExceeded('maxContextOperations', 5));
 
-        (new Processor($options))->expand('{"@context": {"c": "ex:c", "d": "ex:d"}, "c": 1}');
+        $processor->expand('{"@context": {"c": "ex:c", "d": "ex:d"}, "c": 1}');
     }
 
     #[DataProvider('modes')]
@@ -620,7 +761,7 @@ final class ProcessorTest extends TestCase
         );
 
         try {
-            (new Processor(new Options(restrictions: new Restrictions(forbidNamedGraphs: true))))->expand($document);
+            (new Processor(forbidNamedGraphs: true))->expand($document);
             $this->fail('Expected a RestrictedFeature');
         } catch (RestrictedFeature $exception) {
             $this->assertSame('forbidNamedGraphs', $exception->restriction);
@@ -634,21 +775,24 @@ final class ProcessorTest extends TestCase
 
         $this->assertCount(
             2,
-            (new Processor(new Options(restrictions: new Restrictions(forbidNamedGraphs: true))))
+            (new Processor(forbidNamedGraphs: true))
                 ->expand($document)
                 ->jsonSerialize(),
         );
 
         $this->expectExceptionObject(new RestrictedFeature('requireSingleTopLevelNode', '2'));
 
-        (new Processor(new Options(restrictions: Restrictions::all())))->expand($document);
+        (new Processor(
+            forbidNamedGraphs: true,
+            forbidIncludedBlocks: true,
+            forbidReverseProperties: true,
+            requireSingleTopLevelNode: true,
+        ))->expand($document);
     }
 
     private static function processorWithin(int $contextOperations, bool $strict): Processor
     {
-        return new Processor(
-            new Options(strict: $strict, limits: new Limits(maxContextOperations: $contextOperations)),
-        );
+        return new Processor(strict: $strict, maxContextOperations: $contextOperations);
     }
 
     /**

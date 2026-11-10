@@ -14,7 +14,7 @@ use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\ExpandedDocument;
-use SocialWeb\JsonLd\Limits;
+use SocialWeb\JsonLd\Settings;
 use stdClass;
 
 use function fopen;
@@ -34,7 +34,7 @@ final class DocumentReaderTest extends TestCase
 {
     public function testDecodesAStringWithObjectsAsStdClass(): void
     {
-        $document = (new DocumentReader(new Limits()))->read('{"a": {}, "b": [], "c": [1, "x", true, null, 1.5]}');
+        $document = (new DocumentReader(new Settings()))->read('{"a": {}, "b": [], "c": [1, "x", true, null, 1.5]}');
 
         $this->assertInstanceOf(stdClass::class, $document);
         $this->assertEquals((object) ['a' => new stdClass(), 'b' => [], 'c' => [1, 'x', true, null, 1.5]], $document);
@@ -44,7 +44,7 @@ final class DocumentReaderTest extends TestCase
 
     public function testAcceptsAScalarDocument(): void
     {
-        $reader = new DocumentReader(new Limits());
+        $reader = new DocumentReader(new Settings());
 
         $this->assertSame(5, $reader->read('5'));
         $this->assertSame('x', $reader->read('"x"'));
@@ -57,7 +57,7 @@ final class DocumentReaderTest extends TestCase
     {
         $input = json_decode('{"a": {"b": [{"c": 1}]}, "d": {}}', false, 512, JSON_THROW_ON_ERROR);
 
-        $document = (new DocumentReader(new Limits()))->read($input);
+        $document = (new DocumentReader(new Settings()))->read($input);
 
         $this->assertEquals($input, $document);
         $this->assertNotSame($input, $document);
@@ -68,7 +68,7 @@ final class DocumentReaderTest extends TestCase
 
     public function testConvertsAssociativeArraysUnderTheArrayRule(): void
     {
-        $document = (new DocumentReader(new Limits()))->read([
+        $document = (new DocumentReader(new Settings()))->read([
             'object' => ['x' => 1],
             'list' => [1, 2],
             'empty' => [],
@@ -88,13 +88,13 @@ final class DocumentReaderTest extends TestCase
 
     public function testAListAtTheTopLevelIsAJsonArray(): void
     {
-        $this->assertSame([1, 2], (new DocumentReader(new Limits()))->read([1, 2]));
-        $this->assertSame([], (new DocumentReader(new Limits()))->read([]));
+        $this->assertSame([1, 2], (new DocumentReader(new Settings()))->read([1, 2]));
+        $this->assertSame([], (new DocumentReader(new Settings()))->read([]));
     }
 
     public function testKeepsNumericStringKeysAsObjectKeys(): void
     {
-        $document = (new DocumentReader(new Limits()))->read('{"1": "one", "10": "ten"}');
+        $document = (new DocumentReader(new Settings()))->read('{"1": "one", "10": "ten"}');
 
         $this->assertSame('{"1":"one","10":"ten"}', json_encode($document));
     }
@@ -103,7 +103,7 @@ final class DocumentReaderTest extends TestCase
     public function testRejectsAStringThatIsNotJson(string $json, string $decoderMessage, int $decoderCode): void
     {
         try {
-            (new DocumentReader(new Limits()))->read($json);
+            (new DocumentReader(new Settings()))->read($json);
             $this->fail('Expected JsonLdError');
         } catch (JsonLdError $exception) {
             $this->assertSame(JsonLdErrorCode::LoadingDocumentFailed, $exception->reason);
@@ -145,7 +145,7 @@ final class DocumentReaderTest extends TestCase
         string $detail,
     ): void {
         try {
-            (new DocumentReader(new Limits()))->read($document);
+            (new DocumentReader(new Settings()))->read($document);
             $this->fail('Expected JsonLdError');
         } catch (JsonLdError $exception) {
             $this->assertSame(JsonLdErrorCode::LoadingDocumentFailed, $exception->reason);
@@ -183,7 +183,7 @@ final class DocumentReaderTest extends TestCase
         $this->expectException(InvalidArgument::class);
         $this->expectExceptionMessageIsOrContains('A document may hold only JSON values; ' . $type . ' given');
 
-        (new DocumentReader(new Limits()))->read($document);
+        (new DocumentReader(new Settings()))->read($document);
     }
 
     /**
@@ -217,12 +217,12 @@ final class DocumentReaderTest extends TestCase
         $this->expectException(InvalidArgument::class);
         $this->expectExceptionMessageIsOrContains('A document may hold only JSON values; resource (stream) given');
 
-        (new DocumentReader(new Limits()))->read([$resource]);
+        (new DocumentReader(new Settings()))->read([$resource]);
     }
 
     public function testReportsAValueThatIsNotAJsonTypeBeforeAnythingElse(): void
     {
-        $reader = new DocumentReader(new Limits(maxValues: 1));
+        $reader = new DocumentReader(new Settings(maxValues: 1));
 
         try {
             $reader->read(['a' => NAN, 'b' => "\xff", 'c' => new DateTimeImmutable()]);
@@ -240,14 +240,14 @@ final class DocumentReaderTest extends TestCase
         $this->expectException(LimitExceeded::class);
         $this->expectExceptionMessageIsOrContains('The maxDepth limit of 1 was exceeded');
 
-        (new DocumentReader(new Limits(maxDepth: 1)))->read([[new DateTimeImmutable()]]);
+        (new DocumentReader(new Settings(maxDepth: 1)))->read([[new DateTimeImmutable()]]);
     }
 
     public function testLooksForTypesInTheDeepestContainerMaxDepthAllows(): void
     {
         $this->expectException(InvalidArgument::class);
 
-        (new DocumentReader(new Limits(maxDepth: 2)))->read([[new DateTimeImmutable()]]);
+        (new DocumentReader(new Settings(maxDepth: 2)))->read([[new DateTimeImmutable()]]);
     }
 
     public function testAnObjectThatHoldsItselfIsRefusedAtTheDepthLimit(): void
@@ -258,7 +258,7 @@ final class DocumentReaderTest extends TestCase
         $this->expectException(LimitExceeded::class);
         $this->expectExceptionMessageIsOrContains('The maxDepth limit of 3 was exceeded');
 
-        (new DocumentReader(new Limits(maxDepth: 3)))->read($document);
+        (new DocumentReader(new Settings(maxDepth: 3)))->read($document);
     }
 
     public function testLooksAgainInsideAnObjectMetAtAShallowerDepth(): void
@@ -269,7 +269,7 @@ final class DocumentReaderTest extends TestCase
 
         $this->expectException(InvalidArgument::class);
 
-        (new DocumentReader(new Limits(maxDepth: 3)))->read(['a' => $shared, 'b' => ['c' => $shared]]);
+        (new DocumentReader(new Settings(maxDepth: 3)))->read(['a' => $shared, 'b' => ['c' => $shared]]);
     }
 
     public function testKeepsLookingAfterAnObjectItHasAlreadyWalked(): void
@@ -281,12 +281,12 @@ final class DocumentReaderTest extends TestCase
 
         $this->expectException(InvalidArgument::class);
 
-        (new DocumentReader(new Limits()))->read([['x' => new DateTimeImmutable()], ['c' => $shared], $shared]);
+        (new DocumentReader(new Settings()))->read([['x' => new DateTimeImmutable()], ['c' => $shared], $shared]);
     }
 
     public function testReadsAJsonSerializableAsWhatItSerializesTo(): void
     {
-        $reader = new DocumentReader(new Limits());
+        $reader = new DocumentReader(new Settings());
 
         $this->assertEquals((object) ['a' => [1]], $reader->read(self::serializable(['a' => [1]])));
         $this->assertEquals((object) ['a' => 1], $reader->read(self::serializable((object) ['a' => 1])));
@@ -301,7 +301,7 @@ final class DocumentReaderTest extends TestCase
         $this->expectException(InvalidArgument::class);
         $this->expectExceptionMessageIsOrContains('A document may hold only JSON values; JsonSerializable@anonymous');
 
-        (new DocumentReader(new Limits()))->read(self::serializable(self::serializable([])));
+        (new DocumentReader(new Settings()))->read(self::serializable(self::serializable([])));
     }
 
     public function testRejectsAJsonSerializableThatSerializesToMalformedJson(): void
@@ -309,12 +309,12 @@ final class DocumentReaderTest extends TestCase
         $this->expectException(JsonLdError::class);
         $this->expectExceptionMessageIsOrContains('Loading document failed: the text is not valid JSON (Syntax error)');
 
-        (new DocumentReader(new Limits()))->read(self::serializable('{'));
+        (new DocumentReader(new Settings()))->read(self::serializable('{'));
     }
 
     public function testATopLevelObjectIsDepthOne(): void
     {
-        $reader = new DocumentReader(new Limits(maxDepth: 1));
+        $reader = new DocumentReader(new Settings(maxDepth: 1));
 
         $this->assertEquals((object) ['a' => 1], $reader->read('{"a": 1}'));
         $this->assertEquals((object) ['a' => 1], $reader->read(['a' => 1]));
@@ -325,13 +325,13 @@ final class DocumentReaderTest extends TestCase
         $this->expectException(LimitExceeded::class);
         $this->expectExceptionMessageIsOrContains('The maxDepth limit of 2 was exceeded');
 
-        (new DocumentReader(new Limits(maxDepth: 2)))->read('{"a": {"b": {}}}');
+        (new DocumentReader(new Settings(maxDepth: 2)))->read('{"a": {"b": {}}}');
     }
 
     public function testDepthErrorFromTheDecoderCarriesTheLimit(): void
     {
         try {
-            (new DocumentReader(new Limits(maxDepth: 3)))->read(str_repeat('[', 4) . str_repeat(']', 4));
+            (new DocumentReader(new Settings(maxDepth: 3)))->read(str_repeat('[', 4) . str_repeat(']', 4));
             $this->fail('Expected LimitExceeded');
         } catch (LimitExceeded $exception) {
             $this->assertSame('maxDepth', $exception->parameter);
@@ -342,7 +342,7 @@ final class DocumentReaderTest extends TestCase
 
     public function testAcceptsAStringExactlyAtMaxDepth(): void
     {
-        $this->assertSame([[[1]]], (new DocumentReader(new Limits(maxDepth: 3)))->read('[[[1]]]'));
+        $this->assertSame([[[1]]], (new DocumentReader(new Settings(maxDepth: 3)))->read('[[[1]]]'));
     }
 
     public function testRejectsADecodedDocumentDeeperThanMaxDepth(): void
@@ -350,7 +350,7 @@ final class DocumentReaderTest extends TestCase
         $this->expectException(LimitExceeded::class);
         $this->expectExceptionMessageIsOrContains('The maxDepth limit of 2 was exceeded');
 
-        (new DocumentReader(new Limits(maxDepth: 2)))->read(['a' => ['b' => ['c' => 1]]]);
+        (new DocumentReader(new Settings(maxDepth: 2)))->read(['a' => ['b' => ['c' => 1]]]);
     }
 
     public function testRejectsADecodedObjectTreeDeeperThanMaxDepth(): void
@@ -360,7 +360,7 @@ final class DocumentReaderTest extends TestCase
         $this->expectException(LimitExceeded::class);
         $this->expectExceptionMessageIsOrContains('The maxDepth limit of 2 was exceeded');
 
-        (new DocumentReader(new Limits(maxDepth: 2)))->read($input);
+        (new DocumentReader(new Settings(maxDepth: 2)))->read($input);
     }
 
     public function testRejectsADecodedListDeeperThanMaxDepth(): void
@@ -368,12 +368,12 @@ final class DocumentReaderTest extends TestCase
         $this->expectException(LimitExceeded::class);
         $this->expectExceptionMessageIsOrContains('The maxDepth limit of 2 was exceeded');
 
-        (new DocumentReader(new Limits(maxDepth: 2)))->read([[[1]]]);
+        (new DocumentReader(new Settings(maxDepth: 2)))->read([[[1]]]);
     }
 
     public function testAcceptsADecodedDocumentExactlyAtMaxDepth(): void
     {
-        $reader = new DocumentReader(new Limits(maxDepth: 2));
+        $reader = new DocumentReader(new Settings(maxDepth: 2));
 
         $this->assertSame([[1]], $reader->read([[1]]));
         $this->assertEquals((object) ['a' => (object) []], $reader->read(['a' => (object) []]));
@@ -381,8 +381,8 @@ final class DocumentReaderTest extends TestCase
 
     public function testTheLargestDepthTheDecoderAcceptsStillDecodes(): void
     {
-        $this->assertSame([1], (new DocumentReader(new Limits(maxDepth: 2_147_483_647)))->read('[1]'));
-        $this->assertSame([1], (new DocumentReader(new Limits(maxDepth: PHP_INT_MAX)))->read('[1]'));
+        $this->assertSame([1], (new DocumentReader(new Settings(maxDepth: 2_147_483_647)))->read('[1]'));
+        $this->assertSame([1], (new DocumentReader(new Settings(maxDepth: PHP_INT_MAX)))->read('[1]'));
     }
 
     public function testCountsEveryValueIncludingScalarsAndContainers(): void
@@ -392,13 +392,13 @@ final class DocumentReaderTest extends TestCase
 
         $this->assertEquals(
             (object) ['a' => 1, 'b' => [true, null]],
-            (new DocumentReader(new Limits(maxValues: 5)))->read($document),
+            (new DocumentReader(new Settings(maxValues: 5)))->read($document),
         );
 
         $this->expectException(LimitExceeded::class);
         $this->expectExceptionMessageIsOrContains('The maxValues limit of 4 was exceeded');
 
-        (new DocumentReader(new Limits(maxValues: 4)))->read($document);
+        (new DocumentReader(new Settings(maxValues: 4)))->read($document);
     }
 
     public function testCountsValuesOfADecodedDocument(): void
@@ -406,12 +406,12 @@ final class DocumentReaderTest extends TestCase
         $this->expectException(LimitExceeded::class);
         $this->expectExceptionMessageIsOrContains('The maxValues limit of 2 was exceeded');
 
-        (new DocumentReader(new Limits(maxValues: 2)))->read(['a' => 1, 'b' => 2]);
+        (new DocumentReader(new Settings(maxValues: 2)))->read(['a' => 1, 'b' => 2]);
     }
 
     public function testCountsAreResetBetweenReads(): void
     {
-        $reader = new DocumentReader(new Limits(maxValues: 3));
+        $reader = new DocumentReader(new Settings(maxValues: 3));
 
         $this->assertSame([1, 2], $reader->read('[1, 2]'));
         $this->assertSame([1, 2], $reader->read('[1, 2]'));
@@ -419,7 +419,7 @@ final class DocumentReaderTest extends TestCase
 
     public function testAMaximumIntegerLimitDisablesTheCheck(): void
     {
-        $reader = new DocumentReader(new Limits(maxDepth: PHP_INT_MAX, maxValues: PHP_INT_MAX));
+        $reader = new DocumentReader(new Settings(maxDepth: PHP_INT_MAX, maxValues: PHP_INT_MAX));
 
         $this->assertSame([[[[1]]]], $reader->read('[[[[1]]]]'));
     }

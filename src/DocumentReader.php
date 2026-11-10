@@ -81,7 +81,7 @@ final class DocumentReader
 
     private int $values = 0;
 
-    public function __construct(private readonly Limits $limits)
+    public function __construct(private readonly Settings $settings)
     {
     }
 
@@ -157,7 +157,7 @@ final class DocumentReader
             [$current, $depth] = $next;
 
             if (is_array($current) || ($current instanceof stdClass && $current::class === stdClass::class)) {
-                if ($depth > $this->limits->maxDepth) {
+                if ($depth > $this->settings->maxDepth) {
                     continue;
                 }
 
@@ -187,14 +187,14 @@ final class DocumentReader
             // json_decode() counts one level more than maxDepth does: a bare
             // scalar is depth 1 to it and depth 0 here. Its argument cannot
             // exceed 2^31 - 1, so a larger limit is capped, and walk() enforces it.
-            $depth = $this->limits->maxDepth < self::DECODER_MAX_DEPTH
-                ? $this->limits->maxDepth + 1
+            $depth = $this->settings->maxDepth < self::DECODER_MAX_DEPTH
+                ? $this->settings->maxDepth + 1
                 : self::DECODER_MAX_DEPTH;
 
             return json_decode($json, false, $depth, JSON_THROW_ON_ERROR);
         } catch (JsonException $exception) {
             if ($exception->getCode() === JSON_ERROR_DEPTH) {
-                throw new LimitExceeded('maxDepth', $this->limits->maxDepth, $exception);
+                throw new LimitExceeded('maxDepth', $this->settings->maxDepth, $exception);
             }
 
             throw new JsonLdError(
@@ -214,8 +214,8 @@ final class DocumentReader
      */
     private function walk(mixed $value, int $depth): array | stdClass | string | int | float | bool | null
     {
-        if (++$this->values > $this->limits->maxValues) {
-            throw new LimitExceeded('maxValues', $this->limits->maxValues);
+        if (++$this->values > $this->settings->maxValues) {
+            throw new LimitExceeded('maxValues', $this->settings->maxValues);
         }
 
         if ($value instanceof stdClass) {
@@ -290,8 +290,8 @@ final class DocumentReader
 
     private function checkDepth(int $depth): void
     {
-        if ($depth > $this->limits->maxDepth) {
-            throw new LimitExceeded('maxDepth', $this->limits->maxDepth);
+        if ($depth > $this->settings->maxDepth) {
+            throw new LimitExceeded('maxDepth', $this->settings->maxDepth);
         }
     }
 }

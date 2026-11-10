@@ -34,36 +34,37 @@ use stdClass;
 use function sprintf;
 
 /**
- * Options for a Processor
+ * The settings of a `Processor`, checked once and handed to the classes that
+ * do its work
  *
- * These are the JSON-LD 1.1 API options that apply to expansion and to
- * conversion to RDF, plus this library's own strict flag, limits, and
- * restrictions. Options that apply only to compaction, framing, conversion
- * from RDF, or HTML are not offered.
+ * `Processor::__construct()` takes each setting as a parameter of its own and
+ * documents it; this class holds them under the same names, with the same
+ * defaults.
+ *
+ * @internal
  */
-final readonly class Options
+final readonly class Settings
 {
     /**
-     * @param string | null $base The base IRI for resolving relative
-     *     references; `null`, the default, leaves them unresolved
+     * @var int<1, max>
+     */
+    public int $maxDepth;
+
+    /**
+     * @var int<1, max>
+     */
+    public int $maxValues;
+
+    /**
+     * @var int<1, max>
+     */
+    public int $maxContextOperations;
+
+    /**
      * @param array<mixed> | string | JsonSerializable | stdClass | null $expandContext
-     *     A context applied before the document's own. A string is a context
-     *     URL, not JSON text; any other value is read as a document is.
-     * @param ProcessingMode $processingMode `JsonLd10` mode turns JSON-LD 1.1
-     *     features into processing errors
-     * @param RdfDirection | null $rdfDirection How base direction reaches RDF;
-     *     `null`, the default, ignores it
-     * @param bool $strict If `true`, data the algorithms would drop is treated
-     *     as an error
-     * @param Limits $limits Bounds on the work done for one document
-     * @param Restrictions $restrictions Features of the expanded document to
-     *     refuse
-     * @param DocumentLoader $documentLoader Supplies the contexts that
-     *     documents reference by URL; the default knows the pinned contexts
-     *     and never uses the network
      *
      * @throws InvalidArgument if the base is given and is not a well-formed
-     *     absolute IRI
+     *     absolute IRI, or if a limit is less than 1
      */
     public function __construct(
         public ?string $base = null,
@@ -71,12 +72,35 @@ final readonly class Options
         public ProcessingMode $processingMode = ProcessingMode::JsonLd11,
         public ?RdfDirection $rdfDirection = null,
         public bool $strict = true,
-        public Limits $limits = new Limits(),
-        public Restrictions $restrictions = new Restrictions(),
         public DocumentLoader $documentLoader = new BundledDocumentLoader(),
+        int $maxDepth = 128,
+        int $maxValues = 100_000,
+        int $maxContextOperations = 1_000_000,
+        public bool $forbidNamedGraphs = false,
+        public bool $forbidIncludedBlocks = false,
+        public bool $forbidReverseProperties = false,
+        public bool $requireSingleTopLevelNode = false,
     ) {
         if ($base !== null && !Grammar::isWellFormedIri($base)) {
             throw new InvalidArgument(sprintf('The base must be a well-formed absolute IRI; "%s" given', $base));
         }
+
+        if ($maxDepth < 1) {
+            throw new InvalidArgument(sprintf('maxDepth must be at least 1; %d given', $maxDepth));
+        }
+
+        if ($maxValues < 1) {
+            throw new InvalidArgument(sprintf('maxValues must be at least 1; %d given', $maxValues));
+        }
+
+        if ($maxContextOperations < 1) {
+            throw new InvalidArgument(
+                sprintf('maxContextOperations must be at least 1; %d given', $maxContextOperations),
+            );
+        }
+
+        $this->maxDepth = $maxDepth;
+        $this->maxValues = $maxValues;
+        $this->maxContextOperations = $maxContextOperations;
     }
 }

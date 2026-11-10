@@ -9,12 +9,12 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use SocialWeb\JsonLd\Exception\DataLoss;
 use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
-use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\Rdf\BlankNodeIssuer;
 use SocialWeb\JsonLd\Rdf\NodeMap;
 use SocialWeb\JsonLd\Rdf\NodeMapGenerator;
 use SocialWeb\JsonLd\Rdf\RdfConverter;
 use SocialWeb\JsonLd\RdfDirection;
+use SocialWeb\JsonLd\Settings;
 use SocialWeb\Rdf\Dataset;
 use SocialWeb\Test\JsonLd\TestCase;
 
@@ -153,7 +153,7 @@ final class RdfConverterTest extends TestCase
                     "ex:p": [{"@id": "_:x"}],
                     "ex:q": [{"@list": [{"@id": "_:x"}, {"@value": "x", "@direction": "rtl"}]}]
                 }]',
-                new Options(strict: false, rdfDirection: RdfDirection::CompoundLiteral),
+                new Settings(strict: false, rdfDirection: RdfDirection::CompoundLiteral),
             )),
         );
     }
@@ -165,7 +165,7 @@ final class RdfConverterTest extends TestCase
         string $detail,
     ): void {
         try {
-            self::convert($document, new Options());
+            self::convert($document, new Settings());
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
             $this->assertSame($reason, $dataLoss->reason);
@@ -255,11 +255,11 @@ final class RdfConverterTest extends TestCase
 
         $this->assertSame(
             '',
-            self::nquads(RdfConverter::convert($map, new BlankNodeIssuer(), new Options(strict: false))),
+            self::nquads(RdfConverter::convert($map, new BlankNodeIssuer(), new Settings(strict: false))),
         );
 
         try {
-            RdfConverter::convert($map, new BlankNodeIssuer(), new Options());
+            RdfConverter::convert($map, new BlankNodeIssuer(), new Settings());
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
             $this->assertSame(DataLossReason::MalformedBlankNodeIdentifier, $dataLoss->reason);
@@ -280,7 +280,7 @@ final class RdfConverterTest extends TestCase
             <ex:a> <ex:q> "q" .
 
             NQUADS,
-            self::nquads(RdfConverter::convert($map, new BlankNodeIssuer(), new Options())),
+            self::nquads(RdfConverter::convert($map, new BlankNodeIssuer(), new Settings())),
         );
     }
 
@@ -292,12 +292,12 @@ final class RdfConverterTest extends TestCase
         $this->expectException(InvalidArgument::class);
         $this->expectExceptionMessageIsOrContains('An item of a node map must be a map');
 
-        RdfConverter::convert($map, new BlankNodeIssuer(), new Options());
+        RdfConverter::convert($map, new BlankNodeIssuer(), new Settings());
     }
 
-    private static function convert(string $document, ?Options $options = null): Dataset
+    private static function convert(string $document, ?Settings $settings = null): Dataset
     {
-        $options ??= new Options(strict: false);
+        $settings ??= new Settings(strict: false);
         $nodes = json_decode($document, flags: JSON_THROW_ON_ERROR);
 
         if (!is_array($nodes) || !array_is_list($nodes)) {
@@ -306,7 +306,11 @@ final class RdfConverterTest extends TestCase
 
         $issuer = new BlankNodeIssuer();
 
-        return RdfConverter::convert(NodeMapGenerator::generate($nodes, $issuer, $options->strict), $issuer, $options);
+        return RdfConverter::convert(
+            NodeMapGenerator::generate($nodes, $issuer, $settings->strict),
+            $issuer,
+            $settings,
+        );
     }
 
     private static function nquads(Dataset $dataset): string

@@ -8,7 +8,7 @@ use LogicException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use SocialWeb\JsonLd\Exception\RestrictedFeature;
 use SocialWeb\JsonLd\Expansion\RestrictionChecker;
-use SocialWeb\JsonLd\Restrictions;
+use SocialWeb\JsonLd\Settings;
 use SocialWeb\Test\JsonLd\TestCase;
 
 use function array_is_list;
@@ -33,7 +33,7 @@ final class RestrictionCheckerTest extends TestCase
     {
         $this->expectNotToPerformAssertions();
 
-        RestrictionChecker::check(new Restrictions(), self::nodes($document));
+        RestrictionChecker::check(new Settings(), self::nodes($document));
     }
 
     /**
@@ -50,13 +50,13 @@ final class RestrictionCheckerTest extends TestCase
 
     #[DataProvider('violations')]
     public function testRefusesAFeature(
-        Restrictions $restrictions,
+        Settings $settings,
         string $document,
         string $restriction,
         string $detail,
     ): void {
         try {
-            RestrictionChecker::check($restrictions, self::nodes($document));
+            RestrictionChecker::check($settings, self::nodes($document));
             $this->fail('Expected a RestrictedFeature');
         } catch (RestrictedFeature $exception) {
             $this->assertSame($restriction, $exception->restriction);
@@ -65,14 +65,14 @@ final class RestrictionCheckerTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{Restrictions, string, string, string}>
+     * @return iterable<string, array{Settings, string, string, string}>
      */
     public static function violations(): iterable
     {
-        $noGraphs = new Restrictions(forbidNamedGraphs: true);
-        $noIncluded = new Restrictions(forbidIncludedBlocks: true);
-        $noReverse = new Restrictions(forbidReverseProperties: true);
-        $single = new Restrictions(requireSingleTopLevelNode: true);
+        $noGraphs = new Settings(forbidNamedGraphs: true);
+        $noIncluded = new Settings(forbidIncludedBlocks: true);
+        $noReverse = new Settings(forbidReverseProperties: true);
+        $single = new Settings(requireSingleTopLevelNode: true);
 
         yield 'a named graph' => [$noGraphs, self::NAMED_GRAPH, 'forbidNamedGraphs', 'ex:g'];
         yield 'an included block' => [$noIncluded, self::INCLUDED_BLOCK, 'forbidIncludedBlocks', 'ex:a'];
@@ -104,7 +104,7 @@ final class RestrictionCheckerTest extends TestCase
             'ex:b',
         ];
         yield 'a reverse property inside a reverse map' => [
-            new Restrictions(forbidIncludedBlocks: true),
+            new Settings(forbidIncludedBlocks: true),
             '[{"@id": "ex:a", "@reverse": {"ex:parent": [{"@id": "ex:b", "@included": []}]}}]',
             'forbidIncludedBlocks',
             'ex:b',
@@ -122,25 +122,45 @@ final class RestrictionCheckerTest extends TestCase
             'ex:a',
         ];
         yield 'the top-level count comes first' => [
-            Restrictions::all(),
+            new Settings(
+                forbidNamedGraphs: true,
+                forbidIncludedBlocks: true,
+                forbidReverseProperties: true,
+                requireSingleTopLevelNode: true,
+            ),
             self::TWO_NODES,
             'requireSingleTopLevelNode',
             '2',
         ];
         yield 'named graphs come before included blocks' => [
-            Restrictions::all(),
+            new Settings(
+                forbidNamedGraphs: true,
+                forbidIncludedBlocks: true,
+                forbidReverseProperties: true,
+                requireSingleTopLevelNode: true,
+            ),
             '[{"@id": "ex:a", "@included": [], "@graph": [], "@reverse": {}}]',
             'forbidNamedGraphs',
             'ex:a',
         ];
         yield 'included blocks come before reverse properties' => [
-            Restrictions::all(),
+            new Settings(
+                forbidNamedGraphs: true,
+                forbidIncludedBlocks: true,
+                forbidReverseProperties: true,
+                requireSingleTopLevelNode: true,
+            ),
             '[{"@id": "ex:a", "@reverse": {}, "@included": []}]',
             'forbidIncludedBlocks',
             'ex:a',
         ];
         yield 'a node is checked before the nodes inside it' => [
-            Restrictions::all(),
+            new Settings(
+                forbidNamedGraphs: true,
+                forbidIncludedBlocks: true,
+                forbidReverseProperties: true,
+                requireSingleTopLevelNode: true,
+            ),
             '[{"@id": "ex:a", "ex:p": [{"@id": "ex:b", "@graph": []}], "@reverse": {}}]',
             'forbidReverseProperties',
             'ex:a',
@@ -148,29 +168,54 @@ final class RestrictionCheckerTest extends TestCase
     }
 
     #[DataProvider('restrictionsThatDoNotApply')]
-    public function testEachRestrictionLooksForItsOwnFeatureOnly(Restrictions $restrictions, string $document): void
+    public function testEachRestrictionLooksForItsOwnFeatureOnly(Settings $settings, string $document): void
     {
         $this->expectNotToPerformAssertions();
 
-        RestrictionChecker::check($restrictions, self::nodes($document));
+        RestrictionChecker::check($settings, self::nodes($document));
     }
 
     /**
-     * @return iterable<string, array{Restrictions, string}>
+     * @return iterable<string, array{Settings, string}>
      */
     public static function restrictionsThatDoNotApply(): iterable
     {
-        $allButGraphs = new Restrictions(false, true, true, true);
-        $allButIncluded = new Restrictions(true, false, true, true);
-        $allButReverse = new Restrictions(true, true, false, true);
-        $allButSingle = new Restrictions(true, true, true, false);
+        $allButGraphs = new Settings(
+            forbidNamedGraphs: false,
+            forbidIncludedBlocks: true,
+            forbidReverseProperties: true,
+            requireSingleTopLevelNode: true,
+        );
+        $allButIncluded = new Settings(
+            forbidNamedGraphs: true,
+            forbidIncludedBlocks: false,
+            forbidReverseProperties: true,
+            requireSingleTopLevelNode: true,
+        );
+        $allButReverse = new Settings(
+            forbidNamedGraphs: true,
+            forbidIncludedBlocks: true,
+            forbidReverseProperties: false,
+            requireSingleTopLevelNode: true,
+        );
+        $allButSingle = new Settings(
+            forbidNamedGraphs: true,
+            forbidIncludedBlocks: true,
+            forbidReverseProperties: true,
+            requireSingleTopLevelNode: false,
+        );
 
         yield 'a named graph' => [$allButGraphs, self::NAMED_GRAPH];
         yield 'an included block' => [$allButIncluded, self::INCLUDED_BLOCK];
         yield 'a reverse property' => [$allButReverse, self::REVERSE_PROPERTY];
         yield 'two top-level nodes' => [$allButSingle, self::TWO_NODES];
         yield 'one plain node' => [
-            Restrictions::all(),
+            new Settings(
+                forbidNamedGraphs: true,
+                forbidIncludedBlocks: true,
+                forbidReverseProperties: true,
+                requireSingleTopLevelNode: true,
+            ),
             '[{"@id": "ex:a", "@type": ["ex:T"], "ex:p": [{"@value": 1}, {"@list": [{"@id": "ex:b"}]}]}]',
         ];
     }
@@ -180,7 +225,12 @@ final class RestrictionCheckerTest extends TestCase
         $this->expectNotToPerformAssertions();
 
         RestrictionChecker::check(
-            Restrictions::all(),
+            new Settings(
+                forbidNamedGraphs: true,
+                forbidIncludedBlocks: true,
+                forbidReverseProperties: true,
+                requireSingleTopLevelNode: true,
+            ),
             self::nodes(
                 '[{"@id": "ex:a", "ex:p": [{"@type": "@json",'
                     . ' "@value": {"@graph": [], "@included": [], "@reverse": {}, "deeper": [{"@graph": []}]}}]}]',

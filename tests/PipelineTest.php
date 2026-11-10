@@ -6,9 +6,7 @@ namespace SocialWeb\Test\JsonLd;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use SocialWeb\JsonLd\Context\BundledDocumentLoader;
-use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\Processor;
-use SocialWeb\JsonLd\Restrictions;
 use SocialWeb\Rdf\Canonicalization\Canonicalizer;
 use SocialWeb\Test\JsonLd\W3c\W3cManifest;
 
@@ -45,7 +43,13 @@ final class PipelineTest extends TestCase
                 'https://www.w3.org/ns/credentials/examples/v2',
                 W3cManifest::read(self::FIXTURES . '/contexts/credentials-examples-v2.jsonld'),
             );
-        $processor = new Processor(new Options(restrictions: Restrictions::all(), documentLoader: $loader));
+        $processor = new Processor(
+            forbidNamedGraphs: true,
+            forbidIncludedBlocks: true,
+            forbidReverseProperties: true,
+            requireSingleTopLevelNode: true,
+            documentLoader: $loader,
+        );
 
         $canonical = (new Canonicalizer())
             ->canonicalize($processor->toRdf(W3cManifest::read(self::FIXTURES . '/' . $document)))

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace SocialWeb\Test\JsonLd;
 
 use PHPUnit\Framework\Attributes\DataProvider;
-use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\Processor;
 use SocialWeb\Test\JsonLd\W3c\W3cEntry;
 use SocialWeb\Test\JsonLd\W3c\W3cManifest;
@@ -38,7 +37,7 @@ final class ExpansionPropertyTest extends TestCase
     public function testExpandingAnExpandedDocumentChangesNothing(W3cEntry $entry): void
     {
         $expanded = W3cProcessor::build($entry, strict: false)->expand(W3cManifest::read($entry->input));
-        $again = new Processor(new Options(processingMode: W3cProcessor::processingMode($entry), strict: false));
+        $again = new Processor(processingMode: W3cProcessor::processingMode($entry), strict: false);
 
         $this->assertSame($expanded->toJson(), $again->expand($expanded->toJson())->toJson());
         $this->assertSame($expanded->toJson(), $again->expand($expanded->jsonSerialize())->toJson());

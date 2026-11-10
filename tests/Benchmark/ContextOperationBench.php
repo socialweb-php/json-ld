@@ -8,7 +8,6 @@ use PhpBench\Attributes\BeforeMethods;
 use PhpBench\Attributes\Iterations;
 use PhpBench\Attributes\ParamProviders;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
-use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\Processor;
 use stdClass;
 
@@ -137,7 +136,7 @@ final class ContextOperationBench
             $scoped[sprintf('@zz%s', self::letters($i))] = 'https://example.com/ns#ignored';
         }
 
-        $this->processor = new Processor(new Options(strict: false));
+        $this->processor = new Processor(strict: false);
         $this->document = self::document($scoped, $params['nodes']);
     }
 
