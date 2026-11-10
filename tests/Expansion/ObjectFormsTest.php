@@ -12,7 +12,7 @@ use function json_decode;
 
 use const JSON_THROW_ON_ERROR;
 
-class ObjectFormsTest extends TestCase
+final class ObjectFormsTest extends TestCase
 {
     #[DataProvider('forms')]
     public function testTellsTheFormsApart(string $json, bool $value, bool $list, bool $graph, bool $node): void

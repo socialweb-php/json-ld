@@ -16,7 +16,7 @@ use stdClass;
 
 use function str_repeat;
 
-class BundledDocumentLoaderTest extends TestCase
+final class BundledDocumentLoaderTest extends TestCase
 {
     private const string URL = 'https://example.com/contexts/v1';
 

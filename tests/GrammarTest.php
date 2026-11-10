@@ -11,7 +11,7 @@ use SocialWeb\Rdf\Exception\InvalidArgument;
 use SocialWeb\Rdf\Iri;
 use SocialWeb\Rdf\Literal;
 
-class GrammarTest extends TestCase
+final class GrammarTest extends TestCase
 {
     /**
      * The RDF package's Iri constructor is the definition of a well-formed

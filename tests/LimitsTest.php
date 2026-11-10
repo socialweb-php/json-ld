@@ -9,7 +9,7 @@ use SocialWeb\JsonLd\Limits;
 
 use const PHP_INT_MAX;
 
-class LimitsTest extends TestCase
+final class LimitsTest extends TestCase
 {
     public function testHasTheDocumentedDefaults(): void
     {

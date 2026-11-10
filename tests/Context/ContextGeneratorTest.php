@@ -29,7 +29,7 @@ use const PHP_BINARY;
 /**
  * Runs bin/generate-contexts.php as a caller would
  */
-class ContextGeneratorTest extends TestCase
+final class ContextGeneratorTest extends TestCase
 {
     private const string SCRIPT = __DIR__ . '/../../bin/generate-contexts.php';
     private const string RESOURCES = __DIR__ . '/../../resources/contexts';

@@ -13,7 +13,7 @@ use SocialWeb\JsonLd\ProcessingMode;
 use SocialWeb\JsonLd\RdfDirection;
 use SocialWeb\JsonLd\Restrictions;
 
-class OptionsTest extends TestCase
+final class OptionsTest extends TestCase
 {
     public function testHasTheDocumentedDefaults(): void
     {

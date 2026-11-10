@@ -10,7 +10,7 @@ use stdClass;
 use function json_encode;
 use function str_repeat;
 
-class ExpandedDocumentTest extends TestCase
+final class ExpandedDocumentTest extends TestCase
 {
     public function testSerializesToItsNodes(): void
     {

@@ -24,7 +24,7 @@ use const JSON_THROW_ON_ERROR;
 use const NAN;
 use const PHP_INT_MAX;
 
-class DocumentReaderTest extends TestCase
+final class DocumentReaderTest extends TestCase
 {
     public function testDecodesAStringWithObjectsAsStdClass(): void
     {

@@ -13,7 +13,7 @@ use SocialWeb\Test\JsonLd\TestCase;
 use function str_repeat;
 use function strlen;
 
-class DataLossTest extends TestCase
+final class DataLossTest extends TestCase
 {
     public function testCanBeCaughtAsAJsonLdException(): void
     {

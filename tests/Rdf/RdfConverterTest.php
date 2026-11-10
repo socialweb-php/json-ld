@@ -31,7 +31,7 @@ use const JSON_THROW_ON_ERROR;
  * triples of a list or a compound literal after the triple that holds its
  * head.
  */
-class RdfConverterTest extends TestCase
+final class RdfConverterTest extends TestCase
 {
     #[DataProvider('documents')]
     public function testConverts(string $expected, string $document): void

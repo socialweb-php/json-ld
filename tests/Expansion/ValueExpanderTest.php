@@ -10,7 +10,7 @@ use SocialWeb\JsonLd\Context\TermDefinition;
 use SocialWeb\JsonLd\Expansion\ValueExpander;
 use SocialWeb\Test\JsonLd\TestCase;
 
-class ValueExpanderTest extends TestCase
+final class ValueExpanderTest extends TestCase
 {
     /**
      * The entries of a value object are in code point order.

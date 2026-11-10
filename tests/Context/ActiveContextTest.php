@@ -8,7 +8,7 @@ use SocialWeb\JsonLd\Context\ActiveContext;
 use SocialWeb\JsonLd\Context\TermDefinition;
 use SocialWeb\Test\JsonLd\TestCase;
 
-class ActiveContextTest extends TestCase
+final class ActiveContextTest extends TestCase
 {
     public function testStartsEmpty(): void
     {

@@ -25,7 +25,7 @@ use function json_decode;
 
 use const JSON_THROW_ON_ERROR;
 
-class ObjectToRdfTest extends TestCase
+final class ObjectToRdfTest extends TestCase
 {
     private const string XSD = 'http://www.w3.org/2001/XMLSchema#';
 

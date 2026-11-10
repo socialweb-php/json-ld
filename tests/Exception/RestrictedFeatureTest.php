@@ -9,7 +9,7 @@ use SocialWeb\JsonLd\Exception\JsonLdException;
 use SocialWeb\JsonLd\Exception\RestrictedFeature;
 use SocialWeb\Test\JsonLd\TestCase;
 
-class RestrictedFeatureTest extends TestCase
+final class RestrictedFeatureTest extends TestCase
 {
     public function testCanBeCaughtAsAJsonLdException(): void
     {

@@ -26,7 +26,7 @@ use const JSON_THROW_ON_ERROR;
  * labels included, because every path goes through the one converter and the
  * output does not depend on the form the document came in.
  */
-class ConversionPropertyTest extends TestCase
+final class ConversionPropertyTest extends TestCase
 {
     #[DataProvider('entries')]
     public function testConvertingTheExpandedDocumentGivesTheDatasetOfItsSource(W3cEntry $entry): void

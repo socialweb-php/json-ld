@@ -26,7 +26,7 @@ use function hash;
  *
  * @link https://www.w3.org/TR/vc-di-eddsa/#representation-eddsa-rdfc-2022 Data Integrity EdDSA Cryptosuites v1.0, B.1
  */
-class PipelineTest extends TestCase
+final class PipelineTest extends TestCase
 {
     private const string FIXTURES = __DIR__ . '/../resources/vc-di-eddsa';
 

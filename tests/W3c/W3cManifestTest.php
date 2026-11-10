@@ -9,7 +9,7 @@ use SocialWeb\Test\JsonLd\TestCase;
 
 use function iterator_to_array;
 
-class W3cManifestTest extends TestCase
+final class W3cManifestTest extends TestCase
 {
     public function testListsTheExpandEntriesWithoutThoseForJsonLd10(): void
     {

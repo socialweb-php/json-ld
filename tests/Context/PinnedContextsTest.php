@@ -31,7 +31,7 @@ use const JSON_THROW_ON_ERROR;
  * Proves that the pinned resources, the manifest, the generated PHP files,
  * and the loader's table all describe the same nine contexts
  */
-class PinnedContextsTest extends TestCase
+final class PinnedContextsTest extends TestCase
 {
     private const string RESOURCES = __DIR__ . '/../../resources/contexts';
     private const string BUNDLED = __DIR__ . '/../../src/Context/Bundled';

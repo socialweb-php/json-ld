@@ -6,7 +6,7 @@ namespace SocialWeb\Test\JsonLd;
 
 use SocialWeb\JsonLd\RdfDirection;
 
-class RdfDirectionTest extends TestCase
+final class RdfDirectionTest extends TestCase
 {
     public function testUsesTheSpecificationValues(): void
     {

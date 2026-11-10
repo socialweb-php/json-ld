@@ -11,7 +11,7 @@ use SocialWeb\JsonLd\Context\IriExpander;
 use SocialWeb\JsonLd\Context\TermDefinition;
 use SocialWeb\Test\JsonLd\TestCase;
 
-class IriExpanderTest extends TestCase
+final class IriExpanderTest extends TestCase
 {
     #[DataProvider('expansions')]
     public function testExpands(?string $value, bool $documentRelative, bool $vocab, ?string $expected): void

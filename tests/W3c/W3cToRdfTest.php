@@ -29,7 +29,7 @@ use function iterator_to_array;
  *
  * @link https://w3c.github.io/json-ld-api/tests/
  */
-class W3cToRdfTest extends TestCase
+final class W3cToRdfTest extends TestCase
 {
     /**
      * The positive entries that strict mode refuses, with the condition each

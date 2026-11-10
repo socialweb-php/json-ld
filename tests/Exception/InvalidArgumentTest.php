@@ -9,7 +9,7 @@ use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdException;
 use SocialWeb\Test\JsonLd\TestCase;
 
-class InvalidArgumentTest extends TestCase
+final class InvalidArgumentTest extends TestCase
 {
     public function testCanBeCaughtAsAJsonLdException(): void
     {

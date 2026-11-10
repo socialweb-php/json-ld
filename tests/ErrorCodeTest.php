@@ -9,7 +9,7 @@ use SocialWeb\JsonLd\ErrorCode;
 use function array_map;
 use function array_unique;
 
-class ErrorCodeTest extends TestCase
+final class ErrorCodeTest extends TestCase
 {
     public function testHasEveryCodeOfTheJsonLd11Api(): void
     {

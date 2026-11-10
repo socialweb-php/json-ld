@@ -10,7 +10,7 @@ use SocialWeb\JsonLd\Utf16;
 
 use function bin2hex;
 
-class Utf16Test extends TestCase
+final class Utf16Test extends TestCase
 {
     /**
      * One sample at each boundary of the UTF-8 encoding lengths and of the

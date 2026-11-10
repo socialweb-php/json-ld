@@ -9,7 +9,7 @@ use SocialWeb\Test\JsonLd\TestCase;
 
 use function array_map;
 
-class NodeMapTest extends TestCase
+final class NodeMapTest extends TestCase
 {
     public function testStartsWithAnEmptyDefaultGraph(): void
     {

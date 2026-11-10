@@ -12,7 +12,7 @@ use SocialWeb\Test\JsonLd\TestCase;
 
 use function str_starts_with;
 
-class VocabularyTest extends TestCase
+final class VocabularyTest extends TestCase
 {
     public function testNamespacesAgreeWithTheRdfPackage(): void
     {

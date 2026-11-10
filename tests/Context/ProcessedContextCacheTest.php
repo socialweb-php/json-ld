@@ -14,7 +14,7 @@ use function array_fill;
 use function gc_disable;
 use function gc_enable;
 
-class ProcessedContextCacheTest extends TestCase
+final class ProcessedContextCacheTest extends TestCase
 {
     private const string URL = 'https://example.com/context';
 

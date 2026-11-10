@@ -7,7 +7,7 @@ namespace SocialWeb\Test\JsonLd\Rdf;
 use SocialWeb\JsonLd\Rdf\BlankNodeIssuer;
 use SocialWeb\Test\JsonLd\TestCase;
 
-class BlankNodeIssuerTest extends TestCase
+final class BlankNodeIssuerTest extends TestCase
 {
     public function testIssuesNewIdentifiersInOrder(): void
     {

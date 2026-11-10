@@ -28,7 +28,7 @@ use const JSON_THROW_ON_ERROR;
  * Expected results are written as JSON and compared as canonical JSON, so the
  * order of map entries does not matter, and the order of arrays does.
  */
-class ExpanderTest extends TestCase
+final class ExpanderTest extends TestCase
 {
     private const string BASE = 'https://example.com/dir/doc.jsonld';
 

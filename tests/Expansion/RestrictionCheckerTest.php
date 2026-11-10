@@ -17,7 +17,7 @@ use function json_decode;
 
 use const JSON_THROW_ON_ERROR;
 
-class RestrictionCheckerTest extends TestCase
+final class RestrictionCheckerTest extends TestCase
 {
     private const string NAMED_GRAPH = '[{"@id": "ex:g", "@graph": [{"@id": "ex:a", "ex:p": [{"@value": 1}]}]}]';
 

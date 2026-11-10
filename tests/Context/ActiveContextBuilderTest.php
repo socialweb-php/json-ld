@@ -9,7 +9,7 @@ use SocialWeb\JsonLd\Context\ActiveContextBuilder;
 use SocialWeb\JsonLd\Context\TermDefinition;
 use SocialWeb\Test\JsonLd\TestCase;
 
-class ActiveContextBuilderTest extends TestCase
+final class ActiveContextBuilderTest extends TestCase
 {
     public function testStartsWithWhatTheActiveContextHolds(): void
     {

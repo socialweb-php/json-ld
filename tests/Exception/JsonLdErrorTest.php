@@ -10,7 +10,7 @@ use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Exception\JsonLdException;
 use SocialWeb\Test\JsonLd\TestCase;
 
-class JsonLdErrorTest extends TestCase
+final class JsonLdErrorTest extends TestCase
 {
     public function testCanBeCaughtAsAJsonLdException(): void
     {

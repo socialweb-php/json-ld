@@ -11,7 +11,7 @@ use function json_decode;
 
 use const JSON_THROW_ON_ERROR;
 
-class NodeTest extends TestCase
+final class NodeTest extends TestCase
 {
     public function testStartsWithOnlyAnIdentifier(): void
     {

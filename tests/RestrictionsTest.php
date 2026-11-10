@@ -6,7 +6,7 @@ namespace SocialWeb\Test\JsonLd;
 
 use SocialWeb\JsonLd\Restrictions;
 
-class RestrictionsTest extends TestCase
+final class RestrictionsTest extends TestCase
 {
     public function testRestrictsNothingByDefault(): void
     {

@@ -11,7 +11,7 @@ use function json_decode;
 
 use const JSON_THROW_ON_ERROR;
 
-class JsonLdComparisonTest extends TestCase
+final class JsonLdComparisonTest extends TestCase
 {
     #[DataProvider('pairs')]
     public function testComparesAsTheSuiteDefines(bool $same, string $one, string $two): void

@@ -23,7 +23,7 @@ use function json_decode;
 
 use const JSON_THROW_ON_ERROR;
 
-class ListToRdfTest extends TestCase
+final class ListToRdfTest extends TestCase
 {
     public function testAnEmptyListIsNil(): void
     {

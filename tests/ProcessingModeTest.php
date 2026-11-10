@@ -6,7 +6,7 @@ namespace SocialWeb\Test\JsonLd;
 
 use SocialWeb\JsonLd\ProcessingMode;
 
-class ProcessingModeTest extends TestCase
+final class ProcessingModeTest extends TestCase
 {
     public function testUsesTheSpecificationValues(): void
     {

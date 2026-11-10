@@ -7,7 +7,7 @@ namespace SocialWeb\Test\JsonLd;
 use PHPUnit\Framework\Attributes\DataProvider;
 use SocialWeb\JsonLd\IriResolver;
 
-class IriResolverTest extends TestCase
+final class IriResolverTest extends TestCase
 {
     /**
      * The normal and abnormal examples of RFC 3986 section 5.4, against the

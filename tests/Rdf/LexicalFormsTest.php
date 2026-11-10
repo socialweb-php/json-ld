@@ -11,7 +11,7 @@ use SocialWeb\Test\JsonLd\TestCase;
 use const PHP_INT_MAX;
 use const PHP_INT_MIN;
 
-class LexicalFormsTest extends TestCase
+final class LexicalFormsTest extends TestCase
 {
     #[DataProvider('doubleDecisions')]
     public function testDecidesWhetherANumberIsADouble(int | float $value, bool $expected): void

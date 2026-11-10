@@ -7,7 +7,7 @@ namespace SocialWeb\Test\JsonLd;
 use PHPUnit\Framework\Attributes\DataProvider;
 use SocialWeb\JsonLd\Keywords;
 
-class KeywordsTest extends TestCase
+final class KeywordsTest extends TestCase
 {
     #[DataProvider('samples')]
     public function testTellsKeywordsFromStringsThatOnlyLookLikeOne(

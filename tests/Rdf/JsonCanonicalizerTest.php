@@ -24,7 +24,7 @@ use const NAN;
 use const PHP_INT_MAX;
 use const PHP_INT_MIN;
 
-class JsonCanonicalizerTest extends TestCase
+final class JsonCanonicalizerTest extends TestCase
 {
     private const string FIXTURES = __DIR__ . '/../../resources/jcs';
 

@@ -23,7 +23,7 @@ use const JSON_THROW_ON_ERROR;
  *
  * @link https://w3c.github.io/json-ld-api/tests/
  */
-class W3cExpandTest extends TestCase
+final class W3cExpandTest extends TestCase
 {
     /**
      * The positive entries that strict mode refuses, with the condition each

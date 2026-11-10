@@ -11,7 +11,7 @@ use SocialWeb\Test\JsonLd\TestCase;
 
 use const JSON_ERROR_SYNTAX;
 
-class MalformedJsonTest extends TestCase
+final class MalformedJsonTest extends TestCase
 {
     public function testCanBeCaughtAsAJsonLdException(): void
     {

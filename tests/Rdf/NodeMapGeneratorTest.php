@@ -32,7 +32,7 @@ use const JSON_THROW_ON_ERROR;
  * holds the nodes of the graph by identifier, and compared as canonical JSON,
  * so the order of map entries does not matter and the order of lists does.
  */
-class NodeMapGeneratorTest extends TestCase
+final class NodeMapGeneratorTest extends TestCase
 {
     /**
      * Example 137 of JSON-LD 1.1, whose flattened form is example 138

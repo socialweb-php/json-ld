@@ -22,7 +22,7 @@ use const JSON_THROW_ON_ERROR;
 /**
  * Properties that hold for every positive expansion entry of the W3C suite
  */
-class ExpansionPropertyTest extends TestCase
+final class ExpansionPropertyTest extends TestCase
 {
     /**
      * The entries whose lenient output cannot be expanded again

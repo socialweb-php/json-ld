@@ -7,7 +7,7 @@ namespace SocialWeb\Test\JsonLd\Context;
 use SocialWeb\JsonLd\Context\LoadedDocument;
 use SocialWeb\Test\JsonLd\TestCase;
 
-class LoadedDocumentTest extends TestCase
+final class LoadedDocumentTest extends TestCase
 {
     public function testCarriesTheDocumentUrlAndTheDocument(): void
     {

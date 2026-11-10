@@ -9,7 +9,7 @@ use SocialWeb\Test\JsonLd\TestCase;
 
 use function array_keys;
 
-class ExpansionResultTest extends TestCase
+final class ExpansionResultTest extends TestCase
 {
     public function testStartsEmpty(): void
     {

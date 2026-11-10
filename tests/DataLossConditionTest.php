@@ -9,7 +9,7 @@ use SocialWeb\JsonLd\DataLossCondition;
 use function array_map;
 use function array_unique;
 
-class DataLossConditionTest extends TestCase
+final class DataLossConditionTest extends TestCase
 {
     public function testHasFifteenDistinctConditions(): void
     {

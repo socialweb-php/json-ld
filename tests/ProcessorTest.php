@@ -32,7 +32,7 @@ use function sprintf;
 use const JSON_THROW_ON_ERROR;
 use const PHP_INT_MAX;
 
-class ProcessorTest extends TestCase
+final class ProcessorTest extends TestCase
 {
     private const string DOCUMENT = <<<'JSON'
         {

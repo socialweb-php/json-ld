@@ -9,7 +9,7 @@ use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\Test\JsonLd\TestCase;
 
-class FixtureDocumentLoaderTest extends TestCase
+final class FixtureDocumentLoaderTest extends TestCase
 {
     public function testLoadsAFixtureByTheUrlItIsPublishedAt(): void
     {

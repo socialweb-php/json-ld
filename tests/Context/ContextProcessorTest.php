@@ -33,7 +33,7 @@ use function strval;
 
 use const JSON_THROW_ON_ERROR;
 
-class ContextProcessorTest extends TestCase
+final class ContextProcessorTest extends TestCase
 {
     private const string DOCUMENT = 'https://example.com/dir/doc.jsonld';
 

@@ -9,7 +9,7 @@ use SocialWeb\JsonLd\Exception\JsonLdException;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\Test\JsonLd\TestCase;
 
-class LimitExceededTest extends TestCase
+final class LimitExceededTest extends TestCase
 {
     public function testCanBeCaughtAsAJsonLdException(): void
     {

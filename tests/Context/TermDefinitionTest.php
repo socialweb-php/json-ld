@@ -10,7 +10,7 @@ use SocialWeb\Test\JsonLd\TestCase;
 
 use function json_decode;
 
-class TermDefinitionTest extends TestCase
+final class TermDefinitionTest extends TestCase
 {
     public function testStartsWithNothingSet(): void
     {
