@@ -41,6 +41,8 @@ use const SORT_STRING;
  * The step numbers in the comments are the specification's.
  *
  * @internal
+ *
+ * @link https://www.w3.org/TR/json-ld11-api/#value-expansion JSON-LD 1.1 API, Value Expansion
  */
 final class ValueExpander
 {

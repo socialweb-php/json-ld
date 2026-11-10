@@ -81,6 +81,8 @@ use const SORT_STRING;
  * its own.
  *
  * @internal
+ *
+ * @link https://www.w3.org/TR/json-ld11-api/#expansion-algorithm JSON-LD 1.1 API, Expansion Algorithm
  */
 final class Expander
 {

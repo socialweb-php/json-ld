@@ -68,7 +68,10 @@ final class ProcessedContextCache
      * the identifier of an object it has released to the next new object.
      * While the term definition is held here, that cannot happen.
      *
-     * @var WeakMap<ActiveContext, array<string, array{ActiveContext, TermDefinition | null}>>
+     * @var WeakMap<
+     *     ActiveContext,
+     *     array<string, array{ActiveContext, TermDefinition | null}>,
+     * >
      */
     private WeakMap $results;
 

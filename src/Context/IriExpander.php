@@ -40,6 +40,8 @@ use function substr;
  * The step numbers in the comments are the specification's.
  *
  * @internal
+ *
+ * @link https://www.w3.org/TR/json-ld11-api/#iri-expansion JSON-LD 1.1 API, IRI Expansion
  */
 final class IriExpander
 {

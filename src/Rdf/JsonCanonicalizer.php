@@ -69,6 +69,8 @@ use const SORT_STRING;
  * by UTF-16 code units.
  *
  * @internal
+ *
+ * @link https://www.rfc-editor.org/rfc/rfc8785 RFC 8785, JSON Canonicalization Scheme (JCS)
  */
 final class JsonCanonicalizer
 {

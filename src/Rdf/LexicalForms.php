@@ -39,6 +39,8 @@ use function sprintf;
  * document is converted to RDF.
  *
  * @internal
+ *
+ * @link https://www.w3.org/TR/json-ld11-api/#data-round-tripping JSON-LD 1.1 API, Data Round Tripping
  */
 final class LexicalForms
 {

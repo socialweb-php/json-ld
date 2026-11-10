@@ -47,6 +47,8 @@ use const PREG_UNMATCHED_AS_NULL;
  * matches the base's.
  *
  * @internal
+ *
+ * @link https://www.rfc-editor.org/rfc/rfc3986#section-5.2 RFC 3986, Relative Resolution
  */
 final class IriResolver
 {
@@ -92,7 +94,13 @@ final class IriResolver
      * Returns the components of a reference: scheme, authority, path, query,
      * and fragment, with null for each component that is absent
      *
-     * @return array{string | null, string | null, string, string | null, string | null}
+     * @return array{
+     *     string | null,
+     *     string | null,
+     *     string,
+     *     string | null,
+     *     string | null,
+     * }
      */
     private static function parse(string $reference): array
     {

@@ -174,8 +174,6 @@ final class Processor
      * written in one explicit form, so that two documents that mean the same
      * thing expand to the same result even when their contexts differ.
      *
-     * @link https://www.w3.org/TR/json-ld11-api/#dom-jsonldprocessor-expand JSON-LD 1.1 API, expand()
-     *
      * @param array<mixed> | string | JsonSerializable | stdClass $document A
      *     JSON-encoded string; a decoded document, as a `stdClass` tree or as
      *     nested arrays; or a `JsonSerializable`, which is read as what its
@@ -213,8 +211,6 @@ final class Processor
      * the limits of the options, as `expand()` does. An `ExpandedDocument` was
      * read and expanded under the limits of the processor that made it, and
      * `toRdf()` checks only the restrictions on it.
-     *
-     * @link https://www.w3.org/TR/json-ld11-api/#dom-jsonldprocessor-tordf JSON-LD 1.1 API, toRdf()
      *
      * @param array<mixed> | string | JsonSerializable | stdClass | ExpandedDocument $document
      *     A document as `expand()` takes it, or an `ExpandedDocument`, which

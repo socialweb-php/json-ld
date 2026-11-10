@@ -186,7 +186,8 @@ final class DocumentReader
         try {
             // json_decode() counts one level more than maxDepth does: a bare
             // scalar is depth 1 to it and depth 0 here. Its argument cannot
-            // exceed 2^31 - 1, so a larger limit is capped, and walk() enforces it.
+            // exceed 2^31 - 1, so a larger limit is capped, and walk() enforces
+            // it.
             $depth = $this->settings->maxDepth < self::DECODER_MAX_DEPTH
                 ? $this->settings->maxDepth + 1
                 : self::DECODER_MAX_DEPTH;

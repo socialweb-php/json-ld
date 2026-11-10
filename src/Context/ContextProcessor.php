@@ -83,6 +83,8 @@ use const SORT_STRING;
  * called.
  *
  * @internal
+ *
+ * @link https://www.w3.org/TR/json-ld11-api/#context-processing-algorithms JSON-LD 1.1 API, Context Processing Algorithms
  */
 final class ContextProcessor
 {
@@ -813,7 +815,8 @@ final class ContextProcessor
                     throw new JsonLdError(JsonLdErrorCode::InvalidKeywordAlias, sprintf('"%s"', $term));
                 }
 
-                // Step 14.2.4. The colon may not be the first or last character.
+                // Step 14.2.4. The colon may not be the first or last
+                // character.
                 if (str_contains(substr($term, 1, -1), ':') || str_contains($term, '/')) {
                     $defined[$term] = true;
 
