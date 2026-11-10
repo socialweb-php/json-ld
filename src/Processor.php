@@ -74,6 +74,12 @@ final class Processor
     private readonly Settings $settings;
 
     /**
+     * The expand context as the reader returned it, with the `@context` entry
+     * of a document taken out, or the context URL as given
+     */
+    private readonly mixed $expandContext;
+
+    /**
      * The three limits bound the work done for one document. To disable one,
      * pass `PHP_INT_MAX`.
      *
@@ -89,7 +95,9 @@ final class Processor
      *     references; `null`, the default, leaves them unresolved
      * @param array<mixed> | string | JsonSerializable | stdClass | null $expandContext
      *     A context applied before the document's own. A string is a context
-     *     URL, not JSON text; any other value is read as a document is.
+     *     URL, not JSON text, and is loaded when a document is expanded. Any
+     *     other value is read once, when the processor is built, as a document
+     *     is and under the same limits.
      * @param ProcessingMode $processingMode `JsonLd10` mode turns JSON-LD 1.1
      *     features into processing errors
      * @param RdfDirection | null $rdfDirection How base direction reaches RDF;
@@ -129,7 +137,14 @@ final class Processor
      *     top level is not exactly one node object
      *
      * @throws InvalidArgument if the base is given and is not a well-formed
-     *     absolute IRI, or if a limit is less than 1
+     *     absolute IRI, if a limit is less than 1, or if the expand context
+     *     holds, within the limits on depth and on the number of values, a
+     *     value whose PHP type is not a JSON type
+     * @throws JsonLdError with the code `loading document failed` if the
+     *     expand context is not valid JSON or holds a value that JSON text
+     *     cannot express, such as a number that is not finite
+     * @throws LimitExceeded if the expand context exceeds `maxDepth` or
+     *     `maxValues`
      */
     public function __construct(
         ?string $base = null,
@@ -162,6 +177,16 @@ final class Processor
             $requireSingleTopLevelNode,
         );
         $this->reader = new DocumentReader($this->settings);
+
+        if ($expandContext !== null && !is_string($expandContext)) {
+            $expandContext = $this->reader->read($expandContext);
+
+            if ($expandContext instanceof stdClass && property_exists($expandContext, '@context')) {
+                $expandContext = $expandContext->{'@context'};
+            }
+        }
+
+        $this->expandContext = $expandContext;
         $this->contextProcessor = new ContextProcessor($this->settings);
         $this->expander = new Expander($this->settings, $this->contextProcessor);
     }
@@ -266,18 +291,13 @@ final class Processor
 
         $element = $this->reader->read($document);
         $activeContext = ActiveContext::initial($this->settings->base);
-        $expandContext = $this->settings->expandContext;
 
-        if ($expandContext !== null) {
-            if (!is_string($expandContext)) {
-                $expandContext = $this->reader->read($expandContext);
-            }
-
-            if ($expandContext instanceof stdClass && property_exists($expandContext, '@context')) {
-                $expandContext = $expandContext->{'@context'};
-            }
-
-            $activeContext = $this->contextProcessor->process($activeContext, $expandContext, $this->settings->base);
+        if ($this->settings->expandContext !== null) {
+            $activeContext = $this->contextProcessor->process(
+                $activeContext,
+                $this->expandContext,
+                $this->settings->base,
+            );
         }
 
         $expanded = $this->expander->expand($activeContext, null, $element, $this->settings->base);

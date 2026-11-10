@@ -29,6 +29,7 @@ use function json_decode;
 use function sprintf;
 
 use const JSON_THROW_ON_ERROR;
+use const NAN;
 use const PHP_INT_MAX;
 
 final class ProcessorTest extends TestCase
@@ -640,14 +641,16 @@ final class ProcessorTest extends TestCase
 
     public function testEnforcesTheLimitsOnTheExpandContext(): void
     {
-        $processor = new Processor(
-            expandContext: ['a' => 'ex:a', 'b' => 'ex:b', 'c' => 'ex:c'],
-            maxValues: 3,
-        );
+        try {
+            new Processor(expandContext: ['a' => ['@id' => 'ex:a']], maxDepth: 1);
+            $this->fail('Expected a LimitExceeded');
+        } catch (LimitExceeded $exception) {
+            $this->assertSame('maxDepth', $exception->parameter);
+        }
 
         $this->expectExceptionObject(new LimitExceeded('maxValues', 3));
 
-        $processor->expand('{"ex:p": 1}');
+        new Processor(expandContext: ['a' => 'ex:a', 'b' => 'ex:b', 'c' => 'ex:c'], maxValues: 3);
     }
 
     public function testTheLimitsCountTheDocumentAndTheExpandContextApart(): void
@@ -661,6 +664,57 @@ final class ProcessorTest extends TestCase
             '[{"ex:a":[{"@value":1}],"ex:b":[{"@value":2}]}]',
             $processor->expand('{"a": 1, "b": 2}')->toJson(),
         );
+    }
+
+    /**
+     * @param array<mixed> $expandContext
+     */
+    #[DataProvider('expandContextsWithoutJsonTypes')]
+    public function testRejectsAnExpandContextThatHoldsSomethingOtherThanJsonValuesWhenItIsBuilt(
+        array $expandContext,
+        string $type,
+    ): void {
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains(sprintf('A document may hold only JSON values; %s given', $type));
+
+        new Processor(expandContext: $expandContext);
+    }
+
+    /**
+     * @return iterable<string, array{array<mixed>, string}>
+     */
+    public static function expandContextsWithoutJsonTypes(): iterable
+    {
+        yield 'a closure' => [['a' => static fn (): int => 1], 'Closure'];
+        yield 'an object of another class' => [['a' => new ArrayObject()], 'ArrayObject'];
+    }
+
+    public function testRejectsAnExpandContextThatJsonTextCannotExpressWhenItIsBuilt(): void
+    {
+        $this->expectExceptionObject(new JsonLdError(JsonLdErrorCode::LoadingDocumentFailed, 'a number is not finite'));
+
+        new Processor(expandContext: ['a' => NAN]);
+    }
+
+    public function testChangingTheExpandContextAfterTheProcessorIsBuiltChangesNothing(): void
+    {
+        $context = (object) ['name' => 'https://example.com/ns#name'];
+        $processor = new Processor(expandContext: $context);
+        $context->name = 'https://example.com/other#name';
+
+        $this->assertSame(
+            '[{"https://example.com/ns#name":[{"@value":"A"}]}]',
+            $processor->expand('{"name": "A"}')->toJson(),
+        );
+    }
+
+    public function testAStringExpandContextIsNotReadWhenTheProcessorIsBuilt(): void
+    {
+        $processor = new Processor(expandContext: '{nope');
+
+        $this->expectExceptionObject(new JsonLdError(JsonLdErrorCode::LoadingDocumentFailed, '"{nope"'));
+
+        $processor->expand('{"ex:p": 1}');
     }
 
     #[DataProvider('modes')]
