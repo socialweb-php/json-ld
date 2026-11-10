@@ -23,7 +23,7 @@
 
 declare(strict_types=1);
 
-namespace SocialWeb\JsonLd;
+namespace SocialWeb\JsonLd\Exception;
 
 /**
  * The points where the JSON-LD algorithms silently drop data, which strict
@@ -31,9 +31,10 @@ namespace SocialWeb\JsonLd;
  *
  * Each case names a step of the expansion or deserialization algorithm that
  * says "drop" or "continue." See the JSON-LD 1.1 Processing Algorithms and API
- * specification.
+ * specification. The cases are this package's own, not the specification's,
+ * so the enum has no backing strings; a `DataLoss` message names the case.
  */
-enum DataLossCondition: string
+enum DataLossReason
 {
     /**
      * A key or a value that expansion can give no meaning
@@ -47,79 +48,79 @@ enum DataLossCondition: string
      * - A key or a value that the active context defines as null. A `@type`
      *   value and the key of a type map are examples.
      */
-    case UndefinedProperty = 'undefined property';
+    case UndefinedProperty;
 
     /**
      * A term, a key, or a value that has the form of a keyword but is not
      * one, such as an `@id`, an `@reverse`, or a `@type` value
      */
-    case ReservedTerm = 'reserved term';
+    case ReservedTerm;
 
     /**
      * A value object whose `@value` is null or an empty array
      */
-    case NullValue = 'null value';
+    case NullValue;
 
     /**
      * At the top level or inside `@graph`, an empty map, a map with only
      * `@id`, or a scalar, list, or value with no property
      */
-    case FreeFloatingNode = 'free-floating node';
+    case FreeFloatingNode;
 
     /**
      * A map with only `@value`, `@list`, or `@language` where a node is
      * required
      */
-    case FreeFloatingValue = 'free-floating value';
+    case FreeFloatingValue;
 
     /**
-     * A value carries `@direction` and no `rdfDirection` option is set
+     * A value has `@direction` and the processor's `rdfDirection` is null
      */
-    case DroppedDirection = 'dropped direction';
+    case DroppedDirection;
 
     /**
      * A property that is a blank node identifier
      */
-    case BlankNodePredicate = 'blank node predicate';
+    case BlankNodePredicate;
 
     /**
      * A subject that is not a well-formed IRI
      */
-    case RelativeSubject = 'relative subject';
+    case RelativeSubject;
 
     /**
      * A predicate that is not a well-formed IRI
      */
-    case RelativePredicate = 'relative predicate';
+    case RelativePredicate;
 
     /**
      * A node object whose `@id` is not a well-formed IRI
      */
-    case RelativeObject = 'relative object';
+    case RelativeObject;
 
     /**
      * A graph name that is not a well-formed IRI
      */
-    case RelativeGraph = 'relative graph';
+    case RelativeGraph;
 
     /**
      * A `@type` value that is not a well-formed IRI
      */
-    case RelativeType = 'relative type';
+    case RelativeType;
 
     /**
      * A value object whose `@type` is not a well-formed IRI
      */
-    case MalformedDatatype = 'malformed datatype';
+    case MalformedDatatype;
 
     /**
      * A value object whose `@language` is not well-formed
      */
-    case MalformedLanguageTag = 'malformed language tag';
+    case MalformedLanguageTag;
 
     /**
      * A blank node identifier that does not match the N-Quads label
      * production
      */
-    case MalformedBlankNodeIdentifier = 'malformed blank node identifier';
+    case MalformedBlankNodeIdentifier;
 }

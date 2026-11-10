@@ -29,10 +29,10 @@ use SocialWeb\JsonLd\Context\ActiveContext;
 use SocialWeb\JsonLd\Context\ContextProcessor;
 use SocialWeb\JsonLd\Context\IriExpander;
 use SocialWeb\JsonLd\Context\TermDefinition;
-use SocialWeb\JsonLd\DataLossCondition;
-use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\DataLoss;
+use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\Grammar;
 use SocialWeb\JsonLd\Keywords;
@@ -54,6 +54,7 @@ use function is_array;
 use function is_string;
 use function ksort;
 use function sort;
+use function sprintf;
 use function str_contains;
 use function strtolower;
 
@@ -137,7 +138,7 @@ final class Expander
         if (!$element instanceof stdClass) {
             // Step 4.1.
             if ($activeProperty === null || $activeProperty === '@graph') {
-                $this->drop(DataLossCondition::FreeFloatingNode, $element);
+                $this->drop(DataLossReason::FreeFloatingNode, $element);
 
                 return null;
             }
@@ -365,7 +366,7 @@ final class Expander
             if (Keywords::isKeyword($expandedProperty)) {
                 // Step 13.4.1.
                 if ($activeProperty === '@reverse') {
-                    throw new JsonLdError(ErrorCode::InvalidReversePropertyMap, $key);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidReversePropertyMap, sprintf('"%s"', $key));
                 }
 
                 if ($expandedProperty === '@nest') {
@@ -391,7 +392,7 @@ final class Expander
 
             // Step 13.3, for a key that is neither an IRI nor a keyword.
             if (!str_contains($expandedProperty, ':')) {
-                $this->drop(DataLossCondition::UndefinedProperty, $key);
+                $this->drop(DataLossReason::UndefinedProperty, $key);
 
                 continue;
             }
@@ -432,7 +433,7 @@ final class Expander
                 // Step 13.13.
                 foreach (self::asList($expandedValue) as $item) {
                     if (ObjectForms::isValueObject($item) || ObjectForms::isListObject($item)) {
-                        throw new JsonLdError(ErrorCode::InvalidReversePropertyValue, $key);
+                        throw new JsonLdError(JsonLdErrorCode::InvalidReversePropertyValue, sprintf('"%s"', $key));
                     }
 
                     $result->addReverse($expandedProperty, $item);
@@ -466,7 +467,7 @@ final class Expander
 
                 // Step 14.2.1.
                 if ($nestedEntries === null || $this->hasValueEntry($nestContext, $nestedEntries)) {
-                    throw new JsonLdError(ErrorCode::InvalidNestValue, $nestingKey);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidNestValue, sprintf('"%s"', $nestingKey));
                 }
 
                 // Step 14.2.2.
@@ -508,21 +509,21 @@ final class Expander
             $result->has($expandedProperty)
             && ($isJsonLd10 || ($expandedProperty !== '@included' && $expandedProperty !== '@type'))
         ) {
-            throw new JsonLdError(ErrorCode::CollidingKeywords, $expandedProperty);
+            throw new JsonLdError(JsonLdErrorCode::CollidingKeywords, sprintf('"%s"', $expandedProperty));
         }
 
         switch ($expandedProperty) {
             case '@id':
                 // Step 13.4.3.
                 if (!is_string($value)) {
-                    throw new JsonLdError(ErrorCode::InvalidIdValue);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidIdValue);
                 }
 
                 $expandedValue = IriExpander::expand($activeContext, $value, documentRelative: true);
 
                 // The value has the form of a keyword. The entry stays as null.
                 if ($expandedValue === null) {
-                    $this->drop(DataLossCondition::ReservedTerm, $value);
+                    $this->drop(DataLossReason::ReservedTerm, $value);
                 }
 
                 break;
@@ -546,7 +547,7 @@ final class Expander
                 // Step 13.4.6. In `json-ld-1.0` mode, `@included` is a keyword
                 // the algorithm has no step for, so the entry is dropped.
                 if ($isJsonLd10) {
-                    $this->drop(DataLossCondition::UndefinedProperty, $key);
+                    $this->drop(DataLossReason::UndefinedProperty, $key);
 
                     return;
                 }
@@ -561,7 +562,7 @@ final class Expander
 
                 foreach ($expandedValue as $item) {
                     if (!ObjectForms::isNodeObject($item)) {
-                        throw new JsonLdError(ErrorCode::InvalidIncludedValue);
+                        throw new JsonLdError(JsonLdErrorCode::InvalidIncludedValue);
                     }
                 }
 
@@ -580,11 +581,11 @@ final class Expander
                 if ($isJsonLiteral) {
                     // Step 13.4.7.1.
                     if ($isJsonLd10) {
-                        throw new JsonLdError(ErrorCode::InvalidValueObjectValue);
+                        throw new JsonLdError(JsonLdErrorCode::InvalidValueObjectValue);
                     }
                 } elseif (is_array($value) || $value instanceof stdClass) {
                     // Step 13.4.7.2.
-                    throw new JsonLdError(ErrorCode::InvalidValueObjectValue);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidValueObjectValue);
                 }
 
                 $expandedValue = $value;
@@ -594,7 +595,7 @@ final class Expander
                 // Step 13.4.8. The tag is lowercased, which the specification
                 // allows.
                 if (!is_string($value)) {
-                    throw new JsonLdError(ErrorCode::InvalidLanguageTaggedString);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidLanguageTaggedString);
                 }
 
                 $expandedValue = strtolower($value);
@@ -604,13 +605,13 @@ final class Expander
                 // Step 13.4.9. In `json-ld-1.0` mode, `@direction` is a keyword
                 // the algorithm has no step for, so the entry is dropped.
                 if ($isJsonLd10) {
-                    $this->drop(DataLossCondition::UndefinedProperty, $key);
+                    $this->drop(DataLossReason::UndefinedProperty, $key);
 
                     return;
                 }
 
                 if ($value !== 'ltr' && $value !== 'rtl') {
-                    throw new JsonLdError(ErrorCode::InvalidBaseDirection);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidBaseDirection);
                 }
 
                 $expandedValue = $value;
@@ -619,7 +620,7 @@ final class Expander
             case '@index':
                 // Step 13.4.10.
                 if (!is_string($value)) {
-                    throw new JsonLdError(ErrorCode::InvalidIndexValue);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidIndexValue);
                 }
 
                 $expandedValue = $value;
@@ -628,7 +629,7 @@ final class Expander
             case '@list':
                 // Step 13.4.11.
                 if ($activeProperty === null || $activeProperty === '@graph') {
-                    $this->drop(DataLossCondition::FreeFloatingNode, $value);
+                    $this->drop(DataLossReason::FreeFloatingNode, $value);
 
                     return;
                 }
@@ -649,7 +650,7 @@ final class Expander
             default:
                 // The specification has no step for any other keyword, such
                 // as `@container`, so the entry is dropped.
-                $this->drop(DataLossCondition::UndefinedProperty, $key);
+                $this->drop(DataLossReason::UndefinedProperty, $key);
 
                 return;
         }
@@ -674,14 +675,14 @@ final class Expander
         }
 
         if (!is_array($value)) {
-            throw new JsonLdError(ErrorCode::InvalidTypeValue);
+            throw new JsonLdError(JsonLdErrorCode::InvalidTypeValue);
         }
 
         $types = [];
 
         foreach ($value as $type) {
             if (!is_string($type)) {
-                throw new JsonLdError(ErrorCode::InvalidTypeValue);
+                throw new JsonLdError(JsonLdErrorCode::InvalidTypeValue);
             }
 
             $types[] = $this->expandType($typeScopedContext, $type);
@@ -724,7 +725,7 @@ final class Expander
     ): void {
         // Step 13.4.13.1.
         if (!$value instanceof stdClass) {
-            throw new JsonLdError(ErrorCode::InvalidReverseValue);
+            throw new JsonLdError(JsonLdErrorCode::InvalidReverseValue);
         }
 
         // Step 13.4.13.2.
@@ -743,7 +744,10 @@ final class Expander
             // Step 13.4.13.4.
             foreach (self::asList($items) as $item) {
                 if (ObjectForms::isValueObject($item) || ObjectForms::isListObject($item)) {
-                    throw new JsonLdError(ErrorCode::InvalidReversePropertyValue, (string) $property);
+                    throw new JsonLdError(
+                        JsonLdErrorCode::InvalidReversePropertyValue,
+                        sprintf('"%s"', (string) $property),
+                    );
                 }
 
                 $result->addReverse((string) $property, $item);
@@ -837,7 +841,7 @@ final class Expander
 
                 // Step 13.7.4.2.2.
                 if (!is_string($item)) {
-                    throw new JsonLdError(ErrorCode::InvalidLanguageMapValue, $language);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidLanguageMapValue, sprintf('"%s"', $language));
                 }
 
                 // Step 13.7.4.2.3.
@@ -965,7 +969,7 @@ final class Expander
                         ];
 
                         if (ObjectForms::isValueObject($item)) {
-                            throw new JsonLdError(ErrorCode::InvalidValueObject, $key);
+                            throw new JsonLdError(JsonLdErrorCode::InvalidValueObject, sprintf('"%s"', $key));
                         }
                     }
                 } elseif ($isIndex && !array_key_exists('@index', $entries)) {
@@ -1050,7 +1054,7 @@ final class Expander
                     && (array_key_exists('@language', $result) || array_key_exists('@direction', $result))
                 )
             ) {
-                throw new JsonLdError(ErrorCode::InvalidValueObject);
+                throw new JsonLdError(JsonLdErrorCode::InvalidValueObject);
             }
 
             $type = $result['@type'] ?? null;
@@ -1059,14 +1063,14 @@ final class Expander
             if ($type !== '@json') {
                 // Step 15.3.
                 if ($result['@value'] === null || $result['@value'] === []) {
-                    $this->drop(DataLossCondition::NullValue, (object) $result);
+                    $this->drop(DataLossReason::NullValue, (object) $result);
 
                     return null;
                 }
 
                 // Step 15.4.
                 if (!is_string($result['@value']) && array_key_exists('@language', $result)) {
-                    throw new JsonLdError(ErrorCode::InvalidLanguageTaggedValue);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidLanguageTaggedValue);
                 }
 
                 // Step 15.5. The `@type` of a value object must be an IRI. This
@@ -1076,7 +1080,7 @@ final class Expander
                 // accept a second. Otherwise, it raises `invalid typed value`,
                 // as W3C test #t0123 expects.
                 if (array_key_exists('@type', $result) && !(is_string($type) && Grammar::isWellFormedIri($type))) {
-                    throw new JsonLdError(ErrorCode::InvalidTypedValue);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidTypedValue);
                 }
             }
         } elseif (array_key_exists('@type', $result) && !is_array($result['@type'])) {
@@ -1085,7 +1089,7 @@ final class Expander
         } elseif (array_key_exists('@set', $result) || array_key_exists('@list', $result)) {
             // Step 17.1.
             if (count($result) > 2 || (count($result) === 2 && !array_key_exists('@index', $result))) {
-                throw new JsonLdError(ErrorCode::InvalidSetOrListObject);
+                throw new JsonLdError(JsonLdErrorCode::InvalidSetOrListObject);
             }
 
             // Step 17.2.
@@ -1096,7 +1100,7 @@ final class Expander
 
         // Step 18.
         if (count($result) === 1 && array_key_exists('@language', $result)) {
-            $this->drop(DataLossCondition::FreeFloatingValue, (object) $result);
+            $this->drop(DataLossReason::FreeFloatingValue, (object) $result);
 
             return null;
         }
@@ -1106,14 +1110,14 @@ final class Expander
             // Step 19.1. A map that has `@value` or `@list` is dropped whatever
             // else it has, as the reference processors drop it.
             if (array_key_exists('@value', $result) || array_key_exists('@list', $result)) {
-                $this->drop(DataLossCondition::FreeFloatingValue, (object) $result);
+                $this->drop(DataLossReason::FreeFloatingValue, (object) $result);
 
                 return null;
             }
 
             // Steps 19.1 and 19.2.
             if ($result === [] || (count($result) === 1 && array_key_exists('@id', $result))) {
-                $this->drop(DataLossCondition::FreeFloatingNode, (object) $result);
+                $this->drop(DataLossReason::FreeFloatingNode, (object) $result);
 
                 return null;
             }
@@ -1126,10 +1130,10 @@ final class Expander
     /**
      * In strict mode, refuses to drop what the specification drops silently
      */
-    private function drop(DataLossCondition $condition, mixed $dropped): void
+    private function drop(DataLossReason $reason, mixed $dropped): void
     {
         if ($this->options->strict) {
-            throw new DataLoss($condition, is_string($dropped) ? $dropped : JsonCanonicalizer::canonicalize($dropped));
+            throw new DataLoss($reason, is_string($dropped) ? $dropped : JsonCanonicalizer::canonicalize($dropped));
         }
     }
 
@@ -1145,8 +1149,8 @@ final class Expander
     {
         $this->drop(
             Keywords::hasKeywordForm($value)
-                ? DataLossCondition::ReservedTerm
-                : DataLossCondition::UndefinedProperty,
+                ? DataLossReason::ReservedTerm
+                : DataLossReason::UndefinedProperty,
             $value,
         );
     }

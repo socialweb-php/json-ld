@@ -6,8 +6,8 @@ namespace SocialWeb\Test\JsonLd\W3c;
 
 use SocialWeb\JsonLd\Context\DocumentLoader;
 use SocialWeb\JsonLd\Context\LoadedDocument;
-use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use stdClass;
 
 use function is_array;
@@ -32,13 +32,13 @@ final class FixtureDocumentLoader implements DocumentLoader
         $file = W3cManifest::FIXTURES . '/' . $path;
 
         if (str_contains($path, '..') || !is_file($file)) {
-            throw new JsonLdError(ErrorCode::LoadingRemoteContextFailed, $url);
+            throw new JsonLdError(JsonLdErrorCode::LoadingRemoteContextFailed, $url);
         }
 
         $document = json_decode(W3cManifest::read($file), false, 512, JSON_THROW_ON_ERROR);
 
         if (!is_array($document) && !$document instanceof stdClass) {
-            throw new JsonLdError(ErrorCode::LoadingRemoteContextFailed, $url);
+            throw new JsonLdError(JsonLdErrorCode::LoadingRemoteContextFailed, $url);
         }
 
         return new LoadedDocument($url, $document);

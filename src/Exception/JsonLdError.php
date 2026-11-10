@@ -25,32 +25,35 @@ declare(strict_types=1);
 
 namespace SocialWeb\JsonLd\Exception;
 
-use RuntimeException;
-use SocialWeb\JsonLd\ErrorCode;
 use Throwable;
+use UnexpectedValueException;
 
 use function sprintf;
+use function ucfirst;
 
 /**
  * Thrown when a document fails a rule of the JSON-LD 1.1 specification
  *
  * The specification defines one error type with a code for each rule, and so
  * does this library. See JSON-LD 1.1 Processing Algorithms and API section
- * 10.2, "JsonLdErrorCode".
+ * 9.6.2, "JsonLdErrorCode". The message is the code with its first letter
+ * capitalized, followed by the detail when there is one.
  */
-final class JsonLdError extends RuntimeException implements JsonLdException
+final class JsonLdError extends UnexpectedValueException implements JsonLdException
 {
     /**
-     * @param ErrorCode $errorCode The specification's error code
-     * @param string $detail The offending term, value, or IRI, when known
+     * @param JsonLdErrorCode $reason The specification's error code
+     * @param string $detail What the message says after the code: the
+     *     offending term, entry, or IRI in double quotes, or a few words
+     *     about what was wrong
      */
     public function __construct(
-        public readonly ErrorCode $errorCode,
+        public readonly JsonLdErrorCode $reason,
         string $detail = '',
         ?Throwable $previous = null,
     ) {
         parent::__construct(
-            $detail === '' ? $errorCode->value : sprintf('%s: %s', $errorCode->value, $detail),
+            $detail === '' ? ucfirst($reason->value) : sprintf('%s: %s', ucfirst($reason->value), $detail),
             0,
             $previous,
         );

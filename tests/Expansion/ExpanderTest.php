@@ -7,10 +7,10 @@ namespace SocialWeb\Test\JsonLd\Expansion;
 use PHPUnit\Framework\Attributes\DataProvider;
 use SocialWeb\JsonLd\Context\ActiveContext;
 use SocialWeb\JsonLd\Context\ContextProcessor;
-use SocialWeb\JsonLd\DataLossCondition;
-use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\DataLoss;
+use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\Expansion\Expander;
 use SocialWeb\JsonLd\Limits;
@@ -643,7 +643,7 @@ final class ExpanderTest extends TestCase
 
     #[DataProvider('errors')]
     public function testRejects(
-        ErrorCode $expected,
+        JsonLdErrorCode $expected,
         string $document,
         ProcessingMode $mode = ProcessingMode::JsonLd11,
     ): void {
@@ -652,162 +652,171 @@ final class ExpanderTest extends TestCase
                 self::expand($document, $strict, $mode);
                 $this->fail('Expected a JsonLdError with the code "' . $expected->value . '"');
             } catch (JsonLdError $error) {
-                $this->assertSame($expected, $error->errorCode, $error->getMessage());
+                $this->assertSame($expected, $error->reason, $error->getMessage());
             }
         }
     }
 
     /**
-     * @return iterable<string, array{0: ErrorCode, 1: string, 2?: ProcessingMode}>
+     * @return iterable<string, array{0: JsonLdErrorCode, 1: string, 2?: ProcessingMode}>
      */
     public static function errors(): iterable
     {
         yield 'a keyword in a reverse map' => [
-            ErrorCode::InvalidReversePropertyMap,
+            JsonLdErrorCode::InvalidReversePropertyMap,
             '{"@reverse": {"@id": "ex:a"}}',
         ];
         yield '@nest in a reverse map' => [
-            ErrorCode::InvalidReversePropertyMap,
+            JsonLdErrorCode::InvalidReversePropertyMap,
             '{"@reverse": {"@nest": {"ex:p": {"@id": "ex:a"}}}}',
         ];
         yield 'a keyword and its alias' => [
-            ErrorCode::CollidingKeywords,
+            JsonLdErrorCode::CollidingKeywords,
             '{"@context": {"id": "@id"}, "@id": "ex:a", "id": "ex:b"}',
         ];
         yield '@reverse and its alias' => [
-            ErrorCode::CollidingKeywords,
+            JsonLdErrorCode::CollidingKeywords,
             '{"@context": {"rev": "@reverse"}, "@reverse": {"ex:p": {"@id": "ex:a"}},'
                 . ' "rev": {"ex:p": {"@id": "ex:b"}}}',
         ];
         yield 'a reverse property and then an alias of @reverse' => [
-            ErrorCode::CollidingKeywords,
+            JsonLdErrorCode::CollidingKeywords,
             '{"@context": {"children": {"@reverse": "ex:parent"}, "rev": "@reverse"},'
                 . ' "children": {"@id": "ex:a"}, "rev": {"ex:p": {"@id": "ex:b"}}}',
         ];
         yield '@type twice, in JSON-LD 1.0' => [
-            ErrorCode::CollidingKeywords,
+            JsonLdErrorCode::CollidingKeywords,
             '{"@context": {"kind": "@type"}, "@type": "ex:A", "kind": "ex:B"}',
             ProcessingMode::JsonLd10,
         ];
-        yield '@id is not a string' => [ErrorCode::InvalidIdValue, '{"@id": 1}'];
-        yield '@id is null' => [ErrorCode::InvalidIdValue, '{"@id": null}'];
-        yield '@type is a number' => [ErrorCode::InvalidTypeValue, '{"@type": 1}'];
-        yield '@type is a map' => [ErrorCode::InvalidTypeValue, '{"@type": {}}'];
-        yield '@type holds a number' => [ErrorCode::InvalidTypeValue, '{"@type": ["ex:A", 1]}'];
-        yield '@value is a map' => [ErrorCode::InvalidValueObjectValue, '{"ex:p": {"@value": {}}}'];
-        yield '@value is an array' => [ErrorCode::InvalidValueObjectValue, '{"ex:p": {"@value": [1]}}'];
+        yield '@id is not a string' => [JsonLdErrorCode::InvalidIdValue, '{"@id": 1}'];
+        yield '@id is null' => [JsonLdErrorCode::InvalidIdValue, '{"@id": null}'];
+        yield '@type is a number' => [JsonLdErrorCode::InvalidTypeValue, '{"@type": 1}'];
+        yield '@type is a map' => [JsonLdErrorCode::InvalidTypeValue, '{"@type": {}}'];
+        yield '@type holds a number' => [JsonLdErrorCode::InvalidTypeValue, '{"@type": ["ex:A", 1]}'];
+        yield '@value is a map' => [JsonLdErrorCode::InvalidValueObjectValue, '{"ex:p": {"@value": {}}}'];
+        yield '@value is an array' => [JsonLdErrorCode::InvalidValueObjectValue, '{"ex:p": {"@value": [1]}}'];
         yield 'a JSON literal in JSON-LD 1.0' => [
-            ErrorCode::InvalidValueObjectValue,
+            JsonLdErrorCode::InvalidValueObjectValue,
             '{"ex:p": {"@value": [1], "@type": "@json"}}',
             ProcessingMode::JsonLd10,
         ];
         yield '@language is not a string' => [
-            ErrorCode::InvalidLanguageTaggedString,
+            JsonLdErrorCode::InvalidLanguageTaggedString,
             '{"ex:p": {"@value": "A", "@language": 1}}',
         ];
         yield '@direction is not ltr or rtl' => [
-            ErrorCode::InvalidBaseDirection,
+            JsonLdErrorCode::InvalidBaseDirection,
             '{"ex:p": {"@value": "A", "@direction": "up"}}',
         ];
-        yield '@index is not a string' => [ErrorCode::InvalidIndexValue, '{"ex:p": {"@value": "A", "@index": 1}}'];
-        yield '@reverse is not a map' => [ErrorCode::InvalidReverseValue, '{"@reverse": "ex:a"}'];
+        yield '@index is not a string' => [
+            JsonLdErrorCode::InvalidIndexValue,
+            '{"ex:p": {"@value": "A", "@index": 1}}',
+        ];
+        yield '@reverse is not a map' => [JsonLdErrorCode::InvalidReverseValue, '{"@reverse": "ex:a"}'];
         yield 'a value object in a reverse map' => [
-            ErrorCode::InvalidReversePropertyValue,
+            JsonLdErrorCode::InvalidReversePropertyValue,
             '{"@reverse": {"ex:p": [{"@id": "ex:a"}, "text"]}}',
         ];
         yield 'a list object in a reverse map' => [
-            ErrorCode::InvalidReversePropertyValue,
+            JsonLdErrorCode::InvalidReversePropertyValue,
             '{"@reverse": {"ex:p": {"@list": []}}}',
         ];
         yield 'a value object under a reverse property' => [
-            ErrorCode::InvalidReversePropertyValue,
+            JsonLdErrorCode::InvalidReversePropertyValue,
             '{"@context": {"children": {"@reverse": "ex:parent"}}, "children": [{"@id": "ex:a"}, "text"]}',
         ];
         yield 'a list object under a reverse property' => [
-            ErrorCode::InvalidReversePropertyValue,
+            JsonLdErrorCode::InvalidReversePropertyValue,
             '{"@context": {"children": {"@reverse": "ex:parent"}}, "children": {"@list": []}}',
         ];
-        yield '@nest is not a map' => [ErrorCode::InvalidNestValue, '{"@nest": "text"}'];
-        yield '@nest is null' => [ErrorCode::InvalidNestValue, '{"@nest": null}'];
-        yield '@nest holds something that is not a map' => [ErrorCode::InvalidNestValue, '{"@nest": [{"ex:p": 1}, 1]}'];
-        yield '@nest holds @value' => [ErrorCode::InvalidNestValue, '{"@nest": {"@value": 1}}'];
+        yield '@nest is not a map' => [JsonLdErrorCode::InvalidNestValue, '{"@nest": "text"}'];
+        yield '@nest is null' => [JsonLdErrorCode::InvalidNestValue, '{"@nest": null}'];
+        yield '@nest holds something that is not a map' => [
+            JsonLdErrorCode::InvalidNestValue,
+            '{"@nest": [{"ex:p": 1}, 1]}',
+        ];
+        yield '@nest holds @value' => [JsonLdErrorCode::InvalidNestValue, '{"@nest": {"@value": 1}}'];
         yield '@nest holds an alias of @value' => [
-            ErrorCode::InvalidNestValue,
+            JsonLdErrorCode::InvalidNestValue,
             '{"@context": {"value": "@value"}, "@nest": {"ex:p": 1, "value": 1}}',
         ];
         yield 'a language map value that is not a string' => [
-            ErrorCode::InvalidLanguageMapValue,
+            JsonLdErrorCode::InvalidLanguageMapValue,
             '{"@context": {"label": {"@id": "ex:label", "@container": "@language"}}, "label": {"en": ["A", 1]}}',
         ];
         yield 'an index that becomes a property of a value object' => [
-            ErrorCode::InvalidValueObject,
+            JsonLdErrorCode::InvalidValueObject,
             '{"@context": {"@vocab": "ex:", "p": {"@container": "@index", "@index": "key"}}, "p": {"one": "text"}}',
         ];
         yield 'a value object with another entry' => [
-            ErrorCode::InvalidValueObject,
+            JsonLdErrorCode::InvalidValueObject,
             '{"ex:p": {"@value": 1, "@id": "ex:a"}}',
         ];
-        yield 'a value object with a property' => [ErrorCode::InvalidValueObject, '{"ex:p": {"@value": 1, "ex:q": 1}}'];
+        yield 'a value object with a property' => [
+            JsonLdErrorCode::InvalidValueObject,
+            '{"ex:p": {"@value": 1, "ex:q": 1}}',
+        ];
         yield 'a value object with a type and a language' => [
-            ErrorCode::InvalidValueObject,
+            JsonLdErrorCode::InvalidValueObject,
             '{"ex:p": {"@value": "A", "@type": "ex:t", "@language": "en"}}',
         ];
         yield 'a value object with a type and a direction' => [
-            ErrorCode::InvalidValueObject,
+            JsonLdErrorCode::InvalidValueObject,
             '{"ex:p": {"@value": "A", "@type": "ex:t", "@direction": "ltr"}}',
         ];
         yield 'a number with a language' => [
-            ErrorCode::InvalidLanguageTaggedValue,
+            JsonLdErrorCode::InvalidLanguageTaggedValue,
             '{"ex:p": {"@value": 1, "@language": "en"}}',
         ];
         yield 'a datatype that is a blank node identifier' => [
-            ErrorCode::InvalidTypedValue,
+            JsonLdErrorCode::InvalidTypedValue,
             '{"ex:p": {"@value": 1, "@type": "_:b0"}}',
         ];
         yield 'a datatype that holds a space' => [
-            ErrorCode::InvalidTypedValue,
+            JsonLdErrorCode::InvalidTypedValue,
             '{"ex:p": {"@value": 1, "@type": "https://example.com/a b"}}',
         ];
         yield 'a datatype that holds more than one number sign' => [
-            ErrorCode::InvalidTypedValue,
+            JsonLdErrorCode::InvalidTypedValue,
             '{"@context": {"@vocab": "https://example.com/ns#"}, "@id": "https://example.com/a",'
                 . ' "p": {"@value": "x", "@type": "#foo"}}',
         ];
         yield 'a datatype that is an array' => [
-            ErrorCode::InvalidTypedValue,
+            JsonLdErrorCode::InvalidTypedValue,
             '{"ex:p": {"@value": 1, "@type": ["ex:t"]}}',
         ];
         yield 'the first key that expands to @type decides whether the value is a JSON literal' => [
-            ErrorCode::InvalidTypedValue,
+            JsonLdErrorCode::InvalidTypedValue,
             '{"@context": {"type": "@type"}, "ex:p": {"@value": [1], "@type": "@json", "type": "ex:t"}}',
         ];
         yield 'a type-scoped context that takes away an alias of @json' => [
-            ErrorCode::InvalidValueObjectValue,
+            JsonLdErrorCode::InvalidValueObjectValue,
             '{"@context": {"X": {"@id": "@json", "@context": {"X": "ex:X"}}},'
                 . ' "ex:p": {"@value": [1], "@type": "X"}}',
         ];
         yield 'a set object with a property' => [
-            ErrorCode::InvalidSetOrListObject,
+            JsonLdErrorCode::InvalidSetOrListObject,
             '{"ex:p": {"@set": [], "ex:q": 1}}',
         ];
         yield 'a list object with an identifier' => [
-            ErrorCode::InvalidSetOrListObject,
+            JsonLdErrorCode::InvalidSetOrListObject,
             '{"ex:p": {"@list": [], "@id": "ex:a"}}',
         ];
         yield 'a list object with an index and an identifier' => [
-            ErrorCode::InvalidSetOrListObject,
+            JsonLdErrorCode::InvalidSetOrListObject,
             '{"ex:p": {"@list": [], "@index": "a", "@id": "ex:a"}}',
         ];
         yield 'a list object with types' => [
-            ErrorCode::InvalidSetOrListObject,
+            JsonLdErrorCode::InvalidSetOrListObject,
             '{"ex:p": {"@list": [], "@type": ["ex:A"]}}',
         ];
-        yield 'a context that is not valid' => [ErrorCode::InvalidLocalContext, '{"@context": 1, "ex:p": 1}'];
+        yield 'a context that is not valid' => [JsonLdErrorCode::InvalidLocalContext, '{"@context": 1, "ex:p": 1}'];
     }
 
     public function testADatatypeWithoutABaseIsNotAnIri(): void
     {
-        $this->expectExceptionObject(new JsonLdError(ErrorCode::InvalidTypedValue));
+        $this->expectExceptionObject(new JsonLdError(JsonLdErrorCode::InvalidTypedValue));
 
         self::expand('{"ex:p": {"@value": 1, "@type": "relative"}}', base: null);
     }
@@ -824,14 +833,14 @@ final class ExpanderTest extends TestCase
             self::expand($document, strict: false);
             $this->fail('Expected a JsonLdError');
         } catch (JsonLdError $error) {
-            $this->assertSame(ErrorCode::InvalidTypedValue, $error->errorCode, $error->getMessage());
+            $this->assertSame(JsonLdErrorCode::InvalidTypedValue, $error->reason, $error->getMessage());
         }
 
         try {
             self::expand($document);
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
-            $this->assertSame(DataLossCondition::ReservedTerm, $dataLoss->condition);
+            $this->assertSame(DataLossReason::ReservedTerm, $dataLoss->reason);
             $this->assertSame('@ignoreMe', $dataLoss->detail);
         }
     }
@@ -846,7 +855,7 @@ final class ExpanderTest extends TestCase
             self::expand($document, mode: ProcessingMode::JsonLd10);
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
-            $this->assertSame(DataLossCondition::UndefinedProperty, $dataLoss->condition);
+            $this->assertSame(DataLossReason::UndefinedProperty, $dataLoss->reason);
             $this->assertSame('@included', $dataLoss->detail);
         }
     }
@@ -861,7 +870,7 @@ final class ExpanderTest extends TestCase
             self::expand($document, mode: ProcessingMode::JsonLd10);
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
-            $this->assertSame(DataLossCondition::UndefinedProperty, $dataLoss->condition);
+            $this->assertSame(DataLossReason::UndefinedProperty, $dataLoss->reason);
             $this->assertSame('@direction', $dataLoss->detail);
         }
     }
@@ -869,7 +878,7 @@ final class ExpanderTest extends TestCase
     #[DataProvider('drops')]
     public function testDropsInLenientModeAndRefusesInStrictMode(
         string $expected,
-        DataLossCondition $condition,
+        DataLossReason $reason,
         string $detail,
         string $document,
     ): void {
@@ -879,217 +888,217 @@ final class ExpanderTest extends TestCase
             self::expand($document);
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
-            $this->assertSame($condition, $dataLoss->condition);
+            $this->assertSame($reason, $dataLoss->reason);
             $this->assertSame($detail, $dataLoss->detail);
         }
     }
 
     /**
-     * @return iterable<string, array{string, DataLossCondition, string, string}>
+     * @return iterable<string, array{string, DataLossReason, string, string}>
      */
     public static function drops(): iterable
     {
         yield 'a property that is not defined' => [
             '{"ex:p": [{"@value": 1}]}',
-            DataLossCondition::UndefinedProperty,
+            DataLossReason::UndefinedProperty,
             'name',
             '{"ex:p": 1, "name": "A"}',
         ];
         yield 'a property that is defined as null' => [
             '{"ex:p": [{"@value": 1}]}',
-            DataLossCondition::UndefinedProperty,
+            DataLossReason::UndefinedProperty,
             'name',
             '{"@context": {"@vocab": "ex:", "name": null}, "p": 1, "name": "A"}',
         ];
         yield 'a property under @nest that is not defined' => [
             '{"ex:p": [{"@value": 1}]}',
-            DataLossCondition::UndefinedProperty,
+            DataLossReason::UndefinedProperty,
             'name',
             '{"ex:p": 1, "@nest": {"name": "A"}}',
         ];
         yield 'a key that has the form of a keyword' => [
             '{"ex:p": [{"@value": 1}]}',
-            DataLossCondition::ReservedTerm,
+            DataLossReason::ReservedTerm,
             '@ignoreMe',
             '{"ex:p": 1, "@ignoreMe": "A"}',
         ];
         yield 'a keyword that has no meaning in a node' => [
             '{"ex:p": [{"@value": 1}]}',
-            DataLossCondition::UndefinedProperty,
+            DataLossReason::UndefinedProperty,
             '@container',
             '{"ex:p": 1, "@container": "@set"}',
         ];
         yield 'an @id that has the form of a keyword' => [
             '{"@id": null, "ex:p": [{"@value": 1}]}',
-            DataLossCondition::ReservedTerm,
+            DataLossReason::ReservedTerm,
             '@ignoreMe',
             '{"@id": "@ignoreMe", "ex:p": 1}',
         ];
         yield 'a @type that has the form of a keyword' => [
             '{"@type": [null], "ex:p": [{"@value": 1}]}',
-            DataLossCondition::ReservedTerm,
+            DataLossReason::ReservedTerm,
             '@ignoreMe',
             '{"@type": "@ignoreMe", "ex:p": 1}',
         ];
         yield 'a @type in a list that is defined as null' => [
             '{"@type": ["ex:A", null], "ex:p": [{"@value": 1}]}',
-            DataLossCondition::UndefinedProperty,
+            DataLossReason::UndefinedProperty,
             'gone',
             '{"@context": {"@vocab": "ex:", "gone": null}, "@type": ["A", "gone"], "ex:p": 1}',
         ];
         yield 'a value of a term whose values are IRIs, with the form of a keyword' => [
             '{"ex:p": [{"@id": null}]}',
-            DataLossCondition::ReservedTerm,
+            DataLossReason::ReservedTerm,
             '@ignoreMe',
             '{"@context": {"p": {"@id": "ex:p", "@type": "@id"}}, "p": "@ignoreMe"}',
         ];
         yield 'a value of a term whose values are vocabulary terms, with the form of a keyword' => [
             '{"ex:p": [{"@id": null}]}',
-            DataLossCondition::ReservedTerm,
+            DataLossReason::ReservedTerm,
             '@ignoreMe',
             '{"@context": {"p": {"@id": "ex:p", "@type": "@vocab"}}, "p": "@ignoreMe"}',
         ];
         yield 'a value of a term whose values are vocabulary terms, defined as null' => [
             '{"ex:p": [{"@id": null}]}',
-            DataLossCondition::UndefinedProperty,
+            DataLossReason::UndefinedProperty,
             'gone',
             '{"@context": {"@vocab": "ex:", "gone": null, "p": {"@type": "@vocab"}}, "p": "gone"}',
         ];
         yield 'an identifier map key that has the form of a keyword' => [
             '{"ex:p": [{"@id": null, "ex:q": [{"@value": 1}]}]}',
-            DataLossCondition::ReservedTerm,
+            DataLossReason::ReservedTerm,
             '@ignoreMe',
             '{"@context": {"p": {"@id": "ex:p", "@container": "@id"}}, "p": {"@ignoreMe": {"ex:q": 1}}}',
         ];
         yield 'a type map key that has the form of a keyword' => [
             '{"ex:p": [{"@type": [null], "ex:q": [{"@value": 1}]}]}',
-            DataLossCondition::ReservedTerm,
+            DataLossReason::ReservedTerm,
             '@ignoreMe',
             '{"@context": {"p": {"@id": "ex:p", "@container": "@type"}}, "p": {"@ignoreMe": {"ex:q": 1}}}',
         ];
         yield 'a type map key that is defined as null' => [
             '{"ex:p": [{"@type": [null], "ex:q": [{"@value": 1}]}]}',
-            DataLossCondition::UndefinedProperty,
+            DataLossReason::UndefinedProperty,
             'gone',
             '{"@context": {"@vocab": "ex:", "gone": null, "p": {"@container": "@type"}}, "p": {"gone": {"q": 1}}}',
         ];
         yield 'an index that becomes a vocabulary term and has the form of a keyword' => [
             '{"ex:p": [{"@id": "ex:a", "ex:key": [{"@id": null}]}]}',
-            DataLossCondition::ReservedTerm,
+            DataLossReason::ReservedTerm,
             '@ignoreMe',
             '{"@context": {"@vocab": "ex:", "key": {"@type": "@vocab"},'
                 . ' "p": {"@container": "@index", "@index": "key"}}, "p": {"@ignoreMe": {"@id": "ex:a"}}}',
         ];
         yield 'an index that becomes a vocabulary term that is defined as null' => [
             '{"ex:p": [{"@id": "ex:a", "ex:key": [{"@id": null}]}]}',
-            DataLossCondition::UndefinedProperty,
+            DataLossReason::UndefinedProperty,
             'gone',
             '{"@context": {"@vocab": "ex:", "gone": null, "key": {"@type": "@vocab"},'
                 . ' "p": {"@container": "@index", "@index": "key"}}, "p": {"gone": {"@id": "ex:a"}}}',
         ];
         yield 'a property-valued index whose property is defined as null' => [
             '{"ex:p": [{"ex:q": [{"@value": 1}]}]}',
-            DataLossCondition::UndefinedProperty,
+            DataLossReason::UndefinedProperty,
             'prop',
             '{"@context": {"@vocab": "ex:", "p": {"@container": "@index", "@index": "prop"}, "prop": null},'
                 . ' "p": {"a": {"q": 1}}}',
         ];
         yield 'a property-valued index over a value object, with the property defined as null' => [
             '{"ex:p": [{"@value": "v"}]}',
-            DataLossCondition::UndefinedProperty,
+            DataLossReason::UndefinedProperty,
             'prop',
             '{"@context": {"@vocab": "ex:", "p": {"@container": "@index", "@index": "prop"}, "prop": null},'
                 . ' "p": {"a": {"@value": "v"}}}',
         ];
         yield 'a value object whose value is null' => [
             '{"ex:q": [{"@value": 1}]}',
-            DataLossCondition::NullValue,
+            DataLossReason::NullValue,
             '{"@value":null}',
             '{"ex:p": {"@value": null}, "ex:q": 1}',
         ];
         yield 'a typed value object whose value is null' => [
             '{"ex:q": [{"@value": 1}]}',
-            DataLossCondition::NullValue,
+            DataLossReason::NullValue,
             '{"@type":"ex:t","@value":null}',
             '{"ex:p": {"@value": null, "@type": "ex:t"}, "ex:q": 1}',
         ];
         yield 'a value object whose value is an empty array' => [
             '{"ex:q": [{"@value": 1}]}',
-            DataLossCondition::NullValue,
+            DataLossReason::NullValue,
             '{"@type":["@json","ex:t"],"@value":[]}',
             '{"@context": {"type": "@type"}, "ex:p": {"@value": [], "@type": "@json", "type": "ex:t"}, "ex:q": 1}',
         ];
         yield 'a map with nothing but a language' => [
             '{"ex:q": [{"@value": 1}]}',
-            DataLossCondition::FreeFloatingValue,
+            DataLossReason::FreeFloatingValue,
             '{"@language":"en"}',
             '{"ex:p": {"@language": "en"}, "ex:q": 1}',
         ];
-        yield 'a scalar at the top level' => ['null', DataLossCondition::FreeFloatingNode, 'free', '"free"'];
+        yield 'a scalar at the top level' => ['null', DataLossReason::FreeFloatingNode, 'free', '"free"'];
         yield 'a number in a top-level array' => [
             '[{"ex:p": [{"@value": 1}]}]',
-            DataLossCondition::FreeFloatingNode,
+            DataLossReason::FreeFloatingNode,
             '5',
             '[{"ex:p": 1}, 5]',
         ];
         yield 'a scalar in a graph' => [
             '{"@id": "ex:g", "@graph": []}',
-            DataLossCondition::FreeFloatingNode,
+            DataLossReason::FreeFloatingNode,
             'true',
             '{"@id": "ex:g", "@graph": [true]}',
         ];
         yield 'a scalar in an included block' => [
             '{"ex:p": [{"@value": 1}], "@included": [{"ex:q": [{"@value": 2}]}]}',
-            DataLossCondition::FreeFloatingNode,
+            DataLossReason::FreeFloatingNode,
             'free',
             '{"ex:p": 1, "@included": [{"ex:q": 2}, "free"]}',
         ];
         yield 'a node reference in an included block of a node further down' => [
             '{"ex:p": [{"@included": [], "ex:q": [{"@value": 1}]}]}',
-            DataLossCondition::FreeFloatingNode,
+            DataLossReason::FreeFloatingNode,
             '{"@id":"ex:a"}',
             '{"ex:p": {"@included": [{"@id": "ex:a"}], "ex:q": 1}}',
         ];
-        yield 'an empty map at the top level' => ['null', DataLossCondition::FreeFloatingNode, '{}', '{}'];
+        yield 'an empty map at the top level' => ['null', DataLossReason::FreeFloatingNode, '{}', '{}'];
         yield 'a map with nothing but a context' => [
             'null',
-            DataLossCondition::FreeFloatingNode,
+            DataLossReason::FreeFloatingNode,
             '{}',
             '{"@context": {"@vocab": "ex:"}}',
         ];
         yield 'a node reference at the top level' => [
             'null',
-            DataLossCondition::FreeFloatingNode,
+            DataLossReason::FreeFloatingNode,
             '{"@id":"ex:a"}',
             '{"@id": "ex:a"}',
         ];
         yield 'a node reference in a graph' => [
             '{"@id": "ex:g", "@graph": [{"@id": "ex:b", "ex:p": [{"@value": 1}]}]}',
-            DataLossCondition::FreeFloatingNode,
+            DataLossReason::FreeFloatingNode,
             '{"@id":"ex:a"}',
             '{"@id": "ex:g", "@graph": [{"@id": "ex:a"}, {"@id": "ex:b", "ex:p": 1}]}',
         ];
         yield 'a value object at the top level' => [
             'null',
-            DataLossCondition::FreeFloatingValue,
+            DataLossReason::FreeFloatingValue,
             '{"@language":"en","@value":"free"}',
             '{"@value": "free", "@language": "en"}',
         ];
         yield 'a list at the top level' => [
             'null',
-            DataLossCondition::FreeFloatingNode,
+            DataLossReason::FreeFloatingNode,
             '["free"]',
             '{"@list": ["free"]}',
         ];
         yield 'a list in a graph' => [
             '{"@id": "ex:g", "@graph": []}',
-            DataLossCondition::FreeFloatingNode,
+            DataLossReason::FreeFloatingNode,
             '[]',
             '{"@id": "ex:g", "@graph": [{"@list": []}]}',
         ];
         yield 'a set at the top level whose values are free-floating' => [
             '[]',
-            DataLossCondition::FreeFloatingNode,
+            DataLossReason::FreeFloatingNode,
             'free',
             '{"@set": ["free"]}',
         ];
@@ -1125,7 +1134,7 @@ final class ExpanderTest extends TestCase
 
     public function testAnIncludedBlockThatIsDroppedWholeIsAnErrorInLenientMode(): void
     {
-        $this->expectExceptionObject(new JsonLdError(ErrorCode::InvalidIncludedValue));
+        $this->expectExceptionObject(new JsonLdError(JsonLdErrorCode::InvalidIncludedValue));
 
         self::expand('{"ex:p": 1, "@included": "free"}', strict: false);
     }
@@ -1263,7 +1272,7 @@ final class ExpanderTest extends TestCase
                 . ' "reset": [{"ex:p": 1}, {"ex:p": 2}], "a": 3}',
         );
 
-        $this->expectExceptionObject(new DataLoss(DataLossCondition::UndefinedProperty, 'a'));
+        $this->expectExceptionObject(new DataLoss(DataLossReason::UndefinedProperty, 'a'));
 
         self::expand(
             '{"@context": {"a": "ex:a", "reset": {"@id": "ex:reset", "@context": null}},'

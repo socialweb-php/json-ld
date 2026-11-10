@@ -6,11 +6,11 @@ namespace SocialWeb\Test\JsonLd\Rdf;
 
 use LogicException;
 use PHPUnit\Framework\Attributes\DataProvider;
-use SocialWeb\JsonLd\DataLossCondition;
-use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\DataLoss;
+use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\Processor;
 use SocialWeb\JsonLd\Rdf\BlankNodeIssuer;
@@ -536,9 +536,9 @@ final class NodeMapGeneratorTest extends TestCase
             );
             $this->fail('Expected a JsonLdError');
         } catch (JsonLdError $exception) {
-            $this->assertSame(ErrorCode::ConflictingIndexes, $exception->errorCode);
+            $this->assertSame(JsonLdErrorCode::ConflictingIndexes, $exception->reason);
             $this->assertSame(
-                'conflicting indexes: https://example.com/a',
+                'Conflicting indexes: "https://example.com/a"',
                 $exception->getMessage(),
             );
         }
@@ -610,7 +610,7 @@ final class NodeMapGeneratorTest extends TestCase
             NodeMapGenerator::generate(self::nodes($document), new BlankNodeIssuer(), true);
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
-            $this->assertSame(DataLossCondition::UndefinedProperty, $dataLoss->condition);
+            $this->assertSame(DataLossReason::UndefinedProperty, $dataLoss->reason);
             $this->assertSame('@type', $dataLoss->detail);
         }
     }

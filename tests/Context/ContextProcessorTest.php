@@ -13,10 +13,10 @@ use SocialWeb\JsonLd\Context\DocumentLoader;
 use SocialWeb\JsonLd\Context\LoadedDocument;
 use SocialWeb\JsonLd\Context\ProcessedContextCache;
 use SocialWeb\JsonLd\Context\TermDefinition;
-use SocialWeb\JsonLd\DataLossCondition;
-use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\DataLoss;
+use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\Limits;
 use SocialWeb\JsonLd\Options;
@@ -81,8 +81,8 @@ final class ContextProcessorTest extends TestCase
     {
         $active = self::process('{"@protected": true, "a": "ex:a"}');
 
-        $this->assertError(ErrorCode::InvalidContextNullification, 'null', active: $active);
-        $this->assertError(ErrorCode::InvalidContextNullification, '[{"@protected": true, "a": "ex:a"}, null]');
+        $this->assertError(JsonLdErrorCode::InvalidContextNullification, 'null', active: $active);
+        $this->assertError(JsonLdErrorCode::InvalidContextNullification, '[{"@protected": true, "a": "ex:a"}, null]');
     }
 
     #[DataProvider('protectedTermsThatAreKept')]
@@ -95,7 +95,7 @@ final class ContextProcessorTest extends TestCase
         // or the null would clear the active context.
         $processor = self::processor(strict: $strict);
 
-        $this->expectExceptionObject(new JsonLdError(ErrorCode::InvalidContextNullification));
+        $this->expectExceptionObject(new JsonLdError(JsonLdErrorCode::InvalidContextNullification));
 
         $processor->process(
             new ActiveContext(),
@@ -174,7 +174,7 @@ final class ContextProcessorTest extends TestCase
     #[DataProvider('invalidLocalContexts')]
     public function testRejectsALocalContextThatIsNotAMapAStringOrNull(string $context): void
     {
-        $this->assertError(ErrorCode::InvalidLocalContext, $context);
+        $this->assertError(JsonLdErrorCode::InvalidLocalContext, $context);
     }
 
     /**
@@ -221,8 +221,8 @@ final class ContextProcessorTest extends TestCase
             self::processor()->process(new ActiveContext(), 'terms.jsonld', null);
             $this->fail('Expected a JsonLdError');
         } catch (JsonLdError $error) {
-            $this->assertSame(ErrorCode::LoadingDocumentFailed, $error->errorCode);
-            $this->assertSame('loading document failed: terms.jsonld', $error->getMessage());
+            $this->assertSame(JsonLdErrorCode::LoadingDocumentFailed, $error->reason);
+            $this->assertSame('Loading document failed: "terms.jsonld"', $error->getMessage());
         }
     }
 
@@ -308,15 +308,15 @@ final class ContextProcessorTest extends TestCase
             self::process('"https://example.org/context"', loader: $loader);
             $this->fail('Expected a JsonLdError');
         } catch (JsonLdError $error) {
-            $this->assertSame(ErrorCode::LoadingRemoteContextFailed, $error->errorCode);
-            $this->assertSame('loading remote context failed: https://example.org/context', $error->getMessage());
+            $this->assertSame(JsonLdErrorCode::LoadingRemoteContextFailed, $error->reason);
+            $this->assertSame('Loading remote context failed: "https://example.org/context"', $error->getMessage());
             $this->assertSame($failure, $error->getPrevious());
         }
     }
 
     public function testWrapsAnotherJsonLdErrorFromTheLoader(): void
     {
-        $failure = new JsonLdError(ErrorCode::LoadingDocumentFailed, 'nope');
+        $failure = new JsonLdError(JsonLdErrorCode::LoadingDocumentFailed, 'nope');
         $loader = new class ($failure) implements DocumentLoader {
             public function __construct(private readonly JsonLdError $failure)
             {
@@ -332,7 +332,7 @@ final class ContextProcessorTest extends TestCase
             self::process('"https://example.org/context"', loader: $loader);
             $this->fail('Expected a JsonLdError');
         } catch (JsonLdError $error) {
-            $this->assertSame(ErrorCode::LoadingRemoteContextFailed, $error->errorCode);
+            $this->assertSame(JsonLdErrorCode::LoadingRemoteContextFailed, $error->reason);
             $this->assertSame($failure, $error->getPrevious());
         }
     }
@@ -343,8 +343,8 @@ final class ContextProcessorTest extends TestCase
             self::process('"https://example.org/unknown"');
             $this->fail('Expected a JsonLdError');
         } catch (JsonLdError $error) {
-            $this->assertSame(ErrorCode::LoadingRemoteContextFailed, $error->errorCode);
-            $this->assertSame('loading remote context failed: https://example.org/unknown', $error->getMessage());
+            $this->assertSame(JsonLdErrorCode::LoadingRemoteContextFailed, $error->reason);
+            $this->assertSame('Loading remote context failed: "https://example.org/unknown"', $error->getMessage());
             $this->assertNull($error->getPrevious());
         }
     }
@@ -358,7 +358,11 @@ final class ContextProcessorTest extends TestCase
             }
         };
 
-        $this->assertError(ErrorCode::LoadingRemoteContextFailed, '"https://example.org/context"', loader: $loader);
+        $this->assertError(
+            JsonLdErrorCode::LoadingRemoteContextFailed,
+            '"https://example.org/context"',
+            loader: $loader,
+        );
     }
 
     #[DataProvider('invalidRemoteContexts')]
@@ -366,9 +370,9 @@ final class ContextProcessorTest extends TestCase
     {
         $loader = (new BundledDocumentLoader())->with('https://example.org/context', $document);
 
-        $this->assertError(ErrorCode::InvalidRemoteContext, '"https://example.org/context"', loader: $loader);
+        $this->assertError(JsonLdErrorCode::InvalidRemoteContext, '"https://example.org/context"', loader: $loader);
         $this->assertError(
-            ErrorCode::InvalidRemoteContext,
+            JsonLdErrorCode::InvalidRemoteContext,
             '{"@import": "https://example.org/context"}',
             loader: $loader,
         );
@@ -409,8 +413,8 @@ final class ContextProcessorTest extends TestCase
             $refused->process(new ActiveContext(), 'https://example.org/1', null);
             $this->fail('Expected a JsonLdError');
         } catch (JsonLdError $error) {
-            $this->assertSame(ErrorCode::ContextOverflow, $error->errorCode);
-            $this->assertSame('context overflow: https://example.org/3', $error->getMessage());
+            $this->assertSame(JsonLdErrorCode::ContextOverflow, $error->reason);
+            $this->assertSame('Context overflow: "https://example.org/3"', $error->getMessage());
         }
     }
 
@@ -419,7 +423,7 @@ final class ContextProcessorTest extends TestCase
         $loader = (new BundledDocumentLoader())
             ->with('https://example.org/loop', '{"@context": ["https://example.org/loop"]}');
 
-        $this->assertError(ErrorCode::ContextOverflow, '"https://example.org/loop"', loader: $loader);
+        $this->assertError(JsonLdErrorCode::ContextOverflow, '"https://example.org/loop"', loader: $loader);
     }
 
     public function testSiblingRemoteContextsDoNotCountTowardTheDepth(): void
@@ -465,8 +469,8 @@ final class ContextProcessorTest extends TestCase
             $refused->process(new ActiveContext(), $context, null);
             $this->fail('Expected a LimitExceeded');
         } catch (LimitExceeded $exception) {
-            $this->assertSame('maxDepth', $exception->limit);
-            $this->assertSame(2, $exception->value);
+            $this->assertSame('maxDepth', $exception->parameter);
+            $this->assertSame(2, $exception->limit);
         }
     }
 
@@ -633,7 +637,7 @@ final class ContextProcessorTest extends TestCase
             $refused->process(new ActiveContext(), $context, null);
             $this->fail('Expected a LimitExceeded');
         } catch (LimitExceeded $exception) {
-            $this->assertSame(4, $exception->value);
+            $this->assertSame(4, $exception->limit);
         }
 
         // The limit is reached inside the scoped context. The error is the
@@ -681,8 +685,8 @@ final class ContextProcessorTest extends TestCase
             $processor->process(new ActiveContext(), $context, null);
             $this->fail('Expected a LimitExceeded');
         } catch (LimitExceeded $exception) {
-            $this->assertSame('maxContextOperations', $exception->limit);
-            $this->assertSame(5, $exception->value);
+            $this->assertSame('maxContextOperations', $exception->parameter);
+            $this->assertSame(5, $exception->limit);
         }
 
         $processor->reset();
@@ -753,7 +757,7 @@ final class ContextProcessorTest extends TestCase
             $processor->processScoped($active, $definition, overrideProtected: true, propagate: false),
         );
 
-        $this->expectExceptionObject(new JsonLdError(ErrorCode::ProtectedTermRedefinition, 'a'));
+        $this->expectExceptionObject(new JsonLdError(JsonLdErrorCode::ProtectedTermRedefinition, '"a"'));
 
         $processor->processScoped($active, $definition);
     }
@@ -792,11 +796,14 @@ final class ContextProcessorTest extends TestCase
             try {
                 $processor->processScoped($active, $definition);
             } catch (JsonLdError $error) {
-                $codes[] = $error->errorCode;
+                $codes[] = $error->reason;
             }
         }
 
-        $this->assertSame([ErrorCode::ProtectedTermRedefinition, ErrorCode::ProtectedTermRedefinition], $codes);
+        $this->assertSame(
+            [JsonLdErrorCode::ProtectedTermRedefinition, JsonLdErrorCode::ProtectedTermRedefinition],
+            $codes,
+        );
     }
 
     public function testStoresNoScopedContextPastTheCapOfTheCache(): void
@@ -903,7 +910,7 @@ final class ContextProcessorTest extends TestCase
             $processor->process($active, 'https://example.org/context', null, overrideProtected: true),
         );
 
-        $this->expectExceptionObject(new JsonLdError(ErrorCode::ProtectedTermRedefinition, 'a'));
+        $this->expectExceptionObject(new JsonLdError(JsonLdErrorCode::ProtectedTermRedefinition, '"a"'));
 
         $processor->process($active, 'https://example.org/context', null);
     }
@@ -1069,7 +1076,7 @@ final class ContextProcessorTest extends TestCase
             $processor->process($active, 'https://example.org/context', null);
             $this->fail('Expected a JsonLdError');
         } catch (JsonLdError $error) {
-            $this->assertSame(ErrorCode::LoadingRemoteContextFailed, $error->errorCode);
+            $this->assertSame(JsonLdErrorCode::LoadingRemoteContextFailed, $error->reason);
         }
 
         $result = $processor->process($active, 'https://example.org/context', null);
@@ -1126,28 +1133,28 @@ final class ContextProcessorTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{string, ErrorCode}>
+     * @return iterable<string, array{string, JsonLdErrorCode}>
      */
     public static function invalidImports(): iterable
     {
-        yield 'not a string' => ['{"@import": {}}', ErrorCode::InvalidImportValue];
-        yield 'relative, unknown' => ['{"@import": "unknown.jsonld"}', ErrorCode::LoadingRemoteContextFailed];
+        yield 'not a string' => ['{"@import": {}}', JsonLdErrorCode::InvalidImportValue];
+        yield 'relative, unknown' => ['{"@import": "unknown.jsonld"}', JsonLdErrorCode::LoadingRemoteContextFailed];
         yield 'imported context is an array' => [
             '{"@import": "https://example.org/array"}',
-            ErrorCode::InvalidRemoteContext,
+            JsonLdErrorCode::InvalidRemoteContext,
         ];
         yield 'imported context is a string' => [
             '{"@import": "https://example.org/string"}',
-            ErrorCode::InvalidRemoteContext,
+            JsonLdErrorCode::InvalidRemoteContext,
         ];
         yield 'imported context imports' => [
             '{"@import": "https://example.org/importing"}',
-            ErrorCode::InvalidContextEntry,
+            JsonLdErrorCode::InvalidContextEntry,
         ];
     }
 
     #[DataProvider('invalidImports')]
-    public function testRejectsAnInvalidImport(string $context, ErrorCode $expected): void
+    public function testRejectsAnInvalidImport(string $context, JsonLdErrorCode $expected): void
     {
         $loader = (new BundledDocumentLoader())
             ->with('https://example.org/array', '{"@context": [{"a": "ex:a"}]}')
@@ -1163,49 +1170,49 @@ final class ContextProcessorTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{string, ErrorCode, 2?: ProcessingMode}>
+     * @return iterable<string, array{string, JsonLdErrorCode, 2?: ProcessingMode}>
      */
     public static function invalidContextDefinitions(): iterable
     {
-        yield '@version 1.0' => ['{"@version": 1.0}', ErrorCode::InvalidVersionValue];
-        yield '@version as a string' => ['{"@version": "1.1"}', ErrorCode::InvalidVersionValue];
-        yield '@version 1' => ['{"@version": 1}', ErrorCode::InvalidVersionValue];
-        yield '@version null' => ['{"@version": null}', ErrorCode::InvalidVersionValue];
+        yield '@version 1.0' => ['{"@version": 1.0}', JsonLdErrorCode::InvalidVersionValue];
+        yield '@version as a string' => ['{"@version": "1.1"}', JsonLdErrorCode::InvalidVersionValue];
+        yield '@version 1' => ['{"@version": 1}', JsonLdErrorCode::InvalidVersionValue];
+        yield '@version null' => ['{"@version": null}', JsonLdErrorCode::InvalidVersionValue];
         yield '@version in 1.0 mode' => [
             '{"@version": 1.1}',
-            ErrorCode::ProcessingModeConflict,
+            JsonLdErrorCode::ProcessingModeConflict,
             ProcessingMode::JsonLd10,
         ];
         yield '@import in 1.0 mode' => [
             '{"@import": "https://w3id.org/security/v1"}',
-            ErrorCode::InvalidContextEntry,
+            JsonLdErrorCode::InvalidContextEntry,
             ProcessingMode::JsonLd10,
         ];
-        yield '@base is not a string' => ['{"@base": true}', ErrorCode::InvalidBaseIri];
-        yield '@vocab is not a string' => ['{"@vocab": true}', ErrorCode::InvalidVocabMapping];
-        yield '@vocab has the form of a keyword' => ['{"@vocab": "@ignoreMe"}', ErrorCode::InvalidVocabMapping];
+        yield '@base is not a string' => ['{"@base": true}', JsonLdErrorCode::InvalidBaseIri];
+        yield '@vocab is not a string' => ['{"@vocab": true}', JsonLdErrorCode::InvalidVocabMapping];
+        yield '@vocab has the form of a keyword' => ['{"@vocab": "@ignoreMe"}', JsonLdErrorCode::InvalidVocabMapping];
         yield 'relative @vocab in 1.0 mode' => [
             '{"@vocab": "relative/"}',
-            ErrorCode::InvalidVocabMapping,
+            JsonLdErrorCode::InvalidVocabMapping,
             ProcessingMode::JsonLd10,
         ];
-        yield '@language is not a string' => ['{"@language": true}', ErrorCode::InvalidDefaultLanguage];
-        yield '@direction is not ltr or rtl' => ['{"@direction": "up"}', ErrorCode::InvalidBaseDirection];
-        yield '@direction is not a string' => ['{"@direction": true}', ErrorCode::InvalidBaseDirection];
+        yield '@language is not a string' => ['{"@language": true}', JsonLdErrorCode::InvalidDefaultLanguage];
+        yield '@direction is not ltr or rtl' => ['{"@direction": "up"}', JsonLdErrorCode::InvalidBaseDirection];
+        yield '@direction is not a string' => ['{"@direction": true}', JsonLdErrorCode::InvalidBaseDirection];
         yield '@direction in 1.0 mode' => [
             '{"@direction": "ltr"}',
-            ErrorCode::InvalidContextEntry,
+            JsonLdErrorCode::InvalidContextEntry,
             ProcessingMode::JsonLd10,
         ];
         yield '@protected is a string' => [
             '{"@protected": "true", "a": "ex:a"}',
-            ErrorCode::InvalidProtectedValue,
+            JsonLdErrorCode::InvalidProtectedValue,
         ];
-        yield '@protected is null' => ['{"@protected": null, "a": "ex:a"}', ErrorCode::InvalidProtectedValue];
-        yield '@propagate is not a boolean' => ['{"@propagate": "no"}', ErrorCode::InvalidPropagateValue];
+        yield '@protected is null' => ['{"@protected": null, "a": "ex:a"}', JsonLdErrorCode::InvalidProtectedValue];
+        yield '@propagate is not a boolean' => ['{"@propagate": "no"}', JsonLdErrorCode::InvalidPropagateValue];
         yield '@propagate in 1.0 mode' => [
             '{"@propagate": true}',
-            ErrorCode::InvalidContextEntry,
+            JsonLdErrorCode::InvalidContextEntry,
             ProcessingMode::JsonLd10,
         ];
     }
@@ -1213,7 +1220,7 @@ final class ContextProcessorTest extends TestCase
     #[DataProvider('invalidContextDefinitions')]
     public function testRejectsAnInvalidContextDefinition(
         string $context,
-        ErrorCode $expected,
+        JsonLdErrorCode $expected,
         ProcessingMode $mode = ProcessingMode::JsonLd11,
     ): void {
         $this->assertError($expected, $context, $mode);
@@ -1221,7 +1228,7 @@ final class ContextProcessorTest extends TestCase
 
     public function testARelativeBaseNeedsABaseToResolveAgainst(): void
     {
-        $this->assertError(ErrorCode::InvalidBaseIri, '{"@base": "relative/"}', active: new ActiveContext());
+        $this->assertError(JsonLdErrorCode::InvalidBaseIri, '{"@base": "relative/"}', active: new ActiveContext());
     }
 
     public function testSetsResolvesAndRemovesTheBaseIri(): void
@@ -1665,15 +1672,15 @@ final class ContextProcessorTest extends TestCase
     public function testTheOtherEntriesOfAReversePropertyAreChecked(): void
     {
         $this->assertError(
-            ErrorCode::InvalidScopedContext,
+            JsonLdErrorCode::InvalidScopedContext,
             '{"children": {"@reverse": "ex:parent", "@context": {"@version": 1.0}}}',
         );
         $this->assertError(
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
             '{"children": {"@reverse": "ex:parent", "@container": "@set", "@index": "ex:key"}}',
         );
         $this->assertError(
-            ErrorCode::InvalidPrefixValue,
+            JsonLdErrorCode::InvalidPrefixValue,
             '{"children": {"@reverse": "ex:parent", "@prefix": "yes"}}',
         );
     }
@@ -1722,9 +1729,12 @@ final class ContextProcessorTest extends TestCase
     {
         $active = self::process('{"@protected": true, "a": {"@id": "ex:a", "@type": "@id"}}');
 
-        $this->assertError(ErrorCode::ProtectedTermRedefinition, '{"a": "ex:a"}', active: $active);
-        $this->assertError(ErrorCode::ProtectedTermRedefinition, '{"a": null}', active: $active);
-        $this->assertError(ErrorCode::ProtectedTermRedefinition, '[{"@protected": true, "a": "ex:a"}, {"a": "ex:b"}]');
+        $this->assertError(JsonLdErrorCode::ProtectedTermRedefinition, '{"a": "ex:a"}', active: $active);
+        $this->assertError(JsonLdErrorCode::ProtectedTermRedefinition, '{"a": null}', active: $active);
+        $this->assertError(
+            JsonLdErrorCode::ProtectedTermRedefinition,
+            '[{"@protected": true, "a": "ex:a"}, {"a": "ex:b"}]',
+        );
     }
 
     public function testAProtectedReversePropertyFollowsTheSameRule(): void
@@ -1735,11 +1745,11 @@ final class ContextProcessorTest extends TestCase
         $this->assertSame($active->termDefinition('children'), $same->termDefinition('children'));
         $this->assertTrue($same->termDefinition('children')?->protected);
         $this->assertError(
-            ErrorCode::ProtectedTermRedefinition,
+            JsonLdErrorCode::ProtectedTermRedefinition,
             '{"children": {"@reverse": "ex:other"}}',
             active: $active,
         );
-        $this->assertError(ErrorCode::ProtectedTermRedefinition, '{"children": "ex:parent"}', active: $active);
+        $this->assertError(JsonLdErrorCode::ProtectedTermRedefinition, '{"children": "ex:parent"}', active: $active);
 
         $overridden = self::processor()->process(
             $active,
@@ -1758,7 +1768,7 @@ final class ContextProcessorTest extends TestCase
             self::process('{"a": {"@id": "ex:a", "@context": {"@ignoreMe": "ex:ignored"}}}');
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $loss) {
-            $this->assertSame(DataLossCondition::ReservedTerm, $loss->condition);
+            $this->assertSame(DataLossReason::ReservedTerm, $loss->reason);
             $this->assertSame('@ignoreMe', $loss->detail);
         }
 
@@ -1800,275 +1810,302 @@ final class ContextProcessorTest extends TestCase
             self::process('{"a": {"@id": "ex:a", "@context": {"b": {"@id": "ex:b", "@container": "@bogus"}}}}');
             $this->fail('Expected a JsonLdError');
         } catch (JsonLdError $error) {
-            $this->assertSame(ErrorCode::InvalidScopedContext, $error->errorCode);
-            $this->assertSame('invalid scoped context: a', $error->getMessage());
+            $this->assertSame(JsonLdErrorCode::InvalidScopedContext, $error->reason);
+            $this->assertSame('Invalid scoped context: "a"', $error->getMessage());
             $this->assertInstanceOf(JsonLdError::class, $error->getPrevious());
-            $this->assertSame(ErrorCode::InvalidContainerMapping, $error->getPrevious()->errorCode);
+            $this->assertSame(JsonLdErrorCode::InvalidContainerMapping, $error->getPrevious()->reason);
         }
     }
 
     public function testAScopedContextThatCannotBeLoadedIsInvalid(): void
     {
         $this->assertError(
-            ErrorCode::InvalidScopedContext,
+            JsonLdErrorCode::InvalidScopedContext,
             '{"a": {"@id": "ex:a", "@context": "https://example.org/unknown"}}',
         );
     }
 
     /**
-     * @return iterable<string, array{string, ErrorCode, 2?: ProcessingMode}>
+     * @return iterable<string, array{string, JsonLdErrorCode, 2?: ProcessingMode}>
      */
     public static function invalidTermDefinitions(): iterable
     {
         $v10 = ProcessingMode::JsonLd10;
 
-        yield 'cycle between two terms' => ['{"a": "b:x", "b": "a:y"}', ErrorCode::CyclicIriMapping];
-        yield 'term that is its own @id prefix' => ['{"a": "a:x"}', ErrorCode::CyclicIriMapping];
-        yield 'empty term' => ['{"": "ex:empty"}', ErrorCode::InvalidTermDefinition];
-        yield 'true' => ['{"a": true}', ErrorCode::InvalidTermDefinition];
-        yield 'number' => ['{"a": 1}', ErrorCode::InvalidTermDefinition];
-        yield 'array' => ['{"a": ["ex:a"]}', ErrorCode::InvalidTermDefinition];
-        yield 'unknown entry' => ['{"a": {"@id": "ex:a", "@bogus": true}}', ErrorCode::InvalidTermDefinition];
+        yield 'cycle between two terms' => ['{"a": "b:x", "b": "a:y"}', JsonLdErrorCode::CyclicIriMapping];
+        yield 'term that is its own @id prefix' => ['{"a": "a:x"}', JsonLdErrorCode::CyclicIriMapping];
+        yield 'empty term' => ['{"": "ex:empty"}', JsonLdErrorCode::InvalidTermDefinition];
+        yield 'true' => ['{"a": true}', JsonLdErrorCode::InvalidTermDefinition];
+        yield 'number' => ['{"a": 1}', JsonLdErrorCode::InvalidTermDefinition];
+        yield 'array' => ['{"a": ["ex:a"]}', JsonLdErrorCode::InvalidTermDefinition];
+        yield 'unknown entry' => ['{"a": {"@id": "ex:a", "@bogus": true}}', JsonLdErrorCode::InvalidTermDefinition];
         yield 'unknown entry that is not a keyword' => [
             '{"a": {"@id": "ex:a", "id": "x"}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
         ];
 
-        yield 'keyword as a term' => ['{"@id": "ex:id"}', ErrorCode::KeywordRedefinition];
-        yield 'keyword as a term, null' => ['{"@value": null}', ErrorCode::KeywordRedefinition];
-        yield '@type as a string' => ['{"@type": "ex:type"}', ErrorCode::KeywordRedefinition];
-        yield '@type as an empty map' => ['{"@type": {}}', ErrorCode::KeywordRedefinition];
-        yield '@type with @id' => ['{"@type": {"@id": "@type", "@container": "@set"}}', ErrorCode::KeywordRedefinition];
-        yield '@type with a list container' => ['{"@type": {"@container": "@list"}}', ErrorCode::KeywordRedefinition];
+        yield 'keyword as a term' => ['{"@id": "ex:id"}', JsonLdErrorCode::KeywordRedefinition];
+        yield 'keyword as a term, null' => ['{"@value": null}', JsonLdErrorCode::KeywordRedefinition];
+        yield '@type as a string' => ['{"@type": "ex:type"}', JsonLdErrorCode::KeywordRedefinition];
+        yield '@type as an empty map' => ['{"@type": {}}', JsonLdErrorCode::KeywordRedefinition];
+        yield '@type with @id' => [
+            '{"@type": {"@id": "@type", "@container": "@set"}}',
+            JsonLdErrorCode::KeywordRedefinition,
+        ];
+        yield '@type with a list container' => [
+            '{"@type": {"@container": "@list"}}',
+            JsonLdErrorCode::KeywordRedefinition,
+        ];
         yield '@type with a set container in an array' => [
             '{"@type": {"@container": ["@set"]}}',
-            ErrorCode::KeywordRedefinition,
+            JsonLdErrorCode::KeywordRedefinition,
         ];
-        yield '@type in 1.0 mode' => ['{"@type": {"@container": "@set"}}', ErrorCode::KeywordRedefinition, $v10];
+        yield '@type in 1.0 mode' => ['{"@type": {"@container": "@set"}}', JsonLdErrorCode::KeywordRedefinition, $v10];
 
         yield '@protected is not a boolean' => [
             '{"a": {"@id": "ex:a", "@protected": "yes"}}',
-            ErrorCode::InvalidProtectedValue,
+            JsonLdErrorCode::InvalidProtectedValue,
         ];
         yield '@protected in 1.0 mode' => [
             '{"a": {"@id": "ex:a", "@protected": true}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
             $v10,
         ];
 
-        yield '@type is not a string' => ['{"a": {"@id": "ex:a", "@type": true}}', ErrorCode::InvalidTypeMapping];
-        yield '@type is a blank node' => ['{"a": {"@id": "ex:a", "@type": "_:t"}}', ErrorCode::InvalidTypeMapping];
-        yield '@type is relative' => ['{"a": {"@id": "ex:a", "@type": "relative"}}', ErrorCode::InvalidTypeMapping];
-        yield '@type is another keyword' => ['{"a": {"@id": "ex:a", "@type": "@list"}}', ErrorCode::InvalidTypeMapping];
+        yield '@type is not a string' => ['{"a": {"@id": "ex:a", "@type": true}}', JsonLdErrorCode::InvalidTypeMapping];
+        yield '@type is a blank node' => [
+            '{"a": {"@id": "ex:a", "@type": "_:t"}}',
+            JsonLdErrorCode::InvalidTypeMapping,
+        ];
+        yield '@type is relative' => [
+            '{"a": {"@id": "ex:a", "@type": "relative"}}',
+            JsonLdErrorCode::InvalidTypeMapping,
+        ];
+        yield '@type is another keyword' => [
+            '{"a": {"@id": "ex:a", "@type": "@list"}}',
+            JsonLdErrorCode::InvalidTypeMapping,
+        ];
         yield '@type has the form of a keyword' => [
             '{"a": {"@id": "ex:a", "@type": "@ignoreMe"}}',
-            ErrorCode::InvalidTypeMapping,
+            JsonLdErrorCode::InvalidTypeMapping,
         ];
         yield '@type @json in 1.0 mode' => [
             '{"a": {"@id": "ex:a", "@type": "@json"}}',
-            ErrorCode::InvalidTypeMapping,
+            JsonLdErrorCode::InvalidTypeMapping,
             $v10,
         ];
         yield '@type @none in 1.0 mode' => [
             '{"a": {"@id": "ex:a", "@type": "@none"}}',
-            ErrorCode::InvalidTypeMapping,
+            JsonLdErrorCode::InvalidTypeMapping,
             $v10,
         ];
         yield 'type container with an IRI type' => [
             '{"a": {"@id": "ex:a", "@container": "@type", "@type": "ex:T"}}',
-            ErrorCode::InvalidTypeMapping,
+            JsonLdErrorCode::InvalidTypeMapping,
         ];
         yield 'type container with @json' => [
             '{"a": {"@id": "ex:a", "@container": "@type", "@type": "@json"}}',
-            ErrorCode::InvalidTypeMapping,
+            JsonLdErrorCode::InvalidTypeMapping,
         ];
 
-        yield '@reverse with @id' => ['{"a": {"@reverse": "ex:b", "@id": "ex:a"}}', ErrorCode::InvalidReverseProperty];
+        yield '@reverse with @id' => [
+            '{"a": {"@reverse": "ex:b", "@id": "ex:a"}}',
+            JsonLdErrorCode::InvalidReverseProperty,
+        ];
         yield '@reverse with @nest' => [
             '{"a": {"@reverse": "ex:b", "@nest": "@nest"}}',
-            ErrorCode::InvalidReverseProperty,
+            JsonLdErrorCode::InvalidReverseProperty,
         ];
         yield '@reverse with a list container' => [
             '{"a": {"@reverse": "ex:b", "@container": "@list"}}',
-            ErrorCode::InvalidReverseProperty,
+            JsonLdErrorCode::InvalidReverseProperty,
         ];
         yield '@reverse with an array container' => [
             '{"a": {"@reverse": "ex:b", "@container": ["@set"]}}',
-            ErrorCode::InvalidReverseProperty,
+            JsonLdErrorCode::InvalidReverseProperty,
         ];
         yield '@reverse with an unknown entry' => [
             '{"a": {"@reverse": "ex:b", "@bogus": true}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
         ];
-        yield '@reverse is not a string' => ['{"a": {"@reverse": true}}', ErrorCode::InvalidIriMapping];
-        yield '@reverse is relative' => ['{"a": {"@reverse": "relative"}}', ErrorCode::InvalidIriMapping];
+        yield '@reverse is not a string' => ['{"a": {"@reverse": true}}', JsonLdErrorCode::InvalidIriMapping];
+        yield '@reverse is relative' => ['{"a": {"@reverse": "relative"}}', JsonLdErrorCode::InvalidIriMapping];
 
-        yield '@id is not a string' => ['{"a": {"@id": true}}', ErrorCode::InvalidIriMapping];
-        yield '@id is relative' => ['{"a": {"@id": "relative"}}', ErrorCode::InvalidIriMapping];
-        yield '@id is a term defined as null' => ['{"a": "b", "b": null}', ErrorCode::InvalidIriMapping];
-        yield '@id is @context' => ['{"a": "@context"}', ErrorCode::InvalidKeywordAlias];
+        yield '@id is not a string' => ['{"a": {"@id": true}}', JsonLdErrorCode::InvalidIriMapping];
+        yield '@id is relative' => ['{"a": {"@id": "relative"}}', JsonLdErrorCode::InvalidIriMapping];
+        yield '@id is a term defined as null' => ['{"a": "b", "b": null}', JsonLdErrorCode::InvalidIriMapping];
+        yield '@id is @context' => ['{"a": "@context"}', JsonLdErrorCode::InvalidKeywordAlias];
         yield 'compact IRI term that expands elsewhere' => [
             '{"p": "https://example.org/p#", "p:a": "https://example.org/other"}',
-            ErrorCode::InvalidIriMapping,
+            JsonLdErrorCode::InvalidIriMapping,
         ];
         yield 'IRI term mapped elsewhere' => [
             '{"https://example.org/a": "https://example.org/b"}',
-            ErrorCode::InvalidIriMapping,
+            JsonLdErrorCode::InvalidIriMapping,
         ];
         yield 'relative IRI term mapped elsewhere' => [
             '{"@vocab": "https://example.org/", "a/b": "https://example.org/c"}',
-            ErrorCode::InvalidIriMapping,
+            JsonLdErrorCode::InvalidIriMapping,
         ];
-        yield 'relative IRI term without a vocabulary mapping' => ['{"a/b": {}}', ErrorCode::InvalidIriMapping];
+        yield 'relative IRI term without a vocabulary mapping' => ['{"a/b": {}}', JsonLdErrorCode::InvalidIriMapping];
         yield 'relative IRI term with a relative vocabulary mapping' => [
             '[{"@base": null}, {"@vocab": "v/", "a/b": {}}]',
-            ErrorCode::InvalidIriMapping,
+            JsonLdErrorCode::InvalidIriMapping,
         ];
-        yield 'plain term without a vocabulary mapping' => ['{"a": {}}', ErrorCode::InvalidIriMapping];
-        yield 'plain term with @id equal to itself' => ['{"a": "a"}', ErrorCode::InvalidIriMapping];
+        yield 'plain term without a vocabulary mapping' => ['{"a": {}}', JsonLdErrorCode::InvalidIriMapping];
+        yield 'plain term with @id equal to itself' => ['{"a": "a"}', JsonLdErrorCode::InvalidIriMapping];
 
         yield 'container is not a keyword' => [
             '{"a": {"@id": "ex:a", "@container": "@bogus"}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
         ];
         yield 'container is a keyword that is not a container' => [
             '{"a": {"@id": "ex:a", "@container": "@value"}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
         ];
-        yield 'container is null' => ['{"a": {"@id": "ex:a", "@container": null}}', ErrorCode::InvalidContainerMapping];
+        yield 'container is null' => [
+            '{"a": {"@id": "ex:a", "@container": null}}',
+            JsonLdErrorCode::InvalidContainerMapping,
+        ];
         yield 'container is a number' => [
             '{"a": {"@id": "ex:a", "@container": 1}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
         ];
         yield 'container is an empty array' => [
             '{"a": {"@id": "ex:a", "@container": []}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
         ];
         yield 'container holds a number' => [
             '{"a": {"@id": "ex:a", "@container": ["@set", 1]}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
         ];
         yield 'container repeats a keyword' => [
             '{"a": {"@id": "ex:a", "@container": ["@set", "@set"]}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
         ];
         yield 'list with set' => [
             '{"a": {"@id": "ex:a", "@container": ["@list", "@set"]}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
         ];
         yield 'index with id' => [
             '{"a": {"@id": "ex:a", "@container": ["@index", "@id"]}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
         ];
         yield 'index with id and set' => [
             '{"a": {"@id": "ex:a", "@container": ["@index", "@id", "@set"]}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
         ];
         yield 'graph with id and index' => [
             '{"a": {"@id": "ex:a", "@container": ["@graph", "@id", "@index"]}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
         ];
         yield 'graph with language' => [
             '{"a": {"@id": "ex:a", "@container": ["@graph", "@language"]}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
         ];
         yield 'graph with type' => [
             '{"a": {"@id": "ex:a", "@container": ["@graph", "@type"]}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
         ];
         yield 'graph container in 1.0 mode' => [
             '{"a": {"@id": "ex:a", "@container": "@graph"}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
             $v10,
         ];
         yield 'id container in 1.0 mode' => [
             '{"a": {"@id": "ex:a", "@container": "@id"}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
             $v10,
         ];
         yield 'type container in 1.0 mode' => [
             '{"a": {"@id": "ex:a", "@container": "@type"}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
             $v10,
         ];
         yield 'array container in 1.0 mode' => [
             '{"a": {"@id": "ex:a", "@container": ["@set"]}}',
-            ErrorCode::InvalidContainerMapping,
+            JsonLdErrorCode::InvalidContainerMapping,
             $v10,
         ];
 
         yield '@index without an index container' => [
             '{"@vocab": "ex:", "a": {"@container": "@set", "@index": "p"}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
         ];
         yield '@index without a container' => [
             '{"@vocab": "ex:", "a": {"@index": "p"}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
         ];
         yield '@index is not a string' => [
             '{"@vocab": "ex:", "a": {"@container": "@index", "@index": true}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
         ];
         yield '@index is a keyword' => [
             '{"@vocab": "ex:", "a": {"@container": "@index", "@index": "@index"}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
         ];
         yield '@index has the form of a keyword' => [
             '{"@vocab": "ex:", "a": {"@container": "@index", "@index": "@ignoreMe"}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
         ];
         yield '@index does not expand to an IRI' => [
             '{"a": {"@id": "ex:a", "@container": "@index", "@index": "p"}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
         ];
         yield '@index in 1.0 mode' => [
             '{"@vocab": "ex:", "a": {"@container": "@index", "@index": "p"}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
             $v10,
         ];
 
         yield '@context in 1.0 mode' => [
             '{"a": {"@id": "ex:a", "@context": {}}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
             $v10,
         ];
         yield '@language is not a string' => [
             '{"a": {"@id": "ex:a", "@language": true}}',
-            ErrorCode::InvalidLanguageMapping,
+            JsonLdErrorCode::InvalidLanguageMapping,
         ];
         yield '@direction is not ltr or rtl' => [
             '{"a": {"@id": "ex:a", "@direction": "up"}}',
-            ErrorCode::InvalidBaseDirection,
+            JsonLdErrorCode::InvalidBaseDirection,
         ];
         yield '@direction is not a string' => [
             '{"a": {"@id": "ex:a", "@direction": true}}',
-            ErrorCode::InvalidBaseDirection,
+            JsonLdErrorCode::InvalidBaseDirection,
         ];
 
-        yield '@nest is not a string' => ['{"a": {"@id": "ex:a", "@nest": true}}', ErrorCode::InvalidNestValue];
-        yield '@nest is another keyword' => ['{"a": {"@id": "ex:a", "@nest": "@id"}}', ErrorCode::InvalidNestValue];
+        yield '@nest is not a string' => ['{"a": {"@id": "ex:a", "@nest": true}}', JsonLdErrorCode::InvalidNestValue];
+        yield '@nest is another keyword' => [
+            '{"a": {"@id": "ex:a", "@nest": "@id"}}',
+            JsonLdErrorCode::InvalidNestValue,
+        ];
         yield '@nest in 1.0 mode' => [
             '{"a": {"@id": "ex:a", "@nest": "@nest"}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
             $v10,
         ];
 
-        yield '@prefix is not a boolean' => ['{"a": {"@id": "ex:a", "@prefix": "yes"}}', ErrorCode::InvalidPrefixValue];
+        yield '@prefix is not a boolean' => [
+            '{"a": {"@id": "ex:a", "@prefix": "yes"}}',
+            JsonLdErrorCode::InvalidPrefixValue,
+        ];
         yield '@prefix on a term with a colon' => [
             '{"x:a": {"@id": "x:a", "@prefix": false}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
         ];
         yield '@prefix on a term with a slash' => [
             '{"@vocab": "https://example.org/", "a/b": {"@prefix": false}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
         ];
         yield '@prefix on a keyword alias' => [
             '{"a": {"@id": "@type", "@prefix": true}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
         ];
         yield '@prefix in 1.0 mode' => [
             '{"a": {"@id": "ex:a", "@prefix": false}}',
-            ErrorCode::InvalidTermDefinition,
+            JsonLdErrorCode::InvalidTermDefinition,
             $v10,
         ];
     }
@@ -2076,7 +2113,7 @@ final class ContextProcessorTest extends TestCase
     #[DataProvider('invalidTermDefinitions')]
     public function testRejectsAnInvalidTermDefinition(
         string $context,
-        ErrorCode $expected,
+        JsonLdErrorCode $expected,
         ProcessingMode $mode = ProcessingMode::JsonLd11,
     ): void {
         $this->assertError($expected, $context, $mode);
@@ -2096,7 +2133,7 @@ final class ContextProcessorTest extends TestCase
             self::process('{"good": "ex:good", "bad": {"@id": true}}');
             $this->fail('Expected a JsonLdError');
         } catch (JsonLdError $error) {
-            $this->assertSame('invalid IRI mapping: bad', $error->getMessage());
+            $this->assertSame('Invalid IRI mapping: "bad"', $error->getMessage());
         }
     }
 
@@ -2106,7 +2143,7 @@ final class ContextProcessorTest extends TestCase
             self::process('{"b": {"@id": true}, "a": true, "B": {"@type": true}}');
             $this->fail('Expected a JsonLdError');
         } catch (JsonLdError $error) {
-            $this->assertSame('invalid type mapping: B', $error->getMessage());
+            $this->assertSame('Invalid type mapping: "B"', $error->getMessage());
         }
     }
 
@@ -2131,7 +2168,7 @@ final class ContextProcessorTest extends TestCase
             self::process($context);
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $loss) {
-            $this->assertSame(DataLossCondition::ReservedTerm, $loss->condition);
+            $this->assertSame(DataLossReason::ReservedTerm, $loss->reason);
             $this->assertSame($term, $loss->detail);
         }
     }
@@ -2236,7 +2273,7 @@ final class ContextProcessorTest extends TestCase
     }
 
     private function assertError(
-        ErrorCode $expected,
+        JsonLdErrorCode $expected,
         string $context,
         ProcessingMode $mode = ProcessingMode::JsonLd11,
         ?ActiveContext $active = null,
@@ -2245,7 +2282,7 @@ final class ContextProcessorTest extends TestCase
         try {
             self::process($context, $active, $mode, loader: $loader);
         } catch (JsonLdError $error) {
-            $this->assertSame($expected, $error->errorCode, $error->getMessage());
+            $this->assertSame($expected, $error->reason, $error->getMessage());
 
             return;
         }

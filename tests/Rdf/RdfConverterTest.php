@@ -6,8 +6,8 @@ namespace SocialWeb\Test\JsonLd\Rdf;
 
 use LogicException;
 use PHPUnit\Framework\Attributes\DataProvider;
-use SocialWeb\JsonLd\DataLossCondition;
 use SocialWeb\JsonLd\Exception\DataLoss;
+use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Options;
 use SocialWeb\JsonLd\Rdf\BlankNodeIssuer;
@@ -161,20 +161,20 @@ final class RdfConverterTest extends TestCase
     #[DataProvider('documentsThatLoseData')]
     public function testRefusesToDropDataInStrictMode(
         string $document,
-        DataLossCondition $condition,
+        DataLossReason $reason,
         string $detail,
     ): void {
         try {
             self::convert($document, new Options());
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
-            $this->assertSame($condition, $dataLoss->condition);
+            $this->assertSame($reason, $dataLoss->reason);
             $this->assertSame($detail, $dataLoss->detail);
         }
     }
 
     /**
-     * @return iterable<string, array{string, DataLossCondition, string}>
+     * @return iterable<string, array{string, DataLossReason, string}>
      */
     public static function documentsThatLoseData(): iterable
     {
@@ -184,62 +184,62 @@ final class RdfConverterTest extends TestCase
         // graph name is checked first only when it sorts before that graph.
         yield 'a graph name that is not well-formed' => [
             '[{"@id": "ex:z", "@graph": [{"@id": "ex:a b", "@graph": [{' . $a . '}]}]}]',
-            DataLossCondition::RelativeGraph,
+            DataLossReason::RelativeGraph,
             'ex:a b',
         ];
         yield 'a relative subject' => [
             '[{"@id": "relative/subject"}]',
-            DataLossCondition::RelativeSubject,
+            DataLossReason::RelativeSubject,
             'relative/subject',
         ];
         yield 'the empty subject that lenient expansion leaves for a null identifier' => [
             '[{"@id": null}]',
-            DataLossCondition::RelativeSubject,
+            DataLossReason::RelativeSubject,
             '',
         ];
         yield 'a relative type' => [
             '[{' . $a . ', "@type": ["relative/type"]}]',
-            DataLossCondition::RelativeType,
+            DataLossReason::RelativeType,
             'relative/type',
         ];
         yield 'the null type that lenient expansion leaves' => [
             '[{' . $a . ', "@type": [null]}]',
-            DataLossCondition::RelativeType,
+            DataLossReason::RelativeType,
             'null',
         ];
         yield 'a keyword as a property, which a typed set map leaves' => [
             '[{' . $a . ', "@set": [{"@value": "x"}]}]',
-            DataLossCondition::UndefinedProperty,
+            DataLossReason::UndefinedProperty,
             '@set',
         ];
         yield 'a blank node predicate' => [
             '[{' . $a . ', "_:p": [{"@value": "x"}]}]',
-            DataLossCondition::BlankNodePredicate,
+            DataLossReason::BlankNodePredicate,
             '_:b0',
         ];
         yield 'a relative predicate' => [
             '[{' . $a . ', "relative/predicate": [{"@value": "x"}]}]',
-            DataLossCondition::RelativePredicate,
+            DataLossReason::RelativePredicate,
             'relative/predicate',
         ];
         yield 'a predicate that is only digits, which PHP stores as an integer key' => [
             '[{' . $a . ', "123": [{"@value": "x"}]}]',
-            DataLossCondition::RelativePredicate,
+            DataLossReason::RelativePredicate,
             '123',
         ];
         yield 'a relative object' => [
             '[{' . $a . ', "ex:p": [{"@id": "relative/object"}]}]',
-            DataLossCondition::RelativeObject,
+            DataLossReason::RelativeObject,
             'relative/object',
         ];
         yield 'a language tag that is not well-formed' => [
             '[{' . $a . ', "ex:p": [{"@value": "x", "@language": "a b"}]}]',
-            DataLossCondition::MalformedLanguageTag,
+            DataLossReason::MalformedLanguageTag,
             'a b',
         ];
         yield 'a direction with no rdfDirection option' => [
             '[{' . $a . ', "ex:p": [{"@value": "x", "@direction": "rtl"}]}]',
-            DataLossCondition::DroppedDirection,
+            DataLossReason::DroppedDirection,
             '{"@direction":"rtl","@value":"x"}',
         ];
     }
@@ -262,7 +262,7 @@ final class RdfConverterTest extends TestCase
             RdfConverter::convert($map, new BlankNodeIssuer(), new Options());
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
-            $this->assertSame(DataLossCondition::MalformedBlankNodeIdentifier, $dataLoss->condition);
+            $this->assertSame(DataLossReason::MalformedBlankNodeIdentifier, $dataLoss->reason);
             $this->assertSame('_:not valid', $dataLoss->detail);
         }
     }

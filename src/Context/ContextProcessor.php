@@ -26,11 +26,11 @@ declare(strict_types=1);
 namespace SocialWeb\JsonLd\Context;
 
 use Closure;
-use SocialWeb\JsonLd\DataLossCondition;
 use SocialWeb\JsonLd\DocumentReader;
-use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\DataLoss;
+use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\Grammar;
 use SocialWeb\JsonLd\IriResolver;
@@ -53,6 +53,7 @@ use function is_bool;
 use function is_string;
 use function ksort;
 use function sort;
+use function sprintf;
 use function str_contains;
 use function str_starts_with;
 use function strpos;
@@ -312,7 +313,7 @@ final class ContextProcessor
                 // Step 5.1.1. The check is made against the result so far, so
                 // that a null after a protected context in one array is caught.
                 if (!$overrideProtected && $result->hasProtectedTermDefinitions()) {
-                    throw new JsonLdError(ErrorCode::InvalidContextNullification);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidContextNullification);
                 }
 
                 // Step 5.1.2.
@@ -343,7 +344,7 @@ final class ContextProcessor
 
             // Step 5.3.
             if (!$context instanceof stdClass) {
-                throw new JsonLdError(ErrorCode::InvalidLocalContext);
+                throw new JsonLdError(JsonLdErrorCode::InvalidLocalContext);
             }
 
             // Step 5.4.
@@ -398,7 +399,7 @@ final class ContextProcessor
 
         // Step 5.2.3.
         if (count($remoteContexts) >= $this->options->limits->maxDepth) {
-            throw new JsonLdError(ErrorCode::ContextOverflow, $context);
+            throw new JsonLdError(JsonLdErrorCode::ContextOverflow, sprintf('"%s"', $context));
         }
 
         $remoteContexts[] = $context;
@@ -407,7 +408,7 @@ final class ContextProcessor
         [$documentUrl, $document] = $this->dereference($context);
 
         if (!$document instanceof stdClass || !array_key_exists('@context', get_object_vars($document))) {
-            throw new JsonLdError(ErrorCode::InvalidRemoteContext, $context);
+            throw new JsonLdError(JsonLdErrorCode::InvalidRemoteContext, sprintf('"%s"', $context));
         }
 
         // Step 5.2.6. The specification does not pass override protected
@@ -448,22 +449,22 @@ final class ContextProcessor
         // Step 5.5.
         if (array_key_exists('@version', $context)) {
             if ($context['@version'] !== 1.1) {
-                throw new JsonLdError(ErrorCode::InvalidVersionValue);
+                throw new JsonLdError(JsonLdErrorCode::InvalidVersionValue);
             }
 
             if ($isJsonLd10) {
-                throw new JsonLdError(ErrorCode::ProcessingModeConflict);
+                throw new JsonLdError(JsonLdErrorCode::ProcessingModeConflict);
             }
         }
 
         // Step 5.6.
         if (array_key_exists('@import', $context)) {
             if ($isJsonLd10) {
-                throw new JsonLdError(ErrorCode::InvalidContextEntry, '@import');
+                throw new JsonLdError(JsonLdErrorCode::InvalidContextEntry, '"@import"');
             }
 
             if (!is_string($context['@import'])) {
-                throw new JsonLdError(ErrorCode::InvalidImportValue);
+                throw new JsonLdError(JsonLdErrorCode::InvalidImportValue);
             }
 
             $import = $this->resolveContextUrl($context['@import'], $baseUrl);
@@ -474,13 +475,13 @@ final class ContextProcessor
             }
 
             if (!$importContext instanceof stdClass) {
-                throw new JsonLdError(ErrorCode::InvalidRemoteContext, $import);
+                throw new JsonLdError(JsonLdErrorCode::InvalidRemoteContext, sprintf('"%s"', $import));
             }
 
             $importContext = get_object_vars($importContext);
 
             if (array_key_exists('@import', $importContext)) {
-                throw new JsonLdError(ErrorCode::InvalidContextEntry, '@import');
+                throw new JsonLdError(JsonLdErrorCode::InvalidContextEntry, '"@import"');
             }
 
             // Entries of the importing context replace those of the imported.
@@ -502,7 +503,7 @@ final class ContextProcessor
             $value = $context['@language'];
 
             if ($value !== null && !is_string($value)) {
-                throw new JsonLdError(ErrorCode::InvalidDefaultLanguage);
+                throw new JsonLdError(JsonLdErrorCode::InvalidDefaultLanguage);
             }
 
             $result = $result->withDefaultLanguage($value);
@@ -511,13 +512,13 @@ final class ContextProcessor
         // Step 5.10.
         if (array_key_exists('@direction', $context)) {
             if ($isJsonLd10) {
-                throw new JsonLdError(ErrorCode::InvalidContextEntry, '@direction');
+                throw new JsonLdError(JsonLdErrorCode::InvalidContextEntry, '"@direction"');
             }
 
             $value = $context['@direction'];
 
             if ($value !== null && $value !== 'ltr' && $value !== 'rtl') {
-                throw new JsonLdError(ErrorCode::InvalidBaseDirection);
+                throw new JsonLdError(JsonLdErrorCode::InvalidBaseDirection);
             }
 
             $result = $result->withDefaultBaseDirection($value);
@@ -526,11 +527,11 @@ final class ContextProcessor
         // Step 5.11.
         if (array_key_exists('@propagate', $context)) {
             if ($isJsonLd10) {
-                throw new JsonLdError(ErrorCode::InvalidContextEntry, '@propagate');
+                throw new JsonLdError(JsonLdErrorCode::InvalidContextEntry, '"@propagate"');
             }
 
             if (!is_bool($context['@propagate'])) {
-                throw new JsonLdError(ErrorCode::InvalidPropagateValue);
+                throw new JsonLdError(JsonLdErrorCode::InvalidPropagateValue);
             }
         }
 
@@ -543,7 +544,7 @@ final class ContextProcessor
         $protected = array_key_exists('@protected', $context) ? $context['@protected'] : false;
 
         if (!is_bool($protected)) {
-            throw new JsonLdError(ErrorCode::InvalidProtectedValue);
+            throw new JsonLdError(JsonLdErrorCode::InvalidProtectedValue);
         }
 
         // The terms are defined in a builder, which changes in place, and
@@ -591,7 +592,7 @@ final class ContextProcessor
             return IriResolver::resolve($value, $currentBaseIri);
         }
 
-        throw new JsonLdError(ErrorCode::InvalidBaseIri);
+        throw new JsonLdError(JsonLdErrorCode::InvalidBaseIri);
     }
 
     /**
@@ -609,17 +610,17 @@ final class ContextProcessor
         }
 
         if (!is_string($value)) {
-            throw new JsonLdError(ErrorCode::InvalidVocabMapping);
+            throw new JsonLdError(JsonLdErrorCode::InvalidVocabMapping);
         }
 
         $isIri = Grammar::isAbsoluteIri($value) || str_starts_with($value, '_:');
 
         if (!$isIri && $this->options->processingMode === ProcessingMode::JsonLd10) {
-            throw new JsonLdError(ErrorCode::InvalidVocabMapping, $value);
+            throw new JsonLdError(JsonLdErrorCode::InvalidVocabMapping, sprintf('"%s"', $value));
         }
 
         return IriExpander::expand($result, $value, documentRelative: true, vocab: true)
-            ?? throw new JsonLdError(ErrorCode::InvalidVocabMapping, $value);
+            ?? throw new JsonLdError(JsonLdErrorCode::InvalidVocabMapping, sprintf('"%s"', $value));
     }
 
     /**
@@ -666,7 +667,7 @@ final class ContextProcessor
                 return;
             }
 
-            throw new JsonLdError(ErrorCode::CyclicIriMapping, $term);
+            throw new JsonLdError(JsonLdErrorCode::CyclicIriMapping, sprintf('"%s"', $term));
         }
 
         // The term is one operation, and is refused if the limit is reached.
@@ -682,7 +683,7 @@ final class ContextProcessor
 
         // Step 2.
         if ($term === '') {
-            throw new JsonLdError(ErrorCode::InvalidTermDefinition, 'the empty string');
+            throw new JsonLdError(JsonLdErrorCode::InvalidTermDefinition, 'the empty string');
         }
 
         $defined[$term] = false;
@@ -695,7 +696,7 @@ final class ContextProcessor
             $this->checkTypeRedefinition($value, $isJsonLd10);
         } elseif (Keywords::isKeyword($term)) {
             // Step 5.
-            throw new JsonLdError(ErrorCode::KeywordRedefinition, $term);
+            throw new JsonLdError(JsonLdErrorCode::KeywordRedefinition, sprintf('"%s"', $term));
         } elseif (Keywords::hasKeywordForm($term)) {
             $this->ignoreReservedTerm($term);
 
@@ -714,7 +715,7 @@ final class ContextProcessor
         } elseif ($value instanceof stdClass) {
             $value = get_object_vars($value);
         } else {
-            throw new JsonLdError(ErrorCode::InvalidTermDefinition, $term);
+            throw new JsonLdError(JsonLdErrorCode::InvalidTermDefinition, sprintf('"%s"', $term));
         }
 
         // A closure for IRI expansion's steps 3 and 6.3. Those steps skip a
@@ -749,11 +750,11 @@ final class ContextProcessor
         // Step 11.
         if (array_key_exists('@protected', $value)) {
             if (!is_bool($value['@protected'])) {
-                throw new JsonLdError(ErrorCode::InvalidProtectedValue, $term);
+                throw new JsonLdError(JsonLdErrorCode::InvalidProtectedValue, sprintf('"%s"', $term));
             }
 
             if ($isJsonLd10) {
-                throw new JsonLdError(ErrorCode::InvalidTermDefinition, $term);
+                throw new JsonLdError(JsonLdErrorCode::InvalidTermDefinition, sprintf('"%s"', $term));
             }
 
             $protected = $value['@protected'];
@@ -793,7 +794,7 @@ final class ContextProcessor
 
             if ($value['@id'] !== null) {
                 if (!is_string($value['@id'])) {
-                    throw new JsonLdError(ErrorCode::InvalidIriMapping, $term);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidIriMapping, sprintf('"%s"', $term));
                 }
 
                 if (!Keywords::isKeyword($value['@id']) && Keywords::hasKeywordForm($value['@id'])) {
@@ -806,11 +807,11 @@ final class ContextProcessor
                 $iriMapping = IriExpander::expand($activeContext, $value['@id'], vocab: true, define: $define);
 
                 if ($iriMapping === null || !$this->isKeywordIriOrBlankNode($iriMapping)) {
-                    throw new JsonLdError(ErrorCode::InvalidIriMapping, $term);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidIriMapping, sprintf('"%s"', $term));
                 }
 
                 if ($iriMapping === '@context') {
-                    throw new JsonLdError(ErrorCode::InvalidKeywordAlias, $term);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidKeywordAlias, sprintf('"%s"', $term));
                 }
 
                 // Step 14.2.4. The colon may not be the first or last character.
@@ -818,7 +819,7 @@ final class ContextProcessor
                     $defined[$term] = true;
 
                     if (IriExpander::expand($activeContext, $term, vocab: true, define: $define) !== $iriMapping) {
-                        throw new JsonLdError(ErrorCode::InvalidIriMapping, $term);
+                        throw new JsonLdError(JsonLdErrorCode::InvalidIriMapping, sprintf('"%s"', $term));
                     }
                 }
 
@@ -846,7 +847,7 @@ final class ContextProcessor
             $iriMapping = IriExpander::expand($activeContext, $term, vocab: true);
 
             if ($iriMapping === null || !Grammar::isAbsoluteIri($iriMapping)) {
-                throw new JsonLdError(ErrorCode::InvalidIriMapping, $term);
+                throw new JsonLdError(JsonLdErrorCode::InvalidIriMapping, sprintf('"%s"', $term));
             }
         } elseif ($term === '@type') {
             // Step 17.
@@ -855,7 +856,7 @@ final class ContextProcessor
             // Step 18.
             $iriMapping = $activeContext->vocabularyMapping . $term;
         } else {
-            throw new JsonLdError(ErrorCode::InvalidIriMapping, $term);
+            throw new JsonLdError(JsonLdErrorCode::InvalidIriMapping, sprintf('"%s"', $term));
         }
 
         // Step 19.
@@ -869,7 +870,7 @@ final class ContextProcessor
                 $typeMapping ??= '@id';
 
                 if ($typeMapping !== '@id' && $typeMapping !== '@vocab') {
-                    throw new JsonLdError(ErrorCode::InvalidTypeMapping, $term);
+                    throw new JsonLdError(JsonLdErrorCode::InvalidTypeMapping, sprintf('"%s"', $term));
                 }
             }
         }
@@ -879,13 +880,13 @@ final class ContextProcessor
 
         if (array_key_exists('@index', $value)) {
             if ($isJsonLd10 || !in_array('@index', $containerMapping, true) || !is_string($value['@index'])) {
-                throw new JsonLdError(ErrorCode::InvalidTermDefinition, $term);
+                throw new JsonLdError(JsonLdErrorCode::InvalidTermDefinition, sprintf('"%s"', $term));
             }
 
             $index = IriExpander::expand($activeContext, $value['@index'], vocab: true);
 
             if ($index === null || !Grammar::isAbsoluteIri($index)) {
-                throw new JsonLdError(ErrorCode::InvalidTermDefinition, $term);
+                throw new JsonLdError(JsonLdErrorCode::InvalidTermDefinition, sprintf('"%s"', $term));
             }
 
             $indexMapping = $value['@index'];
@@ -894,7 +895,7 @@ final class ContextProcessor
         // Step 21.
         if (array_key_exists('@context', $value)) {
             if ($isJsonLd10) {
-                throw new JsonLdError(ErrorCode::InvalidTermDefinition, $term);
+                throw new JsonLdError(JsonLdErrorCode::InvalidTermDefinition, sprintf('"%s"', $term));
             }
 
             try {
@@ -907,7 +908,7 @@ final class ContextProcessor
                     validateScopedContext: false,
                 );
             } catch (JsonLdError $error) {
-                throw new JsonLdError(ErrorCode::InvalidScopedContext, $term, $error);
+                throw new JsonLdError(JsonLdErrorCode::InvalidScopedContext, sprintf('"%s"', $term), $error);
             }
         }
 
@@ -915,14 +916,14 @@ final class ContextProcessor
         $hasLanguageMapping = array_key_exists('@language', $value) && !array_key_exists('@type', $value);
 
         if ($hasLanguageMapping && $value['@language'] !== null && !is_string($value['@language'])) {
-            throw new JsonLdError(ErrorCode::InvalidLanguageMapping, $term);
+            throw new JsonLdError(JsonLdErrorCode::InvalidLanguageMapping, sprintf('"%s"', $term));
         }
 
         // Step 23.
         $hasDirectionMapping = array_key_exists('@direction', $value) && !array_key_exists('@type', $value);
 
         if ($hasDirectionMapping && !in_array($value['@direction'], [null, 'ltr', 'rtl'], true)) {
-            throw new JsonLdError(ErrorCode::InvalidBaseDirection, $term);
+            throw new JsonLdError(JsonLdErrorCode::InvalidBaseDirection, sprintf('"%s"', $term));
         }
 
         // Step 24.
@@ -930,30 +931,30 @@ final class ContextProcessor
 
         if (array_key_exists('@nest', $value)) {
             if ($isJsonLd10) {
-                throw new JsonLdError(ErrorCode::InvalidTermDefinition, $term);
+                throw new JsonLdError(JsonLdErrorCode::InvalidTermDefinition, sprintf('"%s"', $term));
             }
 
             $nestValue = $value['@nest'];
 
             if (!is_string($nestValue) || ($nestValue !== '@nest' && Keywords::isKeyword($nestValue))) {
-                throw new JsonLdError(ErrorCode::InvalidNestValue, $term);
+                throw new JsonLdError(JsonLdErrorCode::InvalidNestValue, sprintf('"%s"', $term));
             }
         }
 
         // Step 25.
         if (array_key_exists('@prefix', $value)) {
             if ($isJsonLd10 || str_contains($term, ':') || str_contains($term, '/')) {
-                throw new JsonLdError(ErrorCode::InvalidTermDefinition, $term);
+                throw new JsonLdError(JsonLdErrorCode::InvalidTermDefinition, sprintf('"%s"', $term));
             }
 
             if (!is_bool($value['@prefix'])) {
-                throw new JsonLdError(ErrorCode::InvalidPrefixValue, $term);
+                throw new JsonLdError(JsonLdErrorCode::InvalidPrefixValue, sprintf('"%s"', $term));
             }
 
             $prefix = $value['@prefix'];
 
             if ($prefix && $iriMapping !== null && Keywords::isKeyword($iriMapping)) {
-                throw new JsonLdError(ErrorCode::InvalidTermDefinition, $term);
+                throw new JsonLdError(JsonLdErrorCode::InvalidTermDefinition, sprintf('"%s"', $term));
             }
         }
 
@@ -994,7 +995,7 @@ final class ContextProcessor
     private function rejectUnknownEntries(array $value, string $term): void
     {
         if (count(array_diff(array_keys($value), self::TERM_DEFINITION_KEYWORDS)) > 0) {
-            throw new JsonLdError(ErrorCode::InvalidTermDefinition, $term);
+            throw new JsonLdError(JsonLdErrorCode::InvalidTermDefinition, sprintf('"%s"', $term));
         }
     }
 
@@ -1013,7 +1014,7 @@ final class ContextProcessor
         }
 
         if (!$definition->equalsExceptProtected($previousDefinition)) {
-            throw new JsonLdError(ErrorCode::ProtectedTermRedefinition, $term);
+            throw new JsonLdError(JsonLdErrorCode::ProtectedTermRedefinition, sprintf('"%s"', $term));
         }
 
         return $previousDefinition;
@@ -1033,7 +1034,7 @@ final class ContextProcessor
             || count(array_diff(array_keys($entries), ['@container', '@protected'])) > 0
             || (array_key_exists('@container', $entries) && $entries['@container'] !== '@set')
         ) {
-            throw new JsonLdError(ErrorCode::KeywordRedefinition, '@type');
+            throw new JsonLdError(JsonLdErrorCode::KeywordRedefinition, '"@type"');
         }
     }
 
@@ -1061,7 +1062,7 @@ final class ContextProcessor
     private function ignoreReservedTerm(string $term): void
     {
         if ($this->options->strict) {
-            throw new DataLoss(DataLossCondition::ReservedTerm, $term);
+            throw new DataLoss(DataLossReason::ReservedTerm, $term);
         }
     }
 
@@ -1078,7 +1079,7 @@ final class ContextProcessor
         bool $isJsonLd10,
     ): string {
         if (!is_string($type)) {
-            throw new JsonLdError(ErrorCode::InvalidTypeMapping, $term);
+            throw new JsonLdError(JsonLdErrorCode::InvalidTypeMapping, sprintf('"%s"', $term));
         }
 
         $type = IriExpander::expand($activeContext, $type, vocab: true, define: $define);
@@ -1091,7 +1092,7 @@ final class ContextProcessor
             return $type;
         }
 
-        throw new JsonLdError(ErrorCode::InvalidTypeMapping, $term);
+        throw new JsonLdError(JsonLdErrorCode::InvalidTypeMapping, sprintf('"%s"', $term));
     }
 
     /**
@@ -1111,12 +1112,12 @@ final class ContextProcessor
     ): ?string {
         // Step 13.1.
         if (array_key_exists('@id', $value) || array_key_exists('@nest', $value)) {
-            throw new JsonLdError(ErrorCode::InvalidReverseProperty, $term);
+            throw new JsonLdError(JsonLdErrorCode::InvalidReverseProperty, sprintf('"%s"', $term));
         }
 
         // Step 13.2.
         if (!is_string($value['@reverse'])) {
-            throw new JsonLdError(ErrorCode::InvalidIriMapping, $term);
+            throw new JsonLdError(JsonLdErrorCode::InvalidIriMapping, sprintf('"%s"', $term));
         }
 
         // Step 13.3.
@@ -1130,14 +1131,14 @@ final class ContextProcessor
         $iriMapping = IriExpander::expand($activeContext, $value['@reverse'], vocab: true, define: $define);
 
         if ($iriMapping === null || !(Grammar::isAbsoluteIri($iriMapping) || str_starts_with($iriMapping, '_:'))) {
-            throw new JsonLdError(ErrorCode::InvalidIriMapping, $term);
+            throw new JsonLdError(JsonLdErrorCode::InvalidIriMapping, sprintf('"%s"', $term));
         }
 
         // Step 13.5.
         $container = $value['@container'] ?? null;
 
         if ($container !== null && $container !== '@set' && $container !== '@index') {
-            throw new JsonLdError(ErrorCode::InvalidReverseProperty, $term);
+            throw new JsonLdError(JsonLdErrorCode::InvalidReverseProperty, sprintf('"%s"', $term));
         }
 
         return $iriMapping;
@@ -1151,7 +1152,7 @@ final class ContextProcessor
      */
     private function containerMapping(mixed $container, string $term, bool $isJsonLd10): array
     {
-        $invalid = new JsonLdError(ErrorCode::InvalidContainerMapping, $term);
+        $invalid = new JsonLdError(JsonLdErrorCode::InvalidContainerMapping, sprintf('"%s"', $term));
 
         // Step 19.2.
         if ($isJsonLd10 && (!is_string($container) || in_array($container, ['@graph', '@id', '@type'], true))) {
@@ -1214,7 +1215,7 @@ final class ContextProcessor
         }
 
         if (!Grammar::isAbsoluteIri($reference)) {
-            throw new JsonLdError(ErrorCode::LoadingDocumentFailed, $reference);
+            throw new JsonLdError(JsonLdErrorCode::LoadingDocumentFailed, sprintf('"%s"', $reference));
         }
 
         return $reference;
@@ -1241,12 +1242,12 @@ final class ContextProcessor
             } catch (Throwable $throwable) {
                 if (
                     $throwable instanceof JsonLdError
-                    && $throwable->errorCode === ErrorCode::LoadingRemoteContextFailed
+                    && $throwable->reason === JsonLdErrorCode::LoadingRemoteContextFailed
                 ) {
                     throw $throwable;
                 }
 
-                throw new JsonLdError(ErrorCode::LoadingRemoteContextFailed, $url, $throwable);
+                throw new JsonLdError(JsonLdErrorCode::LoadingRemoteContextFailed, sprintf('"%s"', $url), $throwable);
             }
         }
 

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace SocialWeb\Test\JsonLd\Rdf;
 
 use PHPUnit\Framework\Attributes\DataProvider;
-use SocialWeb\JsonLd\DataLossCondition;
 use SocialWeb\JsonLd\Exception\DataLoss;
+use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Rdf\BlankNodeIssuer;
 use SocialWeb\JsonLd\Rdf\ObjectToRdf;
@@ -214,7 +214,7 @@ final class ObjectToRdfTest extends TestCase
     #[DataProvider('itemsThatAreNotWellFormed')]
     public function testAnItemThatIsNotWellFormedIsNullInLenientModeAndRefusedInStrictMode(
         string $item,
-        DataLossCondition $condition,
+        DataLossReason $reason,
         string $detail,
     ): void {
         $triples = [];
@@ -226,46 +226,46 @@ final class ObjectToRdfTest extends TestCase
             self::objects(strict: true)->convert(self::item($item), new DefaultGraph(), $triples);
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
-            $this->assertSame($condition, $dataLoss->condition);
+            $this->assertSame($reason, $dataLoss->reason);
             $this->assertSame($detail, $dataLoss->detail);
         }
     }
 
     /**
-     * @return iterable<string, array{string, DataLossCondition, string}>
+     * @return iterable<string, array{string, DataLossReason, string}>
      */
     public static function itemsThatAreNotWellFormed(): iterable
     {
-        yield 'a relative identifier' => ['{"@id": "relative"}', DataLossCondition::RelativeObject, 'relative'];
-        yield 'the empty identifier of a null @id' => ['{"@id": ""}', DataLossCondition::RelativeObject, ''];
+        yield 'a relative identifier' => ['{"@id": "relative"}', DataLossReason::RelativeObject, 'relative'];
+        yield 'the empty identifier of a null @id' => ['{"@id": ""}', DataLossReason::RelativeObject, ''];
         yield 'an identifier with a space' => [
             '{"@id": "https://example.com/a b"}',
-            DataLossCondition::RelativeObject,
+            DataLossReason::RelativeObject,
             'https://example.com/a b',
         ];
         yield 'a blank node identifier that is not well-formed' => [
             '{"@id": "_:a b"}',
-            DataLossCondition::MalformedBlankNodeIdentifier,
+            DataLossReason::MalformedBlankNodeIdentifier,
             '_:a b',
         ];
         yield 'a datatype that is not an IRI' => [
             '{"@value": "x", "@type": "not an iri"}',
-            DataLossCondition::MalformedDatatype,
+            DataLossReason::MalformedDatatype,
             'not an iri',
         ];
         yield 'a datatype that is a blank node identifier' => [
             '{"@value": "x", "@type": "_:b0"}',
-            DataLossCondition::MalformedDatatype,
+            DataLossReason::MalformedDatatype,
             '_:b0',
         ];
         yield 'a langString datatype, which cannot carry a language tag' => [
             '{"@value": "x", "@type": "' . self::RDF . 'langString"}',
-            DataLossCondition::MalformedDatatype,
+            DataLossReason::MalformedDatatype,
             self::RDF . 'langString',
         ];
         yield 'a language tag that is not well-formed' => [
             '{"@value": "x", "@language": "a b"}',
-            DataLossCondition::MalformedLanguageTag,
+            DataLossReason::MalformedLanguageTag,
             'a b',
         ];
     }
@@ -282,7 +282,7 @@ final class ObjectToRdfTest extends TestCase
             );
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
-            $this->assertSame(DataLossCondition::DroppedDirection, $dataLoss->condition);
+            $this->assertSame(DataLossReason::DroppedDirection, $dataLoss->reason);
             $this->assertSame('{"@direction":"rtl","@language":"de","@value":"x"}', $dataLoss->detail);
         }
     }

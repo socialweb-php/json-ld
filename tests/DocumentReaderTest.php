@@ -217,8 +217,8 @@ final class DocumentReaderTest extends TestCase
             (new DocumentReader(new Limits(maxDepth: 3)))->read(str_repeat('[', 4) . str_repeat(']', 4));
             $this->fail('Expected LimitExceeded');
         } catch (LimitExceeded $exception) {
-            $this->assertSame('maxDepth', $exception->limit);
-            $this->assertSame(3, $exception->value);
+            $this->assertSame('maxDepth', $exception->parameter);
+            $this->assertSame(3, $exception->limit);
             $this->assertNotNull($exception->getPrevious());
         }
     }

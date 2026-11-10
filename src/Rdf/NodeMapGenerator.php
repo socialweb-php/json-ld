@@ -25,11 +25,11 @@ declare(strict_types=1);
 
 namespace SocialWeb\JsonLd\Rdf;
 
-use SocialWeb\JsonLd\DataLossCondition;
-use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\DataLoss;
+use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use stdClass;
 
 use function array_key_exists;
@@ -38,6 +38,7 @@ use function get_object_vars;
 use function is_array;
 use function is_string;
 use function ksort;
+use function sprintf;
 use function str_starts_with;
 
 use const SORT_STRING;
@@ -86,8 +87,8 @@ final class NodeMapGenerator
      *
      * @throws JsonLdError with the code `conflicting indexes` if two parts of
      *     the document give one node different `@index` values
-     * @throws DataLoss in strict mode, with the condition `undefined property`
-     *     and the detail `@type`, if a list object carries a `@type` entry,
+     * @throws DataLoss in strict mode, with the reason `UndefinedProperty`
+     *     and the detail `@type`, if a list object has a `@type` entry,
      *     which expansion leaves when a map has `@list` beside a `@type`
      *     written as a string
      * @throws InvalidArgument if the document is not in expanded form:
@@ -162,7 +163,7 @@ final class NodeMapGenerator
         // string, is dropped here; strict mode refuses to drop it.
         if (array_key_exists('@list', $entries)) {
             if ($this->strict && array_key_exists('@type', $entries)) {
-                throw new DataLoss(DataLossCondition::UndefinedProperty, '@type');
+                throw new DataLoss(DataLossReason::UndefinedProperty, '@type');
             }
 
             $items = [];
@@ -236,7 +237,7 @@ final class NodeMapGenerator
             }
 
             if ($node->index !== null && $node->index !== $index) {
-                throw new JsonLdError(ErrorCode::ConflictingIndexes, $id);
+                throw new JsonLdError(JsonLdErrorCode::ConflictingIndexes, sprintf('"%s"', $id));
             }
 
             $node->setIndex($index);

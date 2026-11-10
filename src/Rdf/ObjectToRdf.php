@@ -25,8 +25,8 @@ declare(strict_types=1);
 
 namespace SocialWeb\JsonLd\Rdf;
 
-use SocialWeb\JsonLd\DataLossCondition;
 use SocialWeb\JsonLd\Exception\DataLoss;
+use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Grammar;
 use SocialWeb\JsonLd\RdfDirection;
@@ -120,7 +120,7 @@ final class ObjectToRdf
                 throw new InvalidArgument('A node object in a node map must have an @id entry that is a string');
             }
 
-            return $this->resource($id, DataLossCondition::RelativeObject);
+            return $this->resource($id, DataLossReason::RelativeObject);
         }
 
         // Step 4. The other entries are read here too, and checked against the
@@ -156,12 +156,12 @@ final class ObjectToRdf
             $datatype === Rdf::LANG_STRING
             || ($datatype !== null && $datatype !== '@json' && !Grammar::isWellFormedIri($datatype))
         ) {
-            return $this->drop(DataLossCondition::MalformedDatatype, $datatype);
+            return $this->drop(DataLossReason::MalformedDatatype, $datatype);
         }
 
         // Step 7.
         if ($language !== null && !Grammar::isWellFormedLanguageTag($language)) {
-            return $this->drop(DataLossCondition::MalformedLanguageTag, $language);
+            return $this->drop(DataLossReason::MalformedLanguageTag, $language);
         }
 
         if ($datatype === '@json') {
@@ -201,7 +201,7 @@ final class ObjectToRdf
         // Step 13.
         if ($direction !== null) {
             if ($this->rdfDirection === null) {
-                $this->drop(DataLossCondition::DroppedDirection, JsonCanonicalizer::canonicalize($item));
+                $this->drop(DataLossReason::DroppedDirection, JsonCanonicalizer::canonicalize($item));
             } else {
                 $hasLanguage = $language !== null;
 
@@ -236,21 +236,21 @@ final class ObjectToRdf
      * the strict mode check, if the identifier is neither a well-formed IRI
      * nor a well-formed blank node identifier
      *
-     * @param DataLossCondition $ifRelative The condition to raise for an IRI
+     * @param DataLossReason $ifRelative The reason to raise for an IRI
      *     that is not well-formed, which names the position the identifier is
      *     in; a blank node identifier that is not well-formed raises
      *     `malformed blank node identifier` whatever its position
      *
      * @throws DataLoss in strict mode, if the identifier is not well-formed
      */
-    public function resource(string $identifier, DataLossCondition $ifRelative): Iri | BlankNode | null
+    public function resource(string $identifier, DataLossReason $ifRelative): Iri | BlankNode | null
     {
         if (str_starts_with($identifier, '_:')) {
             $label = substr($identifier, 2);
 
             return Grammar::isWellFormedBlankNodeIdentifier($label)
                 ? new BlankNode($label)
-                : $this->drop(DataLossCondition::MalformedBlankNodeIdentifier, $identifier);
+                : $this->drop(DataLossReason::MalformedBlankNodeIdentifier, $identifier);
         }
 
         return Grammar::isWellFormedIri($identifier) ? new Iri($identifier) : $this->drop($ifRelative, $identifier);
@@ -260,10 +260,10 @@ final class ObjectToRdf
      * In strict mode, refuses to drop what the algorithm drops silently; in
      * lenient mode, returns the null that stands for the dropped term
      */
-    private function drop(DataLossCondition $condition, string $detail): null
+    private function drop(DataLossReason $reason, string $detail): null
     {
         if ($this->strict) {
-            throw new DataLoss($condition, $detail);
+            throw new DataLoss($reason, $detail);
         }
 
         return null;

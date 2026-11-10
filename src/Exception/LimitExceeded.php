@@ -36,12 +36,16 @@ use function sprintf;
 final class LimitExceeded extends RuntimeException implements JsonLdException
 {
     /**
-     * @param string $limit The name of the Limits option that was exceeded:
-     *     `maxDepth`, `maxValues`, or `maxContextOperations`
-     * @param int $value The configured limit
+     * @param string $parameter The name of the `Processor` constructor
+     *     parameter whose limit was exceeded: `maxDepth`, `maxValues`, or
+     *     `maxContextOperations`
+     * @param int $limit The value of that parameter
      */
-    public function __construct(public readonly string $limit, public readonly int $value, ?Throwable $previous = null)
-    {
-        parent::__construct(sprintf('The %s limit of %d was exceeded', $limit, $value), 0, $previous);
+    public function __construct(
+        public readonly string $parameter,
+        public readonly int $limit,
+        ?Throwable $previous = null,
+    ) {
+        parent::__construct(sprintf('The %s limit of %d was exceeded', $parameter, $limit), 0, $previous);
     }
 }

@@ -7,11 +7,11 @@ namespace SocialWeb\Test\JsonLd;
 use ArrayObject;
 use PHPUnit\Framework\Attributes\DataProvider;
 use SocialWeb\JsonLd\Context\BundledDocumentLoader;
-use SocialWeb\JsonLd\DataLossCondition;
-use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\DataLoss;
+use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\Exception\MalformedJson;
 use SocialWeb\JsonLd\Exception\RestrictedFeature;
@@ -178,7 +178,7 @@ final class ProcessorTest extends TestCase
             (new Processor())->toRdf($document);
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
-            $this->assertSame(DataLossCondition::DroppedDirection, $dataLoss->condition);
+            $this->assertSame(DataLossReason::DroppedDirection, $dataLoss->reason);
         }
     }
 
@@ -198,7 +198,7 @@ final class ProcessorTest extends TestCase
             (new Processor())->toRdf($document);
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
-            $this->assertSame(DataLossCondition::RelativeSubject, $dataLoss->condition);
+            $this->assertSame(DataLossReason::RelativeSubject, $dataLoss->reason);
             $this->assertSame('a', $dataLoss->detail);
         }
     }
@@ -214,7 +214,7 @@ final class ProcessorTest extends TestCase
             (new Processor())->toRdf($document);
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
-            $this->assertSame(DataLossCondition::MalformedDatatype, $dataLoss->condition);
+            $this->assertSame(DataLossReason::MalformedDatatype, $dataLoss->reason);
             $this->assertSame('http://www.w3.org/1999/02/22-rdf-syntax-ns#langString', $dataLoss->detail);
         }
     }
@@ -228,7 +228,7 @@ final class ProcessorTest extends TestCase
             (new Processor())->toRdf($document);
             $this->fail('Expected a JsonLdError');
         } catch (JsonLdError $exception) {
-            $this->assertSame(ErrorCode::ConflictingIndexes, $exception->errorCode);
+            $this->assertSame(JsonLdErrorCode::ConflictingIndexes, $exception->reason);
         }
     }
 
@@ -365,7 +365,7 @@ final class ProcessorTest extends TestCase
             (new Processor())->expand('{"ex:p": 1, "undefined": 2}');
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
-            $this->assertSame(DataLossCondition::UndefinedProperty, $dataLoss->condition);
+            $this->assertSame(DataLossReason::UndefinedProperty, $dataLoss->reason);
             $this->assertSame('undefined', $dataLoss->detail);
         }
 
@@ -379,7 +379,7 @@ final class ProcessorTest extends TestCase
     {
         $processor = new Processor(new Options(expandContext: ['@ignoreMe' => 'https://example.com/ns#ignored']));
 
-        $this->expectExceptionObject(new DataLoss(DataLossCondition::ReservedTerm, '@ignoreMe'));
+        $this->expectExceptionObject(new DataLoss(DataLossReason::ReservedTerm, '@ignoreMe'));
 
         $processor->expand('{"ex:p": 1}');
     }
@@ -388,7 +388,7 @@ final class ProcessorTest extends TestCase
     {
         $processor = new Processor(new Options(processingMode: ProcessingMode::JsonLd10));
 
-        $this->expectExceptionObject(new JsonLdError(ErrorCode::ProcessingModeConflict));
+        $this->expectExceptionObject(new JsonLdError(JsonLdErrorCode::ProcessingModeConflict));
 
         $processor->expand('{"@context": {"@version": 1.1}, "ex:p": 1}');
     }
@@ -417,14 +417,14 @@ final class ProcessorTest extends TestCase
             $processor->expand('{"ex:p": [[1]]}');
             $this->fail('Expected a LimitExceeded');
         } catch (LimitExceeded $exception) {
-            $this->assertSame('maxDepth', $exception->limit);
+            $this->assertSame('maxDepth', $exception->parameter);
         }
 
         try {
             $processor->expand('{"ex:p": [1, 2, 3]}');
             $this->fail('Expected a LimitExceeded');
         } catch (LimitExceeded $exception) {
-            $this->assertSame('maxValues', $exception->limit);
+            $this->assertSame('maxValues', $exception->parameter);
         }
     }
 
@@ -467,8 +467,8 @@ final class ProcessorTest extends TestCase
             self::processorWithin(23, $strict)->expand($manyValues);
             $this->fail('Expected a LimitExceeded');
         } catch (LimitExceeded $exception) {
-            $this->assertSame('maxContextOperations', $exception->limit);
-            $this->assertSame(23, $exception->value);
+            $this->assertSame('maxContextOperations', $exception->parameter);
+            $this->assertSame(23, $exception->limit);
         }
 
         // Thirteen operations to define "items", and thirteen for each node:
@@ -529,7 +529,7 @@ final class ProcessorTest extends TestCase
             $processor->expand(self::twoNodes());
             $this->fail('Expected a LimitExceeded');
         } catch (LimitExceeded $exception) {
-            $this->assertSame('maxContextOperations', $exception->limit);
+            $this->assertSame('maxContextOperations', $exception->parameter);
         }
 
         // The second node has no context of its own, so this document needs

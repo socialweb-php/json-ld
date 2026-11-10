@@ -26,9 +26,9 @@ declare(strict_types=1);
 namespace SocialWeb\JsonLd\Context;
 
 use SocialWeb\JsonLd\DocumentReader;
-use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\MalformedJson;
 use SocialWeb\JsonLd\Limits;
 
@@ -126,7 +126,7 @@ final class BundledDocumentLoader implements DocumentLoader
         $name = self::PINNED[$url] ?? null;
 
         if ($name === null) {
-            throw new JsonLdError(ErrorCode::LoadingRemoteContextFailed, $url);
+            throw new JsonLdError(JsonLdErrorCode::LoadingRemoteContextFailed, sprintf('"%s"', $url));
         }
 
         if (!isset($this->pinned[$name])) {

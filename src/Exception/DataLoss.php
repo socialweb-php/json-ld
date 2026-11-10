@@ -26,7 +26,6 @@ declare(strict_types=1);
 namespace SocialWeb\JsonLd\Exception;
 
 use RuntimeException;
-use SocialWeb\JsonLd\DataLossCondition;
 use Throwable;
 
 use function preg_match;
@@ -40,39 +39,39 @@ use function substr;
  * data
  *
  * The detail is everything that would have been dropped, however large. The
- * message, which is what a log usually receives, carries the condition and
+ * message, which is what a log usually receives, names the reason and quotes
  * the first characters of the detail, and says how many there are when it
- * does not carry them all.
+ * does not quote them all.
  */
 final class DataLoss extends RuntimeException implements JsonLdException
 {
     /**
      * The greatest number of characters of the detail that the message
-     * carries
+     * quotes
      */
     public const int MESSAGE_DETAIL_LENGTH = 256;
 
     /**
-     * @param DataLossCondition $condition Which drop point was reached
+     * @param DataLossReason $reason Which drop point was reached
      * @param string $detail The term, value, or IRI that would have been
      *     dropped, whole: a string as it was, or a map or an array as its
      *     canonical JSON
      */
     public function __construct(
-        public readonly DataLossCondition $condition,
+        public readonly DataLossReason $reason,
         public readonly string $detail,
         ?Throwable $previous = null,
     ) {
         parent::__construct(
-            sprintf('Data loss detected (%s): %s', $condition->value, self::summary($detail)),
+            sprintf('Data loss detected (%s): %s', $reason->name, self::summary($detail)),
             0,
             $previous,
         );
     }
 
     /**
-     * Returns the detail when it is short, and otherwise its first characters
-     * and a count of all of them
+     * Returns the detail in double quotes when it is short, and otherwise
+     * its first characters in double quotes and a count of all of them
      *
      * Characters are counted as code points when the detail is valid UTF-8,
      * so the cut never splits a character; a detail that is not valid UTF-8
@@ -83,16 +82,16 @@ final class DataLoss extends RuntimeException implements JsonLdException
         $limit = self::MESSAGE_DETAIL_LENGTH;
 
         if (preg_match('/\A.{0,' . $limit . '}\z/su', $detail) === 1) {
-            return $detail;
+            return sprintf('"%s"', $detail);
         }
 
         if (preg_match('/\A.{' . $limit . '}/su', $detail, $matches) === 1) {
-            return sprintf('%s (first %d of %d characters)', $matches[0], $limit, preg_match_all('/./su', $detail));
+            return sprintf('"%s" (first %d of %d characters)', $matches[0], $limit, preg_match_all('/./su', $detail));
         }
 
         // The detail is not valid UTF-8, so it is cut by bytes.
         return strlen($detail) <= $limit
-            ? $detail
-            : sprintf('%s (first %d of %d bytes)', substr($detail, 0, $limit), $limit, strlen($detail));
+            ? sprintf('"%s"', $detail)
+            : sprintf('"%s" (first %d of %d bytes)', substr($detail, 0, $limit), $limit, strlen($detail));
     }
 }

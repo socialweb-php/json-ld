@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace SocialWeb\Test\JsonLd\W3c;
 
 use PHPUnit\Framework\Attributes\DataProvider;
-use SocialWeb\JsonLd\DataLossCondition;
-use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\DataLoss;
+use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\Rdf\Canonicalization\Canonicalizer;
 use SocialWeb\Rdf\Dataset;
 use SocialWeb\Test\JsonLd\TestCase;
@@ -38,53 +38,53 @@ final class W3cToRdfTest extends TestCase
      * characters, which is not a well-formed IRI.
      */
     private const array STRICT_DATA_LOSS = [
-        '#t0030' => DataLossCondition::FreeFloatingNode,
-        '#tc014' => DataLossCondition::UndefinedProperty,
-        '#tc018' => DataLossCondition::UndefinedProperty,
-        '#tdi01' => DataLossCondition::DroppedDirection,
-        '#tdi02' => DataLossCondition::DroppedDirection,
-        '#tdi03' => DataLossCondition::DroppedDirection,
-        '#tdi04' => DataLossCondition::DroppedDirection,
-        '#tdi05' => DataLossCondition::DroppedDirection,
-        '#tdi06' => DataLossCondition::DroppedDirection,
-        '#te001' => DataLossCondition::FreeFloatingNode,
-        '#te003' => DataLossCondition::UndefinedProperty,
-        '#te004' => DataLossCondition::NullValue,
-        '#te005' => DataLossCondition::ReservedTerm,
-        '#te008' => DataLossCondition::FreeFloatingValue,
-        '#te016' => DataLossCondition::UndefinedProperty,
-        '#te019' => DataLossCondition::NullValue,
-        '#te032' => DataLossCondition::UndefinedProperty,
-        '#te036' => DataLossCondition::NullValue,
-        '#te045' => DataLossCondition::FreeFloatingValue,
-        '#te046' => DataLossCondition::FreeFloatingNode,
-        '#te047' => DataLossCondition::FreeFloatingNode,
-        '#te059' => DataLossCondition::UndefinedProperty,
-        '#te060' => DataLossCondition::UndefinedProperty,
-        '#te065' => DataLossCondition::UndefinedProperty,
-        '#te068' => DataLossCondition::BlankNodePredicate,
-        '#te111' => DataLossCondition::RelativePredicate,
-        '#te112' => DataLossCondition::RelativePredicate,
-        '#te119' => DataLossCondition::ReservedTerm,
-        '#te120' => DataLossCondition::ReservedTerm,
-        '#te122' => DataLossCondition::ReservedTerm,
-        '#tin06' => DataLossCondition::UndefinedProperty,
-        '#tli12' => DataLossCondition::RelativeObject,
-        '#tli14' => DataLossCondition::RelativeObject,
-        '#tpr06' => DataLossCondition::UndefinedProperty,
-        '#tpr19' => DataLossCondition::UndefinedProperty,
-        '#tpr34' => DataLossCondition::ReservedTerm,
-        '#tpr35' => DataLossCondition::ReservedTerm,
-        '#tpr36' => DataLossCondition::ReservedTerm,
-        '#tpr37' => DataLossCondition::ReservedTerm,
-        '#tpr38' => DataLossCondition::ReservedTerm,
-        '#tpr39' => DataLossCondition::ReservedTerm,
-        '#twf01' => DataLossCondition::RelativeSubject,
-        '#twf02' => DataLossCondition::RelativePredicate,
-        '#twf03' => DataLossCondition::RelativeSubject,
-        '#twf04' => DataLossCondition::RelativeType,
-        '#twf05' => DataLossCondition::MalformedLanguageTag,
-        '#twf07' => DataLossCondition::RelativeSubject,
+        '#t0030' => DataLossReason::FreeFloatingNode,
+        '#tc014' => DataLossReason::UndefinedProperty,
+        '#tc018' => DataLossReason::UndefinedProperty,
+        '#tdi01' => DataLossReason::DroppedDirection,
+        '#tdi02' => DataLossReason::DroppedDirection,
+        '#tdi03' => DataLossReason::DroppedDirection,
+        '#tdi04' => DataLossReason::DroppedDirection,
+        '#tdi05' => DataLossReason::DroppedDirection,
+        '#tdi06' => DataLossReason::DroppedDirection,
+        '#te001' => DataLossReason::FreeFloatingNode,
+        '#te003' => DataLossReason::UndefinedProperty,
+        '#te004' => DataLossReason::NullValue,
+        '#te005' => DataLossReason::ReservedTerm,
+        '#te008' => DataLossReason::FreeFloatingValue,
+        '#te016' => DataLossReason::UndefinedProperty,
+        '#te019' => DataLossReason::NullValue,
+        '#te032' => DataLossReason::UndefinedProperty,
+        '#te036' => DataLossReason::NullValue,
+        '#te045' => DataLossReason::FreeFloatingValue,
+        '#te046' => DataLossReason::FreeFloatingNode,
+        '#te047' => DataLossReason::FreeFloatingNode,
+        '#te059' => DataLossReason::UndefinedProperty,
+        '#te060' => DataLossReason::UndefinedProperty,
+        '#te065' => DataLossReason::UndefinedProperty,
+        '#te068' => DataLossReason::BlankNodePredicate,
+        '#te111' => DataLossReason::RelativePredicate,
+        '#te112' => DataLossReason::RelativePredicate,
+        '#te119' => DataLossReason::ReservedTerm,
+        '#te120' => DataLossReason::ReservedTerm,
+        '#te122' => DataLossReason::ReservedTerm,
+        '#tin06' => DataLossReason::UndefinedProperty,
+        '#tli12' => DataLossReason::RelativeObject,
+        '#tli14' => DataLossReason::RelativeObject,
+        '#tpr06' => DataLossReason::UndefinedProperty,
+        '#tpr19' => DataLossReason::UndefinedProperty,
+        '#tpr34' => DataLossReason::ReservedTerm,
+        '#tpr35' => DataLossReason::ReservedTerm,
+        '#tpr36' => DataLossReason::ReservedTerm,
+        '#tpr37' => DataLossReason::ReservedTerm,
+        '#tpr38' => DataLossReason::ReservedTerm,
+        '#tpr39' => DataLossReason::ReservedTerm,
+        '#twf01' => DataLossReason::RelativeSubject,
+        '#twf02' => DataLossReason::RelativePredicate,
+        '#twf03' => DataLossReason::RelativeSubject,
+        '#twf04' => DataLossReason::RelativeType,
+        '#twf05' => DataLossReason::MalformedLanguageTag,
+        '#twf07' => DataLossReason::RelativeSubject,
     ];
 
     /**
@@ -94,9 +94,9 @@ final class W3cToRdfTest extends TestCase
      * entry raises the same error in both modes.
      */
     private const array STRICT_DATA_LOSS_BEFORE_ERROR = [
-        '#tin07' => DataLossCondition::FreeFloatingNode,
-        '#tin08' => DataLossCondition::FreeFloatingValue,
-        '#tin09' => DataLossCondition::FreeFloatingNode,
+        '#tin07' => DataLossReason::FreeFloatingNode,
+        '#tin08' => DataLossReason::FreeFloatingValue,
+        '#tin09' => DataLossReason::FreeFloatingNode,
     ];
 
     /**
@@ -133,7 +133,7 @@ final class W3cToRdfTest extends TestCase
         } catch (DataLoss $dataLoss) {
             $this->assertSame(
                 self::STRICT_DATA_LOSS[$entry->id] ?? null,
-                $dataLoss->condition,
+                $dataLoss->reason,
                 $dataLoss->getMessage(),
             );
 
@@ -152,7 +152,7 @@ final class W3cToRdfTest extends TestCase
         try {
             W3cProcessor::build($entry, strict: false)->toRdf(W3cManifest::read($entry->input));
         } catch (JsonLdError $error) {
-            $this->assertSame(ErrorCode::from($entry->expectErrorCode), $error->errorCode, $error->getMessage());
+            $this->assertSame(JsonLdErrorCode::from($entry->expectErrorCode), $error->reason, $error->getMessage());
 
             return;
         }
@@ -169,13 +169,13 @@ final class W3cToRdfTest extends TestCase
             W3cProcessor::build($entry, strict: true)->toRdf(W3cManifest::read($entry->input));
         } catch (JsonLdError $error) {
             $this->assertArrayNotHasKey($entry->id, self::STRICT_DATA_LOSS_BEFORE_ERROR);
-            $this->assertSame(ErrorCode::from($entry->expectErrorCode), $error->errorCode, $error->getMessage());
+            $this->assertSame(JsonLdErrorCode::from($entry->expectErrorCode), $error->reason, $error->getMessage());
 
             return;
         } catch (DataLoss $dataLoss) {
             $this->assertSame(
                 self::STRICT_DATA_LOSS_BEFORE_ERROR[$entry->id] ?? null,
-                $dataLoss->condition,
+                $dataLoss->reason,
                 $dataLoss->getMessage(),
             );
 

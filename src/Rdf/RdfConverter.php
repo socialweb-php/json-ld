@@ -25,8 +25,8 @@ declare(strict_types=1);
 
 namespace SocialWeb\JsonLd\Rdf;
 
-use SocialWeb\JsonLd\DataLossCondition;
 use SocialWeb\JsonLd\Exception\DataLoss;
+use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Grammar;
 use SocialWeb\JsonLd\Keywords;
@@ -106,7 +106,7 @@ final class RdfConverter
         if ($graphName === NodeMap::DEFAULT_GRAPH) {
             $graph = new DefaultGraph();
         } else {
-            $graph = $this->objects->resource($graphName, DataLossCondition::RelativeGraph);
+            $graph = $this->objects->resource($graphName, DataLossReason::RelativeGraph);
 
             if ($graph === null) {
                 return;
@@ -116,7 +116,7 @@ final class RdfConverter
         // Step 1.3.
         foreach ($nodeMap->nodes($graphName) as $node) {
             // Step 1.3.1.
-            $subject = $this->objects->resource($node->id, DataLossCondition::RelativeSubject);
+            $subject = $this->objects->resource($node->id, DataLossReason::RelativeSubject);
 
             if ($subject === null) {
                 continue;
@@ -127,12 +127,12 @@ final class RdfConverter
             // they come first. A type is null where lenient expansion left one.
             foreach ($node->types as $type) {
                 if (!is_string($type)) {
-                    $this->drop(DataLossCondition::RelativeType, JsonCanonicalizer::canonicalize($type));
+                    $this->drop(DataLossReason::RelativeType, JsonCanonicalizer::canonicalize($type));
 
                     continue;
                 }
 
-                $object = $this->objects->resource($type, DataLossCondition::RelativeType);
+                $object = $this->objects->resource($type, DataLossReason::RelativeType);
 
                 if ($object !== null) {
                     $this->dataset->add(new Quad($subject, $this->type, $object, $graph));
@@ -159,7 +159,7 @@ final class RdfConverter
             // `@type` written as a string, and node map generation makes the
             // first a property; the algorithm has no step for it.
             if (Keywords::isKeyword($property)) {
-                $this->drop(DataLossCondition::UndefinedProperty, $property);
+                $this->drop(DataLossReason::UndefinedProperty, $property);
 
                 continue;
             }
@@ -167,14 +167,14 @@ final class RdfConverter
             // Step 1.3.2.3. Generalized RDF is not produced, because a quad
             // cannot hold a blank node predicate.
             if (str_starts_with($property, '_:')) {
-                $this->drop(DataLossCondition::BlankNodePredicate, $property);
+                $this->drop(DataLossReason::BlankNodePredicate, $property);
 
                 continue;
             }
 
             // Step 1.3.2.4.
             if (!Grammar::isWellFormedIri($property)) {
-                $this->drop(DataLossCondition::RelativePredicate, $property);
+                $this->drop(DataLossReason::RelativePredicate, $property);
 
                 continue;
             }
@@ -200,10 +200,10 @@ final class RdfConverter
     /**
      * In strict mode, refuses to drop what the algorithm drops silently
      */
-    private function drop(DataLossCondition $condition, string $detail): void
+    private function drop(DataLossReason $reason, string $detail): void
     {
         if ($this->strict) {
-            throw new DataLoss($condition, $detail);
+            throw new DataLoss($reason, $detail);
         }
     }
 }

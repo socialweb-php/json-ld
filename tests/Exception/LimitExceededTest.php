@@ -25,13 +25,13 @@ final class LimitExceededTest extends TestCase
         throw new LimitExceeded('maxDepth', 128);
     }
 
-    public function testCarriesTheLimitAndValue(): void
+    public function testNamesTheParameterAndHoldsItsLimit(): void
     {
         $exception = new LimitExceeded('maxContextOperations', 1_000_000);
 
-        $this->assertSame('maxContextOperations', $exception->limit);
+        $this->assertSame('maxContextOperations', $exception->parameter);
         $this->assertSame(0, $exception->getCode());
-        $this->assertSame(1_000_000, $exception->value);
+        $this->assertSame(1_000_000, $exception->limit);
         $this->assertSame('The maxContextOperations limit of 1000000 was exceeded', $exception->getMessage());
     }
 

@@ -6,9 +6,9 @@ namespace SocialWeb\Test\JsonLd\Context;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use SocialWeb\JsonLd\Context\BundledDocumentLoader;
-use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\MalformedJson;
 use SocialWeb\JsonLd\Rdf\JsonCanonicalizer;
 use SocialWeb\Test\JsonLd\TestCase;
@@ -53,8 +53,8 @@ final class BundledDocumentLoaderTest extends TestCase
             $loader->load($url);
             $this->fail('Expected a JsonLdError');
         } catch (JsonLdError $error) {
-            $this->assertSame(ErrorCode::LoadingRemoteContextFailed, $error->errorCode);
-            $this->assertSame('loading remote context failed: ' . $url, $error->getMessage());
+            $this->assertSame(JsonLdErrorCode::LoadingRemoteContextFailed, $error->reason);
+            $this->assertSame('Loading remote context failed: "' . $url . '"', $error->getMessage());
         }
     }
 

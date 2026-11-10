@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace SocialWeb\Test\JsonLd\Rdf;
 
-use SocialWeb\JsonLd\DataLossCondition;
 use SocialWeb\JsonLd\Exception\DataLoss;
+use SocialWeb\JsonLd\Exception\DataLossReason;
 use SocialWeb\JsonLd\Rdf\BlankNodeIssuer;
 use SocialWeb\JsonLd\Rdf\ListToRdf;
 use SocialWeb\JsonLd\Rdf\ObjectToRdf;
@@ -127,7 +127,7 @@ final class ListToRdfTest extends TestCase
             self::lists(strict: true)->convert(self::items('[{"@id": "relative"}]'), new DefaultGraph(), $triples);
             $this->fail('Expected a DataLoss');
         } catch (DataLoss $dataLoss) {
-            $this->assertSame(DataLossCondition::RelativeObject, $dataLoss->condition);
+            $this->assertSame(DataLossReason::RelativeObject, $dataLoss->reason);
             $this->assertSame('relative', $dataLoss->detail);
         }
     }

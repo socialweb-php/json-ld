@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace SocialWeb\Test\JsonLd\W3c;
 
 use PHPUnit\Framework\Attributes\DataProvider;
-use SocialWeb\JsonLd\ErrorCode;
 use SocialWeb\JsonLd\Exception\JsonLdError;
+use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\Test\JsonLd\TestCase;
 
 final class FixtureDocumentLoaderTest extends TestCase
@@ -25,7 +25,7 @@ final class FixtureDocumentLoaderTest extends TestCase
     #[DataProvider('unknownUrls')]
     public function testKnowsNothingElse(string $url): void
     {
-        $this->expectExceptionObject(new JsonLdError(ErrorCode::LoadingRemoteContextFailed, $url));
+        $this->expectExceptionObject(new JsonLdError(JsonLdErrorCode::LoadingRemoteContextFailed, $url));
 
         (new FixtureDocumentLoader())->load($url);
     }
