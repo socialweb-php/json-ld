@@ -66,12 +66,13 @@ use const JSON_THROW_ON_ERROR;
  * by the processor.
  *
  * A value of a PHP type that is not a JSON type, such as an object of another
- * class, a closure, or a resource, is the caller's mistake. When it lies within
- * the limits on depth and on the number of values, it is refused as
- * `InvalidArgument` before anything is read; beyond them, the document is
- * refused as `LimitExceeded`. A value of a JSON type whose content JSON text
- * cannot express is a malformed document and is refused as `JsonLdError` with
- * the code `loading document failed`.
+ * class, a closure, or a resource, is the caller's mistake. When the reader
+ * would read it within the limits on depth and on the number of values, it is
+ * refused as `InvalidArgument` before anything is read. Beyond them, it may be
+ * refused as `InvalidArgument` too, or the document may be refused as
+ * `LimitExceeded`. A value of a JSON type whose content JSON text cannot
+ * express is a malformed document and is refused as `JsonLdError` with the code
+ * `loading document failed`.
  *
  * @internal
  */
@@ -104,12 +105,13 @@ final class DocumentReader
      *
      * @return list<mixed> | stdClass | string | int | float | bool | null
      *
-     * @throws InvalidArgument if a value within the limits on depth and on
-     *     the number of values has a PHP type that is not a JSON type: an
-     *     object of a class other than `stdClass`, a `stdClass` subclass among
-     *     them, a closure, or a resource. This includes a `JsonSerializable`
-     *     inside the document, or one that another's `jsonSerialize()`
-     *     returns. It is raised before anything is read.
+     * @throws InvalidArgument if a value has a PHP type that is not a JSON
+     *     type: an object of a class other than `stdClass`, a `stdClass`
+     *     subclass among them, a closure, or a resource. This includes a
+     *     `JsonSerializable` inside the document, or one that another's
+     *     `jsonSerialize()` returns. It is raised before anything is read, for
+     *     every such value the reader would read within the limits on depth
+     *     and on the number of values, and may be raised for one beyond them.
      * @throws JsonLdError with the code `loading document failed` if the
      *     string is not valid JSON, or if a number is not finite, or if a
      *     string or a property name is not valid UTF-8, or if a property name
@@ -143,12 +145,16 @@ final class DocumentReader
      * The JSON types are `null`, booleans, integers, floats, strings, PHP
      * arrays, and objects whose class is `stdClass` itself. Values are visited
      * in the order `walk()` reads them, a container before its entries and
-     * the entries first to last, and are counted as `walk()` counts them. The
-     * check stops after `maxValues` values and does not look inside nesting
-     * deeper than `maxDepth`; `walk()` refuses a document that goes beyond
-     * either limit. An object is walked again only when it is met at a
-     * shallower depth than before, since that walk reaches everything a
-     * deeper one would, so an object that holds itself is walked once.
+     * the entries first to last. The check stops after `maxValues` values and
+     * does not look inside nesting deeper than `maxDepth`. An object is walked
+     * again only when it is met at a shallower depth than before, since that
+     * walk reaches everything a deeper one would, so an object that holds
+     * itself is walked once. An object met again is otherwise skipped, and its
+     * content is not counted again, where `walk()` reads and counts it each
+     * time, so the check may look further than `walk()` would read. Every
+     * value that `walk()` would read within the limits is checked, and a value
+     * beyond them may or may not be; `walk()` refuses a document that goes
+     * beyond either limit.
      *
      * @throws InvalidArgument naming the type of the first value found whose
      *     PHP type is not a JSON type

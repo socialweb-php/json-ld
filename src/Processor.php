@@ -110,7 +110,10 @@ final class Processor
      * @param int $maxDepth The greatest number of nested arrays and objects in
      *     a document; a top-level object is depth 1. The same number bounds a
      *     chain of contexts that include one another and a chain of terms
-     *     that depend on one another.
+     *     that depend on one another. A chain of contexts that reference one
+     *     another by URL and is longer than this raises `JsonLdError` with the
+     *     code `context overflow`, the code the JSON-LD API gives it, and not
+     *     `LimitExceeded`.
      * @param int $maxValues The greatest number of JSON values of any kind in
      *     a document, scalars included. It also bounds the cost of copying
      *     term definitions: a context that defines a term copies the term
@@ -138,8 +141,9 @@ final class Processor
      *
      * @throws InvalidArgument if the base is given and is not a well-formed
      *     absolute IRI, if a limit is less than 1, or if the expand context
-     *     holds, within the limits on depth and on the number of values, a
-     *     value whose PHP type is not a JSON type
+     *     holds a value whose PHP type is not a JSON type. Such a value is
+     *     always found when it lies within the limits on depth and on the
+     *     number of values, and may be found when it lies beyond them.
      * @throws JsonLdError with the code `loading document failed` if the
      *     expand context is not valid JSON or holds a value that JSON text
      *     cannot express, such as a number that is not finite
@@ -206,9 +210,11 @@ final class Processor
      *     list, including an empty array, is a JSON array, and any other PHP
      *     array is a JSON object.
      *
-     * @throws InvalidArgument if the document holds, within the limits on
-     *     depth and on the number of values, a value whose PHP type is not a
-     *     JSON type, such as an object of a class other than `stdClass`
+     * @throws InvalidArgument if the document holds a value whose PHP type is
+     *     not a JSON type, such as an object of a class other than `stdClass`.
+     *     Such a value is always found when it lies within the limits on depth
+     *     and on the number of values, and may be found when it lies beyond
+     *     them.
      * @throws LimitExceeded if the document exceeds a limit, or its contexts
      *     would take more operations to process than the limit allows
      * @throws JsonLdError if the document breaks a rule of the specification,
@@ -242,10 +248,11 @@ final class Processor
      *     A document as `expand()` takes it, or an `ExpandedDocument`, which
      *     is not expanded again
      *
-     * @throws InvalidArgument if the document holds, within the limits on
-     *     depth and on the number of values, a value whose PHP type is not a
-     *     JSON type, or an `ExpandedDocument` built by hand is not in expanded
-     *     form
+     * @throws InvalidArgument if the document holds a value whose PHP type is
+     *     not a JSON type, or an `ExpandedDocument` built by hand is not in
+     *     expanded form. Such a value is always found when it lies within the
+     *     limits on depth and on the number of values, and may be found when
+     *     it lies beyond them.
      * @throws LimitExceeded if a document that is not an `ExpandedDocument`
      *     exceeds a limit, or its contexts would take more operations to
      *     process than the limit allows
