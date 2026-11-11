@@ -1,12 +1,12 @@
 <h1 align="center">socialweb/json-ld</h1>
 
 <p align="center">
-    <a href="https://github.com/socialweb-php/json-ld"><img src="https://img.shields.io/badge/source-socialweb/json--ld-blue.svg?style=flat-square" alt="Source Code"></a>
-    <a href="https://packagist.org/packages/socialweb/json-ld"><img src="https://img.shields.io/packagist/v/socialweb/json-ld.svg?style=flat-square&label=release" alt="Download Package"></a>
-    <a href="https://php.net"><img src="https://img.shields.io/packagist/php-v/socialweb/json-ld.svg?style=flat-square&colorB=%238892BF" alt="PHP Programming Language"></a>
-    <a href="https://github.com/socialweb-php/json-ld/blob/main/COPYING.LESSER"><img src="https://img.shields.io/packagist/l/socialweb/json-ld.svg?style=flat-square&colorB=darkcyan" alt="Read License"></a>
-    <a href="https://github.com/socialweb-php/json-ld/actions/workflows/continuous-integration.yml"><img src="https://img.shields.io/github/actions/workflow/status/socialweb-php/json-ld/continuous-integration.yml?branch=main&style=flat-square&logo=github" alt="Build Status"></a>
-    <a href="https://codecov.io/gh/socialweb-php/json-ld"><img src="https://img.shields.io/codecov/c/gh/socialweb-php/json-ld?label=codecov&logo=codecov&style=flat-square" alt="Codecov Code Coverage"></a>
+    <a href="https://github.com/socialweb-php/json-ld"><img src="https://img.shields.io/badge/source-socialweb/json--ld-blue.svg" alt="Source Code"></a>
+    <a href="https://packagist.org/packages/socialweb/json-ld"><img src="https://img.shields.io/packagist/v/socialweb/json-ld.svg?label=release" alt="Download Package"></a>
+    <a href="https://php.net"><img src="https://img.shields.io/packagist/php-v/socialweb/json-ld.svg?colorB=%238892BF" alt="PHP Programming Language"></a>
+    <a href="https://github.com/socialweb-php/json-ld/blob/main/COPYING.LESSER"><img src="https://img.shields.io/packagist/l/socialweb/json-ld.svg?colorB=darkcyan" alt="Read License"></a>
+    <a href="https://github.com/socialweb-php/json-ld/actions/workflows/continuous-integration.yml"><img src="https://img.shields.io/github/actions/workflow/status/socialweb-php/json-ld/continuous-integration.yml?branch=main&logo=github" alt="Build Status"></a>
+    <a href="https://codecov.io/gh/socialweb-php/json-ld"><img src="https://img.shields.io/codecov/c/gh/socialweb-php/json-ld?label=codecov&logo=codecov" alt="Codecov Code Coverage"></a>
 </p>
 
 ## About
