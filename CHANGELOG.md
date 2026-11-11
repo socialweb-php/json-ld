@@ -35,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 ### Fixed
 
 - `Context\BundledDocumentLoader::load()` returns a copy of a document added with `withDocument()`, so changing what it returns changes neither the loader nor a loader made from it.
+- A value that contains itself, such as an object that holds itself or an array that holds a reference to itself, raises `Exception\InvalidArgument`. The processor raised `Exception\LimitExceeded` for it, and the loader, which reads without limits, ran out of memory or did not return.
 
 ## [0.1.0] - 2026-10-12
 

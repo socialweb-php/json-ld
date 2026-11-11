@@ -14,6 +14,7 @@ use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Exception\LimitExceeded;
 use SocialWeb\JsonLd\ExpandedDocument;
+use SocialWeb\JsonLd\Rdf\JsonCanonicalizer;
 use SocialWeb\JsonLd\Settings;
 use stdClass;
 
@@ -258,15 +259,108 @@ final class DocumentReaderTest extends TestCase
         (new DocumentReader(new Settings(maxDepth: 2)))->read([[new DateTimeImmutable()]]);
     }
 
-    public function testAnObjectThatHoldsItselfIsRefusedAtTheDepthLimit(): void
+    public function testRefusesAnObjectThatHoldsItself(): void
     {
         $document = new stdClass();
         $document->self = $document;
 
-        $this->expectException(LimitExceeded::class);
-        $this->expectExceptionMessageIsOrContains('The maxDepth limit of 3 was exceeded');
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('A document may not contain itself');
 
-        (new DocumentReader(new Settings(maxDepth: 3)))->read($document);
+        (new DocumentReader(new Settings()))->read($document);
+    }
+
+    public function testRefusesAnObjectThatHoldsItselfFurtherDown(): void
+    {
+        $document = new stdClass();
+        $document->a = [(object) ['b' => $document]];
+
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('A document may not contain itself');
+
+        (new DocumentReader(new Settings()))->read($document);
+    }
+
+    public function testRefusesAnArrayThatHoldsAReferenceToItself(): void
+    {
+        $document = ['a' => []];
+        $document['a']['b'] = &$document;
+
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('A document may not contain itself');
+
+        (new DocumentReader(new Settings()))->read($document);
+    }
+
+    public function testRefusesAnArrayInAnObjectThatHoldsAReferenceToItself(): void
+    {
+        $document = new stdClass();
+        $document->a = ['b' => null];
+        $document->a['b'] = &$document->a;
+
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('A document may not contain itself');
+
+        (new DocumentReader(new Settings()))->read($document);
+    }
+
+    public function testRefusesAValueThatContainsItselfWithNoLimits(): void
+    {
+        $object = new stdClass();
+        $object->self = $object;
+        $array = ['a' => []];
+        $array['a']['b'] = &$array;
+        $reader = new DocumentReader(new Settings(maxDepth: PHP_INT_MAX, maxValues: PHP_INT_MAX));
+
+        foreach ([$object, $array] as $document) {
+            try {
+                $reader->read($document);
+                $this->fail('The document was read.');
+            } catch (InvalidArgument $exception) {
+                $this->assertSame('A document may not contain itself', $exception->getMessage());
+            }
+        }
+    }
+
+    public function testNamesTheSubjectOfAValueThatContainsItself(): void
+    {
+        $document = new stdClass();
+        $document->self = $document;
+
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('expandContext may not contain itself');
+
+        (new DocumentReader(new Settings()))->read($document, 'expandContext');
+    }
+
+    public function testReadsOneObjectInTwoEntries(): void
+    {
+        $shared = (object) ['x' => (object) ['y' => 1]];
+
+        $read = (new DocumentReader(new Settings()))->read(['a' => $shared, 'b' => [$shared]]);
+
+        $this->assertSame('{"a":{"x":{"y":1}},"b":[{"x":{"y":1}}]}', JsonCanonicalizer::canonicalize($read));
+    }
+
+    public function testReadsOneReferenceInTwoEntries(): void
+    {
+        $shared = ['y' => [1]];
+        $document = ['a' => &$shared, 'b' => ['c' => &$shared]];
+
+        $read = (new DocumentReader(new Settings()))->read($document);
+
+        $this->assertSame('{"a":{"y":[1]},"b":{"c":{"y":[1]}}}', JsonCanonicalizer::canonicalize($read));
+    }
+
+    public function testAnObjectThatHoldsItselfBeyondMaxDepthIsRefusedAtTheLimit(): void
+    {
+        $object = new stdClass();
+        $object->self = $object;
+
+        $this->expectException(LimitExceeded::class);
+        $this->expectExceptionMessageIsOrContains('The maxDepth limit of 1 was exceeded');
+
+        (new DocumentReader(new Settings(maxDepth: 1)))->read([[$object]]);
     }
 
     public function testLooksAgainInsideAnObjectMetAtAShallowerDepth(): void

@@ -680,6 +680,29 @@ final class ProcessorTest extends TestCase
         new Processor(expandContext: $expandContext);
     }
 
+    public function testRejectsAnExpandContextThatContainsItselfWhenItIsBuilt(): void
+    {
+        $expandContext = new stdClass();
+        $expandContext->self = $expandContext;
+
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('expandContext may not contain itself');
+
+        new Processor(expandContext: $expandContext);
+    }
+
+    public function testRejectsADocumentThatContainsItself(): void
+    {
+        $document = new stdClass();
+        $document->{'@id'} = 'https://example.com/characters/tamsin';
+        $document->{'https://example.com/ns/game#ally'} = $document;
+
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('A document may not contain itself');
+
+        (new Processor())->toRdf($document);
+    }
+
     /**
      * @return iterable<string, array{array<mixed>, string}>
      */

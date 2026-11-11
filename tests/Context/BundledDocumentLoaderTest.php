@@ -275,6 +275,17 @@ final class BundledDocumentLoaderTest extends TestCase
         (new BundledDocumentLoader())->withDocument(self::URL, ['@context' => new ArrayObject()]);
     }
 
+    public function testWithDocumentRejectsADocumentThatContainsItself(): void
+    {
+        $document = ['@context' => []];
+        $document['@context']['self'] = &$document;
+
+        $this->expectException(InvalidArgument::class);
+        $this->expectExceptionMessageIsOrContains('A document may not contain itself');
+
+        (new BundledDocumentLoader())->withDocument(self::URL, $document);
+    }
+
     public function testWithDocumentReadsAJsonSerializableAsWhatItSerializesTo(): void
     {
         $loader = (new BundledDocumentLoader())->withDocument(self::URL, new ExpandedDocument([new stdClass()]));

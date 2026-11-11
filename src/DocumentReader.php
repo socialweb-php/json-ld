@@ -27,6 +27,7 @@ namespace SocialWeb\JsonLd;
 
 use JsonException;
 use JsonSerializable;
+use ReflectionReference;
 use SocialWeb\JsonLd\Exception\InvalidArgument;
 use SocialWeb\JsonLd\Exception\JsonLdError;
 use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
@@ -35,6 +36,7 @@ use SplObjectStorage;
 use stdClass;
 
 use function array_is_list;
+use function array_keys;
 use function array_pop;
 use function array_reverse;
 use function get_debug_type;
@@ -70,9 +72,11 @@ use const JSON_THROW_ON_ERROR;
  * would read it within the limits on depth and on the number of values, it is
  * refused as `InvalidArgument` before anything is read. Beyond them, it may be
  * refused as `InvalidArgument` too, or the document may be refused as
- * `LimitExceeded`. A value of a JSON type whose content JSON text cannot
- * express is a malformed document and is refused as `JsonLdError` with the code
- * `loading document failed`.
+ * `LimitExceeded`. A value that contains itself, such as an object that holds
+ * itself or an array that holds a reference to itself, has no JSON form either
+ * and is refused the same way. A value of a JSON type whose content JSON text
+ * cannot express is a malformed document and is refused as `JsonLdError` with
+ * the code `loading document failed`.
  *
  * @internal
  */
@@ -112,9 +116,12 @@ final class DocumentReader
      *     type: an object of a class other than `stdClass`, a `stdClass`
      *     subclass among them, a closure, or a resource. This includes a
      *     `JsonSerializable` inside the document, or one that another's
-     *     `jsonSerialize()` returns. It is raised before anything is read, for
-     *     every such value the reader would read within the limits on depth
-     *     and on the number of values, and may be raised for one beyond them.
+     *     `jsonSerialize()` returns. It is also raised if a value contains
+     *     itself: an object that holds itself at any depth, or an array that
+     *     holds a reference to itself. It is raised before anything is read,
+     *     for every such value the reader would read within the limits on
+     *     depth and on the number of values, and may be raised for one beyond
+     *     them.
      * @throws JsonLdError with the code `loading document failed` if the
      *     string is not valid JSON, or if a number is not finite, or if a
      *     string or a property name is not valid UTF-8, or if a property name
@@ -143,43 +150,80 @@ final class DocumentReader
 
     /**
      * Checks that every value in a decoded document has a PHP type JSON can
-     * hold, before any of it is read, so that a caller's mistake is reported
-     * as one and not as a fault of the document
+     * hold and that no value contains itself, before any of it is read, so
+     * that a caller's mistake is reported as one and not as a fault of the
+     * document
      *
      * The JSON types are `null`, booleans, integers, floats, strings, PHP
      * arrays, and objects whose class is `stdClass` itself. Values are visited
      * in the order `walk()` reads them, a container before its entries and
      * the entries first to last. The check stops after `maxValues` values and
-     * does not look inside nesting deeper than `maxDepth`. An object is walked
-     * again only when it is met at a shallower depth than before, since that
-     * walk reaches everything a deeper one would, so an object that holds
-     * itself is walked once. An object met again is otherwise skipped, and its
-     * content is not counted again, where `walk()` reads and counts it each
-     * time, so the check may look further than `walk()` would read. Every
-     * value that `walk()` would read within the limits is checked, and a value
-     * beyond them may or may not be; `walk()` refuses a document that goes
-     * beyond either limit.
+     * does not look inside nesting deeper than `maxDepth`.
+     *
+     * A container that is still open, because the check is inside it, and
+     * that is met again contains itself. An object is recognized by its
+     * identity. An array has none, so an array can contain itself only through
+     * a PHP reference, and it is recognized by the reference's identity. A
+     * value met again after the check has left it, such as one object in two
+     * entries, is not one that contains itself.
+     *
+     * An object is walked again only when it is met at a shallower depth than
+     * before, since that walk reaches everything a deeper one would. An object
+     * met again is otherwise skipped, and its content is not counted again,
+     * where `walk()` reads and counts it each time, so the check may look
+     * further than `walk()` would read. Every value that `walk()` would read
+     * within the limits is checked, and a value beyond them may or may not be;
+     * `walk()` refuses a document that goes beyond either limit.
      *
      * @throws InvalidArgument naming the subject and the type of the first
-     *     value found whose PHP type is not a JSON type
+     *     value found whose PHP type is not a JSON type, or naming the subject
+     *     when a value contains itself
      */
     private function checkTypes(mixed $document, string $subject): void
     {
-        $pending = [[$document, 1]];
+        // Each entry is a value to visit, with its depth and the identity of
+        // the reference it was reached through, or the mark that the check
+        // has left that value.
+        /** @var list<array{bool, mixed, int, string | null}> $pending */
+        $pending = [[false, $document, 1, null]];
         $visited = 0;
         /** @var SplObjectStorage<stdClass, int> $walked */
         $walked = new SplObjectStorage();
+        // The containers the check is inside, with the depth of each.
+        /** @var SplObjectStorage<stdClass, int> $openObjects */
+        $openObjects = new SplObjectStorage();
+        /** @var array<string, int> $openReferences */
+        $openReferences = [];
 
         while (($next = array_pop($pending)) !== null) {
+            [$left, $current, $depth, $reference] = $next;
+
+            if ($left) {
+                if ($current instanceof stdClass) {
+                    unset($openObjects[$current]);
+                }
+
+                if ($reference !== null) {
+                    unset($openReferences[$reference]);
+                }
+
+                continue;
+            }
+
             if (++$visited > $this->settings->maxValues) {
                 return;
             }
 
-            [$current, $depth] = $next;
-
             if (is_array($current) || ($current instanceof stdClass && $current::class === stdClass::class)) {
                 if ($depth > $this->settings->maxDepth) {
                     continue;
+                }
+
+                if (
+                    ($reference !== null && isset($openReferences[$reference]))
+                    || ($current instanceof stdClass && isset($openObjects[$current]))
+                ) {
+                    throw new InvalidArgument(sprintf('%s may not contain itself', $subject));
                 }
 
                 if ($current instanceof stdClass) {
@@ -188,13 +232,25 @@ final class DocumentReader
                     }
 
                     $walked[$current] = $depth;
+                    $openObjects[$current] = $depth;
                 }
+
+                if ($reference !== null) {
+                    $openReferences[$reference] = $depth;
+                }
+
+                $pending[] = [true, $current, $depth, $reference];
+                $entries = is_array($current) ? $current : get_object_vars($current);
 
                 // Pushed in reverse, the entries are taken off the stack first
                 // to last, in the order walk() reads them.
-                /** @var mixed $entry */
-                foreach (array_reverse(is_array($current) ? $current : get_object_vars($current)) as $entry) {
-                    $pending[] = [$entry, $depth + 1];
+                foreach (array_reverse(array_keys($entries)) as $key) {
+                    $pending[] = [
+                        false,
+                        $entries[$key],
+                        $depth + 1,
+                        ReflectionReference::fromArrayElement($entries, $key)?->getId(),
+                    ];
                 }
             } elseif ($current !== null && !is_scalar($current)) {
                 throw new InvalidArgument(
