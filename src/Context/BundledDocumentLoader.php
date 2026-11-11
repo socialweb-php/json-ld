@@ -33,6 +33,8 @@ use SocialWeb\JsonLd\Exception\JsonLdErrorCode;
 use SocialWeb\JsonLd\Settings;
 use stdClass;
 
+use function array_map;
+use function get_object_vars;
 use function is_array;
 use function sprintf;
 
@@ -141,10 +143,18 @@ final class BundledDocumentLoader implements DocumentLoader
         return clone($this, ['documents' => $documents]);
     }
 
+    /**
+     * Returns the document for the URL; a document the caller added is
+     * returned as a copy, so that changing it changes neither this loader nor
+     * a loader made from it
+     */
     public function load(string $url): LoadedDocument
     {
         if (isset($this->documents[$url])) {
-            return new LoadedDocument($url, $this->documents[$url]);
+            /** @var list<mixed> | stdClass $document */
+            $document = self::copy($this->documents[$url]);
+
+            return new LoadedDocument($url, $document);
         }
 
         $name = self::PINNED[$url] ?? null;
@@ -160,5 +170,29 @@ final class BundledDocumentLoader implements DocumentLoader
         }
 
         return new LoadedDocument($url, $this->pinned[$name]);
+    }
+
+    /**
+     * Copies a value that `DocumentReader` returned, with a new `stdClass`
+     * for each object in it
+     */
+    private static function copy(mixed $value): mixed
+    {
+        if ($value instanceof stdClass) {
+            $copy = new stdClass();
+
+            /** @var mixed $entry */
+            foreach (get_object_vars($value) as $key => $entry) {
+                $copy->{$key} = self::copy($entry);
+            }
+
+            return $copy;
+        }
+
+        if (is_array($value)) {
+            return array_map(self::copy(...), $value);
+        }
+
+        return $value;
     }
 }

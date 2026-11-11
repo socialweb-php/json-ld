@@ -32,6 +32,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - `ErrorCode` and `DataLossCondition`; use `Exception\JsonLdErrorCode` and `Exception\DataLossReason`.
 - `Exception\JsonLdError::$errorCode` and `Exception\DataLoss::$condition`; read `$reason`.
 
+### Fixed
+
+- `Context\BundledDocumentLoader::load()` returns a copy of a document added with `withDocument()`, so changing what it returns changes neither the loader nor a loader made from it.
+
 ## [0.1.0] - 2026-10-12
 
 ### Added

@@ -195,6 +195,52 @@ final class BundledDocumentLoaderTest extends TestCase
         $this->assertSame('{"@context":{}}', JsonCanonicalizer::canonicalize($loader->load(self::URL)->document));
     }
 
+    public function testLoadReturnsACopyOfAnAddedDocumentThatChangingDoesNotReachTheLoader(): void
+    {
+        $loader = (new BundledDocumentLoader())->withDocument(self::URL, '{"@context": {"name": "ex:name"}}');
+        $sibling = $loader->withDocument('https://example.com/other', '{"@context": {}}');
+
+        $loaded = $loader->load(self::URL)->document;
+        $this->assertInstanceOf(stdClass::class, $loaded);
+        $this->assertInstanceOf(stdClass::class, $loaded->{'@context'});
+        $loaded->{'@context'}->name = 'ex:changed';
+        $loaded->added = 'later';
+
+        $expected = '{"@context":{"name":"ex:name"}}';
+        $this->assertSame($expected, JsonCanonicalizer::canonicalize($loader->load(self::URL)->document));
+        $this->assertSame($expected, JsonCanonicalizer::canonicalize($sibling->load(self::URL)->document));
+    }
+
+    public function testLoadCopiesEveryObjectInsideListsAndKeepsEveryName(): void
+    {
+        $loader = (new BundledDocumentLoader())->withDocument(
+            self::URL,
+            '[{"@context": [{"5": "ex:five", "": "ex:empty"}, [{"a": null}]]}]',
+        );
+
+        $first = $loader->load(self::URL)->document;
+        $second = $loader->load(self::URL)->document;
+
+        $this->assertIsArray($first);
+        $this->assertIsArray($second);
+        $this->assertInstanceOf(stdClass::class, $first[0]);
+        $this->assertInstanceOf(stdClass::class, $second[0]);
+        $this->assertNotSame($first[0], $second[0]);
+        $this->assertSame(
+            '[{"@context":[{"":"ex:empty","5":"ex:five"},[{"a":null}]]}]',
+            JsonCanonicalizer::canonicalize($first),
+        );
+
+        /** @var list<mixed> $firstContexts */
+        $firstContexts = $first[0]->{'@context'};
+        /** @var list<mixed> $secondContexts */
+        $secondContexts = $second[0]->{'@context'};
+        $this->assertIsArray($firstContexts[1]);
+        $this->assertIsArray($secondContexts[1]);
+        $this->assertNotSame($firstContexts[0], $secondContexts[0]);
+        $this->assertNotSame($firstContexts[1][0], $secondContexts[1][0]);
+    }
+
     public function testWithDocumentAcceptsATopLevelJsonArray(): void
     {
         $loader = (new BundledDocumentLoader())->withDocument(self::URL, '[{"@context": {}}]');
