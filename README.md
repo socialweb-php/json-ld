@@ -82,7 +82,7 @@ $second = $canonicalizer->canonicalize($processor->toRdf($fromAPlayer))->toNQuad
 
 echo $first;
 echo $first === $second ? "The two documents say the same thing.\n" : "The two documents say different things.\n";
-echo hash('sha256', $first), "\n";
+echo hash('sha256', $first) . "\n";
 ```
 
 This prints:
@@ -162,7 +162,7 @@ $document = <<<'JSON'
 $loader = (new BundledDocumentLoader())->withDocument('https://example.com/contexts/game/v1', $context);
 $processor = new Processor(documentLoader: $loader);
 
-echo $processor->expand($document)->toJson(), "\n";
+echo $processor->expand($document)->toJson() . "\n";
 ```
 
 This prints:
@@ -201,10 +201,10 @@ $document = <<<'JSON'
 try {
     (new Processor())->expand($document);
 } catch (DataLoss $exception) {
-    echo $exception->getMessage(), "\n";
+    echo $exception->getMessage() . "\n";
 }
 
-echo (new Processor(strict: false))->expand($document)->toJson(), "\n";
+echo (new Processor(strict: false))->expand($document)->toJson() . "\n";
 ```
 
 This prints:
@@ -248,7 +248,7 @@ echo (new Processor())->toRdf($document)->toNQuads();
 try {
     (new Processor(forbidReverseProperties: true))->toRdf($document);
 } catch (RestrictedFeature $exception) {
-    echo $exception->getMessage(), "\n";
+    echo $exception->getMessage() . "\n";
 }
 ```
 
@@ -290,7 +290,7 @@ foreach ($documents as $label => $document) {
     try {
         $processor->toRdf($document);
     } catch (JsonLdException $exception) {
-        echo $label, ': ', $exception::class, ': ', $exception->getMessage(), "\n";
+        echo $label . ': ' . $exception::class . ': ' . $exception->getMessage() . "\n";
     }
 }
 ```
