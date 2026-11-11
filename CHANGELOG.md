@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
 ## [0.2.0] - 2026-11-11
 
 ### Added
@@ -50,5 +52,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - `Context\DocumentLoader`, `Context\LoadedDocument`, and the default loader `Context\BundledDocumentLoader`, with nine pinned contexts: ActivityStreams 2.0, Security Vocabulary v1 and v2, Identity Credentials v1, Data Integrity v1 and v2, Multikey v1, Controlled Identifiers v1, and Decentralized Identifiers v1. `with()` adds a context the caller supplies. Nothing is fetched from the network.
 - Exceptions under `SocialWeb\JsonLd\Exception`, every one implementing the `JsonLdException` marker interface: `InvalidArgument`, `MalformedJson`, `JsonLdError` with the specification's error code as an `ErrorCode` case, `DataLoss`, `LimitExceeded`, and `RestrictedFeature`.
 
+[unreleased]: https://github.com/socialweb-php/json-ld/compare/0.2.0...HEAD
 [0.2.0]: https://github.com/socialweb-php/json-ld/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/socialweb-php/json-ld/commits/0.1.0/
